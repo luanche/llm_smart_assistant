@@ -496,6 +496,40 @@ class LLMSmartAssistantCoordinator:
         # hass.data['entity_registry'].async_get(entity_id)?.area_id
         return ""
 
+    async def _async_query_llm_raw(
+        self,
+        messages: list[dict[str, str]],
+        max_tokens: int = 200,
+    ) -> str | None:
+        """Send a chat completion and return raw text content (no JSON parsing)."""
+        url = f"{self.api_base_url.rstrip('/')}/chat/completions"
+        headers = {
+            "Authorization": f"Bearer {self.api_key}",
+            "Content-Type": "application/json",
+        }
+        payload: dict[str, Any] = {
+            "model": self.model_name,
+            "messages": messages,
+            "temperature": self.temperature,
+            "max_tokens": max_tokens,
+        }
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.post(
+                    url, headers=headers, json=payload,
+                    timeout=aiohttp.ClientTimeout(total=30),
+                ) as resp:
+                    if resp.status != 200:
+                        return None
+                    data = await resp.json()
+            choices = data.get("choices", [])
+            if not choices:
+                return None
+            content = choices[0].get("message", {}).get("content", "")
+            return content.strip() or None
+        except Exception:
+            return None
+
     async def _async_query_llm(
         self,
         messages: list[dict[str, str]],

@@ -115,7 +115,6 @@ ALLOWED_HARDCODED = {
     "delete"
     "chat"
     "automations"
-    "placeholders"
     "thinkingText"
     "tokenPromptText"
     "actionLabel"
@@ -125,13 +124,15 @@ ALLOWED_HARDCODED = {
     "voiceInputTitle"
     "sendTitle",
     # HTML tag names in applyI18n()
-    "BUTTON", "INPUT", "LABEL", "SPAN", "TEXTAREA",
+    "BUTTON", "INPUT", "LABEL", "SPAN", "TEXTAREA", "button",
     "text", "textarea",
     "sensor.living_room_temperature", ">30",
     "Turn on the living room light", "Turn off the TV",
     "What is the temperature?", "Open the bedroom light",
+    "Turn on a light", "Turn off a device",
     "Enter HA long-lived access token",
     "key",
+    "suggestion-btn", "suggestionButtons",
     "Status ",
     "Ask me to control your smart home devices...",
 }
@@ -197,7 +198,6 @@ KNOWN_I18N_VALUES = {
     "delete"
     "chat"
     "automations"
-    "placeholders"
     "thinkingText"
     "tokenPromptText"
     "actionLabel"

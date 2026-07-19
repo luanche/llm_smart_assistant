@@ -7,6 +7,7 @@ enabling natural language control, dynamic automations, and TTS output.
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import logging
 import pathlib
 from typing import Any
@@ -429,6 +430,85 @@ async def _async_register_chat_panel(
                         )
 
                 hass.http.register_view(ChatJSView)
+
+                # Suggestions API - generates smart suggestions based on user's devices
+                class ChatSuggestionsView(HomeAssistantView):
+                    """Generate chat suggestions based on exposed entities."""
+                    url = "/api/llm_smart_assistant/suggestions"
+                    name = "api:llm_smart_assistant:suggestions"
+                    requires_auth = False
+
+                    _cache: dict[str, Any] = {}  # class-level cache
+
+                    async def get(self, request):
+                        entry_id = request.query.get("entry_id", "")
+                        coordinator = None
+                        if entry_id and entry_id in hass.data.get(DOMAIN, {}):
+                            coordinator = hass.data[DOMAIN][entry_id]
+                        else:
+                            for eid, coord in hass.data.get(DOMAIN, {}).items():
+                                if hasattr(coord, 'domains_whitelist'):
+                                    coordinator = coord
+                                    entry_id = eid
+                                    break
+
+                        if not coordinator:
+                            return web.json_response({
+                                "suggestions": ["Turn on a light", "What is the temperature?", "Turn off a device"],
+                                "hash": ""
+                            })
+
+                        # Build cache key from entity configuration
+                        domains = sorted(coordinator.domains_whitelist or [])
+                        entities = sorted(coordinator.entities_whitelist or [])
+                        cache_key = hashlib.md5(
+                            ("".join(domains) + "|" + "".join(entities)).encode()
+                        ).hexdigest()[:16]
+
+                        cached = ChatSuggestionsView._cache.get(entry_id, {})
+                        if cached.get("hash") == cache_key:
+                            return web.json_response({
+                                "suggestions": cached["suggestions"],
+                                "hash": cache_key,
+                            })
+
+                        # Build entity context for LLM
+                        entity_csv = coordinator._build_entity_csv()
+                        # Use HA user's configured language
+                        user_lang = (hass.config.language or "en").split("-")[0]
+                        lang_name = {"zh": "Chinese", "en": "English", "ja": "Japanese", "fr": "French", "de": "German", "es": "Spanish", "pt": "Portuguese", "ko": "Korean", "ru": "Russian"}.get(user_lang, "English")
+                        prompt_text = (
+                            f"Based on these smart home devices:\n{entity_csv}\n\n"
+                            f"Generate 4 short example commands in {lang_name} that a user might ask. "
+                            f"Mix device control and info queries. Use real device names. "
+                            f"Output each command on its own line, no numbering, no extra text."
+                        )
+
+                        try:
+                            raw = await coordinator._async_query_llm_raw([{
+                                "role": "user",
+                                "content": prompt_text
+                            }])
+                            if raw:
+                                lines = [s.strip() for s in raw.split("\n") if s.strip()]
+                                result = lines[:6]
+                                ChatSuggestionsView._cache[entry_id] = {
+                                    "hash": cache_key,
+                                    "suggestions": result,
+                                }
+                                return web.json_response({
+                                    "suggestions": result,
+                                    "hash": cache_key,
+                                })
+                        except Exception:
+                            pass
+
+                        return web.json_response({
+                            "suggestions": cached.get("suggestions", ["Turn on a light", "What is the temperature?", "Turn off a device"]),
+                            "hash": cache_key,
+                        })
+
+                hass.http.register_view(ChatSuggestionsView)
 
                 await panel_custom.async_register_panel(
                     hass=hass,
