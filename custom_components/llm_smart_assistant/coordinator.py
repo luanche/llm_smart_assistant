@@ -246,14 +246,22 @@ class LLMSmartAssistantCoordinator:
 
     @property
     def prompt_default(self) -> str:
-        """Full system prompt: hardcoded core + user customization."""
+        """Full system prompt: hardcoded core + user customization.
+        If the saved prompt already contains the hardcoded core (old format),
+        use it as-is for backward compatibility."""
         user_part = self._options.get(CONF_PROMPT_DEFAULT, DEFAULT_PROMPT_DEFAULT)
+        if HARDCODED_SYSTEM_PROMPT[:40] in user_part:
+            return user_part
         return HARDCODED_SYSTEM_PROMPT + "\n" + user_part
 
     @property
     def prompt_automation(self) -> str:
-        """Full automation prompt: hardcoded core + user customization."""
+        """Full automation prompt: hardcoded core + user customization.
+        If the saved prompt already contains the hardcoded core (old format),
+        use it as-is for backward compatibility."""
         user_part = self._options.get(CONF_PROMPT_AUTOMATION, DEFAULT_PROMPT_AUTOMATION)
+        if HARDCODED_AUTOMATION_PROMPT[:40] in user_part:
+            return user_part
         return HARDCODED_AUTOMATION_PROMPT + "\n" + user_part
 
     @property

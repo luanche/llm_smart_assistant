@@ -203,11 +203,17 @@ class LLMSmartAssistantOptionsFlow(config_entries.OptionsFlow):
                 selector.NumberSelector(selector.NumberSelectorConfig(min=64, max=32768, step=1, mode=selector.NumberSelectorMode.BOX)),
 
                 # ── System Prompts ──
+                # Detect old-format prompts (containing now-hardcoded content)
+                # and migrate to new shorter defaults automatically
+                _old_prompt = cur.get(CONF_PROMPT_DEFAULT, "")
+                _is_old_format = len(_old_prompt) > 200 or "You are a smart home assistant integrated with Home Assistant" in _old_prompt
                 vol.Optional(CONF_PROMPT_DEFAULT,
-                    default=cur.get(CONF_PROMPT_DEFAULT, DEFAULT_PROMPT_DEFAULT)):
+                    default=DEFAULT_PROMPT_DEFAULT if _is_old_format else (_old_prompt or DEFAULT_PROMPT_DEFAULT)):
                 selector.TextSelector(selector.TextSelectorConfig(multiline=True)),
+                _old_auto = cur.get(CONF_PROMPT_AUTOMATION, "")
+                _is_old_auto_format = len(_old_auto) > 200 or "You are an automation trigger executor for Home Assistant" in _old_auto
                 vol.Optional(CONF_PROMPT_AUTOMATION,
-                    default=cur.get(CONF_PROMPT_AUTOMATION, DEFAULT_PROMPT_AUTOMATION)):
+                    default=DEFAULT_PROMPT_AUTOMATION if _is_old_auto_format else (_old_auto or DEFAULT_PROMPT_AUTOMATION)):
                 selector.TextSelector(selector.TextSelectorConfig(multiline=True)),
 
                 # ── Input Sensors ──
