@@ -447,7 +447,7 @@
   <div id="header">
     <span id="headerTitle" data-i18n="title"></span>
     <select id="instanceSelect" class="instance-select" onchange="switchInstance()" title=""></select>
-    <button id="debugBtn" class="debug-btn" title="${isZh ? "调试" : "Debug"}">📋</button>
+    <button id="debugBtn" class="debug-btn" title="${t('debugBtnTitle')}">📋</button>
     <span id="statusText" class="status-text" data-i18n="connected"></span>
   </div>
 </div>
@@ -474,9 +474,9 @@
   <div id="inputOuter">
     <div id="inputShell">
       <div id="inputArea">
-        <button id="voiceBtn" onclick="toggleVoice()" title="${isZh ? "语音输入" : "Voice input"}">🎤</button>
+        <button id="voiceBtn" onclick="toggleVoice()" title="${t('voiceInputTitle')}">🎤</button>
         <textarea id="inputField" rows="1" data-i18n="placeholderMsg" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMessage()}"></textarea>
-        <button id="sendBtn" onclick="sendMessage()" title="${isZh ? "发送" : "Send"}">↑</button>
+        <button id="sendBtn" onclick="sendMessage()" title="${t('sendTitle')}">↑</button>
       </div>
     </div>
   </div>
@@ -576,89 +576,168 @@ let currentInstanceId = '';
 let voiceRecognition = null;
 let isListening = false;
 
-// Detect language
-const lang = navigator.language || navigator.userLanguage || 'en';
-const isZh = lang.startsWith('zh');
-
-// i18n
-const i18n = {
-  title: isZh ? 'AI 聊天' : 'AI Chat',
-  empty: isZh ? '向我发送指令来控制您的智能家居设备...' : 'Ask me to control your smart home devices...',
-  connected: isZh ? '已连接' : 'Connected',
-  noToken: isZh ? '需要 Token' : 'No token',
-  tokenRequired: isZh ? 'Token 验证失败' : 'Token required',
-  timeout: isZh ? '请求超时，请重试' : 'Timed out, please retry',
-  noResponse: isZh ? '（无回复）' : '(no response)',
-  autoLoading: isZh ? '加载自动化...' : 'Loading automations...',
-  noAuto: isZh ? '还没有动态自动化。让 AI 创建一个吧！' : 'No automations yet. Ask AI to create one!',
-  voiceHint: isZh ? '正在聆听...' : 'Listening...',
-  voiceNotSupported: isZh ? '此浏览器不支持语音输入' : 'Voice input not supported in this browser',
-  round: isZh ? '轮' : 'round',
-  actions: isZh ? '个动作' : 'actions',
-  editPrompt: isZh ? '编辑自动化' : 'Edit automation',
-  addAutoTitle: isZh ? '添加自动化' : 'Add Automation',
-  add: isZh ? '添加' : 'Add',
-  save: isZh ? '保存' : 'Save',
-  cancel: isZh ? '取消' : 'Cancel',
-  editPromptPlaceholder: isZh ? '描述要执行的动作...' : 'Describe what action to take...',
-  cancel: isZh ? '取消' : 'Cancel',
-  deleteConfirmBtn: isZh ? '删除' : 'Delete',
-  save: isZh ? '保存' : 'Save',
-  addAuto: isZh ? '+ 添加自动化' : '+ Add Automation',
-  disabling: isZh ? '禁用中...' : 'Disabling...',
-  enabling: isZh ? '启用中...' : 'Enabling...',
-  errorPrefix: isZh ? '错误：' : 'Error: ',
-  noDebugData: isZh ? '暂无调试数据。' : 'No data yet.',
-  noActionSpecified: isZh ? '未指定动作' : 'No action specified',
-  autoPrefix: isZh ? '自动：' : 'Auto: ',
-  debugRound: isZh ? '第' : 'Round',
-  debugSteps: isZh ? '步骤：' : 'Steps:',
-  debugTts: isZh ? '语音：' : 'TTS:',
-  debugSilent: isZh ? '（静默）' : '(silent)',
-  labelEntityId: isZh ? '实体 ID（触发条件）' : 'Entity ID (trigger)',
-  labelCondition: isZh ? '触发条件' : 'Condition',
-  labelAction: isZh ? '执行动作' : 'Action',
-  placeholderEntity: isZh ? 'sensor.living_room_temperature' : 'sensor.living_room_temperature',
-  placeholderCondition: isZh ? '>30' : '>30',
-  placeholderAction: isZh ? '例如 turn on input_boolean.air_conditioner' : 'e.g., turn on input_boolean.air_conditioner',
-  placeholderMsg: isZh ? '输入消息...' : 'Message...',
-  deleteConfirm: isZh ? '确定删除此自动化？' : 'Delete this automation?',
-  enable: isZh ? '启用' : 'Enable',
-  disable: isZh ? '禁用' : 'Disable',
-  edit: isZh ? '编辑' : 'Edit',
-  delete: isZh ? '删除' : 'Delete',
-  chat: isZh ? '聊天' : 'Chat',
-  automations: isZh ? '自动化' : 'Automations',
-  placeholders: isZh ? ['💡 客厅灯', '📺 关闭电视', '🌡️ 温度', '🛏️ 卧室灯'] : ['💡 Living room light', '📺 Turn off TV', '🌡️ Temperature', '🛏️ Bedroom light'],
+// ── Multi-language i18n ──
+// Add new languages by extending the LANGUAGES object.
+// Each language key maps to an object with the same keys as 'en'.
+// The system resolves: full language → language root → 'en'
+const LANGUAGES = {
+  en: {
+    title: 'AI Chat',
+    empty: 'Ask me to control your smart home devices...',
+    connected: 'Connected',
+    noToken: 'No token',
+    tokenRequired: 'Token required',
+    timeout: 'Timed out, please retry',
+    noResponse: '(no response)',
+    autoLoading: 'Loading automations...',
+    noAuto: 'No automations yet. Ask AI to create one!',
+    voiceHint: 'Listening...',
+    voiceNotSupported: 'Voice input not supported in this browser',
+    round: 'round',
+    actions: 'actions',
+    editPrompt: 'Edit automation',
+    addAutoTitle: 'Add Automation',
+    add: 'Add',
+    save: 'Save',
+    cancel: 'Cancel',
+    editPromptPlaceholder: 'Describe what action to take...',
+    deleteConfirmBtn: 'Delete',
+    addAuto: '+ Add Automation',
+    disabling: 'Disabling...',
+    enabling: 'Enabling...',
+    errorPrefix: 'Error: ',
+    noDebugData: 'No data yet.',
+    noActionSpecified: 'No action specified',
+    autoPrefix: 'Auto: ',
+    debugRound: 'Round',
+    debugSteps: 'Steps:',
+    debugTts: 'TTS:',
+    debugSilent: '(silent)',
+    labelEntityId: 'Entity ID (trigger)',
+    labelCondition: 'Condition',
+    labelAction: 'Action',
+    placeholderEntity: 'sensor.living_room_temperature',
+    placeholderCondition: '>30',
+    placeholderAction: 'e.g., turn on input_boolean.air_conditioner',
+    placeholderMsg: 'Message...',
+    deleteConfirm: 'Delete this automation?',
+    enable: 'Enable',
+    disable: 'Disable',
+    edit: 'Edit',
+    delete: 'Delete',
+    chat: 'Chat',
+    automations: 'Automations',
+    placeholders: ['💡 Living room light', '📺 Turn off TV', '🌡️ Temperature', '🛏️ Bedroom light'],
+    thinkingText: 'Thinking...',
+    tokenPromptText: 'Enter HA long-lived access token',
+    actionLabel: 'Action:',
+    reasoningPrefix: 'Reasoning (round ',
+    reasoningSuffix: ')...',
+    debugBtnTitle: 'Debug',
+    voiceInputTitle: 'Voice input',
+    sendTitle: 'Send',
+  },
+  zh: {
+    title: 'AI 聊天',
+    empty: '向我发送指令来控制您的智能家居设备...',
+    connected: '已连接',
+    noToken: '需要 Token',
+    tokenRequired: 'Token 验证失败',
+    timeout: '请求超时，请重试',
+    noResponse: '（无回复）',
+    autoLoading: '加载自动化...',
+    noAuto: '还没有动态自动化。让 AI 创建一个吧！',
+    voiceHint: '正在聆听...',
+    voiceNotSupported: '此浏览器不支持语音输入',
+    round: '轮',
+    actions: '个动作',
+    editPrompt: '编辑自动化',
+    addAutoTitle: '添加自动化',
+    add: '添加',
+    save: '保存',
+    cancel: '取消',
+    editPromptPlaceholder: '描述要执行的动作...',
+    deleteConfirmBtn: '删除',
+    addAuto: '+ 添加自动化',
+    disabling: '禁用中...',
+    enabling: '启用中...',
+    errorPrefix: '错误：',
+    noDebugData: '暂无调试数据。',
+    noActionSpecified: '未指定动作',
+    autoPrefix: '自动：',
+    debugRound: '第',
+    debugSteps: '步骤：',
+    debugTts: '语音：',
+    debugSilent: '（静默）',
+    labelEntityId: '实体 ID（触发条件）',
+    labelCondition: '触发条件',
+    labelAction: '执行动作',
+    placeholderEntity: 'sensor.living_room_temperature',
+    placeholderCondition: '>30',
+    placeholderAction: '例如 turn on input_boolean.air_conditioner',
+    placeholderMsg: '输入消息...',
+    deleteConfirm: '确定删除此自动化？',
+    enable: '启用',
+    disable: '禁用',
+    edit: '编辑',
+    delete: '删除',
+    chat: '聊天',
+    automations: '自动化',
+    placeholders: ['💡 客厅灯', '📺 关闭电视', '🌡️ 温度', '🛏️ 卧室灯'],
+    thinkingText: '思考中...',
+    tokenPromptText: '请输入 HA 长效 Token（HA左下角→安全→长效访问令牌）',
+    actionLabel: '动作：',
+    reasoningPrefix: '推理中（第 ',
+    reasoningSuffix: ' 轮）...',
+    debugBtnTitle: '调试',
+    voiceInputTitle: '语音输入',
+    sendTitle: '发送',
+  },
 };
 
-document.title = i18n.title;
+// Resolve active language with fallback chain
+const lang = (navigator.language || navigator.userLanguage || 'en').toLowerCase();
+const langRoot = lang.split('-')[0];
+const activeLang = LANGUAGES[lang] ? lang : LANGUAGES[langRoot] ? langRoot : 'en';
+
+// Translate function: t(keyName) returns the value in the active language,
+// falling back to 'en' if the key is missing in the active language.
+function t(key) {
+  return (LANGUAGES[activeLang] && LANGUAGES[activeLang][key] !== undefined)
+    ? LANGUAGES[activeLang][key]
+    : (LANGUAGES['en'][key] !== undefined ? LANGUAGES['en'][key] : key);
+}
+
+// Shortcut for accessing i18n values in inline isZh ternaries (legacy support)
+const isZh = langRoot === 'zh';
+
+document.title = t('title');
 applyI18n();
 // Set modal button text
 const cancelBtn = document.querySelector('.modal-btn-secondary');
 const saveBtn = document.querySelector('.modal-btn-primary');
 // Set all modal button texts
-document.querySelectorAll('.modal-btn-secondary').forEach(b => b.textContent = i18n.cancel);
+document.querySelectorAll('.modal-btn-secondary').forEach(b => b.textContent = t('cancel'));
 // Edit modal save
 const editSave = document.querySelector('#editModal .modal-btn-primary');
-if (editSave) editSave.textContent = i18n.save;
+if (editSave) editSave.textContent = t('save');
 // Add modal add
 const addBtn_ = document.querySelector('#addModal .modal-btn-primary');
-if (addBtn_) addBtn_.textContent = i18n.add;
+if (addBtn_) addBtn_.textContent = t('add');
 // Confirm modal delete
 const delBtn = document.querySelector('#confirmModal .modal-btn-primary');
-if (delBtn) delBtn.textContent = i18n.deleteConfirmBtn;
-document.getElementById('headerTitle').textContent = i18n.title;
-document.getElementById('emptyText').textContent = i18n.empty;
-document.getElementById('tabBar').querySelectorAll('.tab-btn')[0].textContent = i18n.chat;
-document.getElementById('tabBar').querySelectorAll('.tab-btn')[1].textContent = i18n.automations;
+if (delBtn) delBtn.textContent = t('delete')ConfirmBtn;
+document.getElementById('headerTitle').textContent = t('title');
+document.getElementById('emptyText').textContent = t('empty');
+document.getElementById('tabBar').querySelectorAll('.tab-btn')[0].textContent = t('chat');
+document.getElementById('tabBar').querySelectorAll('.tab-btn')[1].textContent = t('automations');
 
 // Update suggestion buttons
 const sugBtns = document.querySelectorAll('.suggestion-btn');
 const sugActions = ['Turn on the living room light', 'Turn off the TV', 'What is the temperature?', 'Open the bedroom light'];
 sugBtns.forEach((b, i) => {
-  if (i < i18n.placeholders.length) {
-    b.innerHTML = i18n.placeholders[i];
+  if (i < t('placeholders').length) {
+    b.innerHTML = t('placeholders')[i];
     b.setAttribute('onclick', "suggest('" + sugActions[i] + "')");
   }
 });
@@ -693,7 +772,7 @@ function addMsg(role, text, raw) {
   div.className = 'msg ' + role;
   const p = document.createElement('div');
   p.className = 'msg-text';
-  p.textContent = text || i18n.noResponse;
+  p.textContent = text || t('noResponse');
   div.appendChild(p);
   const t = document.createElement('div');
   t.className = 'msg-time';
@@ -713,7 +792,7 @@ function showLoad() {
   d.id = 'loadingIndicator';
   const p = document.createElement('div');
   p.className = 'msg-text';
-  p.textContent = isZh ? '思考中...' : 'Thinking...';
+  p.textContent = t('thinkingText');
   d.appendChild(p);
   const t = document.createElement('div');
   t.className = 'msg-time';
@@ -738,7 +817,7 @@ function setStatus(text, ok) {
 function toggleVoice() {
   if (isListening) { stopVoice(); return; }
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SpeechRecognition) { alert(i18n.voiceNotSupported); return; }
+  if (!SpeechRecognition) { alert(t('voiceNotSupported')); return; }
   voiceRecognition = new SpeechRecognition();
   voiceRecognition.lang = lang;
   voiceRecognition.continuous = false;
@@ -755,7 +834,7 @@ function toggleVoice() {
   isListening = true;
   document.getElementById('voiceBtn').classList.add('listening');
   document.getElementById('voiceBtn').textContent = '🔴';
-  setStatus(i18n.voiceHint);
+  setStatus(t('voiceHint'));
 }
 
 function stopVoice() {
@@ -766,7 +845,7 @@ function stopVoice() {
   isListening = false;
   document.getElementById('voiceBtn').classList.remove('listening');
   document.getElementById('voiceBtn').textContent = '🎤';
-  setStatus(i18n.connected);
+  setStatus(t('connected'));
 }
 
 // Debug
@@ -787,11 +866,11 @@ document.getElementById('debugBtn').addEventListener('click', () => {
         html += '<div class="debug-rounds">';
         rounds.forEach((r, i) => {
           const stepCount = (r.steps || []).length;
-          const ttsDisplay = r.tts_text || '' + i18n.debugSilent + '';
+          const ttsDisplay = r.tts_text || '' + t('debugSilent') + '';
           html += '<div style="margin-bottom:12px;padding:8px 10px;background:var(--surface-alt);border-radius:8px;border:1px solid var(--border)">';
-          html += '<div style="font-weight:600;font-size:12px;margin-bottom:4px;color:var(--accent)">' + i18n.debugRound + ' ' + r.round + '</div>';
-          html += '<div style="font-size:11px;color:var(--text-secondary)">' + i18n.debugSteps + ' ' + (stepCount > 0 ? JSON.stringify(r.steps, null, 2) : '[]') + '</div>';
-          html += '<div style="font-size:11px;color:var(--text-tertiary);margin-top:2px">' + i18n.debugTts + ' "' + ttsDisplay + '"' + (i < rounds.length - 1 ? ' ' + i18n.debugSilent + '' : '') + '</div>';
+          html += '<div style="font-weight:600;font-size:12px;margin-bottom:4px;color:var(--accent)">' + t('debugRound') + ' ' + r.round + '</div>';
+          html += '<div style="font-size:11px;color:var(--text-secondary)">' + t('debugSteps') + ' ' + (stepCount > 0 ? JSON.stringify(r.steps, null, 2) : '[]') + '</div>';
+          html += '<div style="font-size:11px;color:var(--text-tertiary);margin-top:2px">' + t('debugTts') + ' "' + ttsDisplay + '"' + (i < rounds.length - 1 ? ' ' + t('debugSilent') + '' : '') + '</div>';
           html += '</div>';
         });
         html += '</div>';
@@ -848,7 +927,7 @@ async function refreshAutomations() {
     const disabledIds = data.disabled_ids || [];
     
     if (autos.length === 0) {
-      container.innerHTML = '<p style="color:var(--text-secondary);text-align:center;padding:40px 20px;font-size:14px;">' + i18n.noAuto + '</p>';
+      container.innerHTML = '<p style="color:var(--text-secondary);text-align:center;padding:40px 20px;font-size:14px;">' + t('noAuto') + '</p>';
       return;
     }
     
@@ -865,13 +944,13 @@ async function refreshAutomations() {
       card.innerHTML = `
         <div class="entity">${a.entity_id} ${a.condition}</div>
         <div class="detail">${a.description || ''}</div>
-        <div class="detail" style="font-size:11px;color:var(--text-tertiary)">${isZh ? '动作' : 'Action'}: ${a.prompt || i18n.noActionSpecified}</div>
+        <div class="detail" style="font-size:11px;color:var(--text-tertiary)">${t('actionLabel')}: ${a.prompt || t('noActionSpecified')}</div>
         <div class="actions">
           <button class="${isDisabled ? 'toggle-on' : 'toggle-off'}" onclick="toggleAutomation('${id}', ${!isDisabled})">
-            ${isDisabled ? i18n.enable : i18n.disable}
+            ${isDisabled ? t('enable') : t('disable')}
           </button>
-          <button onclick="showEditModal('${id}', '${entityEsc}', '${condEsc}', '${promptEsc}')">${i18n.edit}</button>
-          <button class="delete-btn" onclick="showDeleteConfirm('${id}')">${i18n.delete}</button>
+          <button onclick="showEditModal('${id}', '${entityEsc}', '${condEsc}', '${promptEsc}')">${t('edit')}</button>
+          <button class="delete-btn" onclick="showDeleteConfirm('${id}')">${t('delete')}</button>
         </div>
       `;
       container.appendChild(card);
@@ -882,7 +961,7 @@ async function refreshAutomations() {
 }
 
 async function toggleAutomation(id, disable) {
-  setStatus(disable ? i18n.disabling : i18n.enabling);
+  setStatus(disable ? t('disabling') : t('enabling'));
   try {
     const inst = document.getElementById('instanceSelect').value;
     const result = await callAPI('POST', '/api/services/llm_smart_assistant/toggle_automation', {
@@ -893,21 +972,21 @@ async function toggleAutomation(id, disable) {
     // Wait briefly then refresh
     await new Promise(r => setTimeout(r, 500));
     await refreshAutomations();
-    setStatus(i18n.connected);
+    setStatus(t('connected'));
   } catch(e) { 
-    setStatus(i18n.errorPrefix + e.message, false);
-    setTimeout(() => setStatus(i18n.connected), 3000);
+    setStatus(t('errorPrefix') + e.message, false);
+    setTimeout(() => setStatus(t('connected')), 3000);
   }
 }
 
 function showEditModal(id, entity, condition, prompt) {
   document.getElementById('editEntityInput').value = entity || '';
-  document.getElementById('editEntityInput').placeholder = i18n.placeholderEntity || 'sensor.living_room_temperature';
+  document.getElementById('editEntityInput').placeholder = t('placeholderEntity') || 'sensor.living_room_temperature';
   document.getElementById('editConditionInput').value = condition || '';
-  document.getElementById('editConditionInput').placeholder = i18n.placeholderCondition || '>30';
+  document.getElementById('editConditionInput').placeholder = t('placeholderCondition') || '>30';
   document.getElementById('editInput').value = prompt || '';
-  document.getElementById('editInput').placeholder = i18n.editPromptPlaceholder || 'Describe what action to take...';
-  document.getElementById('editModalTitle').textContent = i18n.editPrompt;
+  document.getElementById('editInput').placeholder = t('edit')PromptPlaceholder || 'Describe what action to take...';
+  document.getElementById('editModalTitle').textContent = t('edit')Prompt;
   document.getElementById('editModal').dataset.automationId = id;
   document.getElementById('editModal').classList.add('open');
   setTimeout(() => document.getElementById('editEntityInput').focus(), 100);
@@ -928,7 +1007,7 @@ async function confirmEdit() {
   try {
     await callAPI('POST', '/api/services/llm_smart_assistant/update_automation', body);
     refreshAutomations();
-  } catch(e) { alert(i18n.errorPrefix + e.message); }
+  } catch(e) { alert(t('errorPrefix') + e.message); }
 }
 
 // Add automation modal
@@ -936,7 +1015,7 @@ function showAddModal() {
   document.getElementById('addEntityInput').value = '';
   document.getElementById('addConditionInput').value = '';
   document.getElementById('addPromptInput').value = '';
-  document.getElementById('addModalTitle').textContent = i18n.addAutoTitle;
+  document.getElementById('addModalTitle').textContent = t('add')AutoTitle;
   document.getElementById('addModal').classList.add('open');
   setTimeout(() => document.getElementById('addEntityInput').focus(), 100);
 }
@@ -952,11 +1031,11 @@ async function confirmAdd() {
     await callAPI('POST', '/api/services/llm_smart_assistant/create_automation', {
       entity_id: entity,
       condition: cond,
-      prompt: prompt || i18n.noActionSpecified,
-      description: prompt ? prompt.substring(0, 60) : i18n.autoPrefix + entity + ' ' + cond
+      prompt: prompt || t('noActionSpecified'),
+      description: prompt ? prompt.substring(0, 60) : t('autoPrefix') + entity + ' ' + cond
     });
     refreshAutomations();
-  } catch(e) { alert(i18n.errorPrefix + e.message); }
+  } catch(e) { alert(t('errorPrefix') + e.message); }
 }
 
 function cancelAdd() {
@@ -969,7 +1048,7 @@ function cancelEdit() {
 
 function showDeleteConfirm(id) {
   document.getElementById('confirmModal').dataset.automationId = id;
-  document.getElementById('confirmText').textContent = i18n.deleteConfirm;
+  document.getElementById('confirmText').textContent = t('delete')Confirm;
   document.getElementById('confirmModal').classList.add('open');
 }
 
@@ -980,7 +1059,7 @@ async function confirmDelete() {
   try {
     await callAPI('POST', '/api/services/llm_smart_assistant/remove_automation', { automation_id: id });
     refreshAutomations();
-  } catch(e) { alert(i18n.errorPrefix + e.message); }
+  } catch(e) { alert(t('errorPrefix') + e.message); }
 }
 
 function cancelConfirm() {
@@ -1003,7 +1082,7 @@ async function sendMessage() {
 
   addMsg('user', text);
   showLoad();
-  setStatus(isZh ? '思考中...' : 'Thinking...');
+  setStatus(t('thinkingText'));
 
   try {
     const inst = document.getElementById('instanceSelect').value;
@@ -1023,7 +1102,7 @@ async function sendMessage() {
           const tts = s.state;
 
           if (ip && round > 0) {
-            setStatus(isZh ? '推理中（第 ' + round + ' 轮）...' : 'Reasoning (round ' + round + ')...');
+            setStatus(t('reasoningPrefix') + round + t('reasoningSuffix'));
           }
 
           if (tts && tts !== lastTts) {
@@ -1069,9 +1148,9 @@ async function sendMessage() {
 
     hideLoad();
     if (done) {
-      setStatus(finalRounds + ' ' + i18n.round + ', ' + totalActs + ' ' + i18n.actions);
+      setStatus(finalRounds + ' ' + t('round') + ', ' + totalActs + ' ' + t('actions'));
     } else {
-      setStatus(i18n.timeout, false);
+      setStatus(t('timeout'), false);
     }
   } catch(e) {
     hideLoad();
@@ -1086,14 +1165,12 @@ async function sendMessage() {
 function applyI18n() {
   document.querySelectorAll('[data-i18n]').forEach(el => {
     const key = el.dataset.i18n;
-    const val = i18n[key];
-    if (val === undefined) return;
+    const val = t(key);
+    if (val === undefined || val === key) return;
     if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
-      if (el.type === 'text' || el.type === 'textarea' || !el.type) {
+      if (el.type === 'text' || !el.type) {
         el.placeholder = val;
       }
-    } else if (el.tagName === 'LABEL' || el.tagName === 'SPAN' || el.tagName === 'DIV' || el.tagName === 'P' || el.tagName === 'BUTTON') {
-      el.textContent = val;
     } else {
       el.textContent = val;
     }
@@ -1158,20 +1235,20 @@ function applyI18n() {
   } catch(e) {}
   
   if (accessToken) {
-    document.getElementById('statusText').textContent = i18n.connected;
+    document.getElementById('statusText').textContent = t('connected');
     discoverInstances();
     return;
   }
   
   // 6. Fallback: prompt for token
-  accessToken = window.prompt(isZh ? '请输入 HA 长效 Token（HA左下角→安全→长效访问令牌）' : 'Enter HA long-lived access token') || '';
+  accessToken = window.prompt(t('tokenPromptText')) || '';
   if (accessToken) {
     try { localStorage.setItem('llm_assistant_token', accessToken); } catch(e) {}
-    document.getElementById('statusText').textContent = i18n.connected;
+    document.getElementById('statusText').textContent = t('connected');
     discoverInstances();
   } else {
-    document.getElementById('statusText').textContent = i18n.noToken;
-    setStatus(i18n.tokenRequired, false);
+    document.getElementById('statusText').textContent = t('noToken');
+    setStatus(t('tokenRequired'), false);
   }
 })();
 </script>
