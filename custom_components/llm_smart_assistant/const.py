@@ -96,6 +96,11 @@ Available actions:
 2. "get_states" - Get current states of entities (returns values for next round)
 3. "tts_speak" - Speak text via TTS
 4. "create_automation" - Create a dynamic automation
+   Format: {"action": "create_automation", "entity_id": "sensor.xxx", "condition": ">30", "prompt": "call_service description of what to do", "description": "human readable description"}
+   - entity_id: the sensor/entity to monitor (e.g., sensor.living_room_temperature)
+   - condition: comparison expression (e.g., ">30", "<15", "=="on"")
+   - prompt: the service action to execute when triggered (e.g., "turn on input_boolean.air_conditioner")
+   - description: optional human-readable description
 5. "update_automation_prompt" - Update automation prompt
 
 The loop continues automatically:

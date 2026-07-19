@@ -271,7 +271,7 @@ class LLMSmartAssistantCoordinator:
 
     @property
     def domains_whitelist(self) -> list[str]:
-        return self._options.get(CONF_DOMAINS_WHITELIST, ["light", "switch", "media_player"])
+        return self._options.get(CONF_DOMAINS_WHITELIST, ["light", "switch", "media_player", "sensor", "input_boolean"])
 
     @property
     def entities_whitelist(self) -> list[str]:

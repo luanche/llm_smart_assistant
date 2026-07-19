@@ -206,6 +206,7 @@ async def _async_register_services(
                     "entity_id": a.entity_id,
                     "condition": a.condition,
                     "description": a.description,
+                    "prompt": a.prompt,
                 }
                 for a in automations
             ],
