@@ -483,8 +483,39 @@
 </div>
 
 <div id="autoTab">
-  <div id="autoContainer">
+  <div style="display:flex;gap:6px;padding:8px 8px 0;flex-shrink:0;">
+    <button class="modal-btn modal-btn-primary" onclick="showAddModal()" style="flex:1;padding:8px;font-size:13px;">+ Add Automation</button>
+  </div>
+  <div id="autoContainer" style="flex:1;overflow-y:auto;padding:8px;">
     <p style="color:var(--text-secondary);text-align:center;padding:40px 20px;font-size:14px;">Loading automations...</p>
+  </div>
+</div>
+
+<!-- Add automation modal -->
+<div id="addModal" class="modal-overlay" onclick="if(event.target===this)cancelAdd()">
+  <div class="modal-card" style="max-width:420px;">
+    <div class="modal-header">
+      <span class="modal-title" id="addModalTitle"></span>
+      <button class="modal-close" onclick="cancelAdd()">✕</button>
+    </div>
+    <div class="modal-body" style="display:flex;flex-direction:column;gap:10px;">
+      <div>
+        <label style="font-size:12px;font-weight:500;color:var(--text-secondary);margin-bottom:4px;display:block;">Entity ID (trigger)</label>
+        <input id="addEntityInput" class="modal-input" rows="1" placeholder="sensor.living_room_temperature" style="resize:none;">
+      </div>
+      <div>
+        <label style="font-size:12px;font-weight:500;color:var(--text-secondary);margin-bottom:4px;display:block;">Condition</label>
+        <input id="addConditionInput" class="modal-input" rows="1" placeholder=">30" style="resize:none;">
+      </div>
+      <div>
+        <label style="font-size:12px;font-weight:500;color:var(--text-secondary);margin-bottom:4px;display:block;">Action</label>
+        <textarea id="addPromptInput" class="modal-input" rows="2" placeholder="e.g., turn on input_boolean.air_conditioner"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="modal-btn modal-btn-secondary" onclick="cancelAdd()">Cancel</button>
+      <button class="modal-btn modal-btn-primary" onclick="confirmAdd()">Add</button>
+    </div>
   </div>
 </div>
 
@@ -553,7 +584,8 @@ const i18n = {
   voiceNotSupported: isZh ? '此浏览器不支持语音输入' : 'Voice input not supported in this browser',
   round: isZh ? '轮' : 'round',
   actions: isZh ? '个动作' : 'actions',
-  editPrompt: isZh ? '编辑自动化动作' : 'Edit automation action',
+  editPrompt: isZh ? '编辑自动化' : 'Edit automation',
+  addAutoTitle: isZh ? '添加自动化' : 'Add Automation',
   editPromptPlaceholder: isZh ? '描述要执行的动作...' : 'Describe what action to take...',
   cancel: isZh ? '取消' : 'Cancel',
   deleteConfirmBtn: isZh ? '删除' : 'Delete',
@@ -781,11 +813,11 @@ async function refreshAutomations() {
       return;
     }
     
-    let disabled = [];
+        let disabled = [];
     try {
       const allEntries = await callAPI('GET', '/api/config/config_entries/entry');
       const inst = document.getElementById('instanceSelect');
-      const entryId = inst.value || '01KXWJYS0N9E8GG01VMY8NZ650';
+      const entryId = inst.value;
       const entry = allEntries.find(e => e.entry_id === entryId) || allEntries.find(e => e.domain === 'llm_smart_assistant');
       if (entry) disabled = entry.options?.disabled_automations || [];
     } catch(e) {}
@@ -797,6 +829,8 @@ async function refreshAutomations() {
       const card = document.createElement('div');
       card.className = 'auto-card' + (isDisabled ? ' disabled' : '');
       const promptEsc = (a.prompt || '').replace(/'/g, "\\'");
+      const entityEsc = (a.entity_id || '').replace(/'/g, "\\'");
+      const condEsc = (a.condition || '').replace(/'/g, "\\'");
       const descEsc = (a.description || '').replace(/'/g, "\\'");
       card.innerHTML = `
         <div class="entity">${a.entity_id} ${a.condition}</div>
@@ -806,7 +840,7 @@ async function refreshAutomations() {
           <button class="${isDisabled ? 'toggle-on' : 'toggle-off'}" onclick="toggleAutomation('${id}', ${!isDisabled})">
             ${isDisabled ? i18n.enable : i18n.disable}
           </button>
-          <button onclick="showEditModal('${id}', '${promptEsc}')">${i18n.edit}</button>
+          <button onclick="showEditModal('${id}', '${entityEsc}', '${condEsc}', '${promptEsc}')">${i18n.edit}</button>
           <button class="delete-btn" onclick="showDeleteConfirm('${id}')">${i18n.delete}</button>
         </div>
       `;
@@ -821,12 +855,14 @@ async function toggleAutomation(id, disable) {
   setStatus(disable ? 'Disabling...' : 'Enabling...');
   try {
     const inst = document.getElementById('instanceSelect').value;
-    await callAPI('POST', '/api/services/llm_smart_assistant/toggle_automation', {
+    const result = await callAPI('POST', '/api/services/llm_smart_assistant/toggle_automation', {
       automation_id: id,
       disable: disable,
       entry_id: inst || ''
     });
-    refreshAutomations();
+    // Wait briefly then refresh
+    await new Promise(r => setTimeout(r, 500));
+    await refreshAutomations();
     setStatus(i18n.connected);
   } catch(e) { 
     setStatus('Error: ' + e.message, false);
@@ -834,28 +870,65 @@ async function toggleAutomation(id, disable) {
   }
 }
 
-function showEditModal(id, currentPrompt) {
-  document.getElementById('editInput').value = currentPrompt || '';
+function showEditModal(id, entity, condition, prompt) {
+  document.getElementById('editEntityInput').value = entity || '';
+  document.getElementById('editConditionInput').value = condition || '';
+  document.getElementById('editInput').value = prompt || '';
   document.getElementById('editInput').placeholder = i18n.editPromptPlaceholder || 'Describe what action to take...';
   document.getElementById('editModalTitle').textContent = i18n.editPrompt;
   document.getElementById('editModal').dataset.automationId = id;
   document.getElementById('editModal').classList.add('open');
-  setTimeout(() => document.getElementById('editInput').focus(), 100);
+  setTimeout(() => document.getElementById('editEntityInput').focus(), 100);
 }
 
 async function confirmEdit() {
   const modal = document.getElementById('editModal');
   const id = modal.dataset.automationId;
+  const newEntity = document.getElementById('editEntityInput').value.trim();
+  const newCondition = document.getElementById('editConditionInput').value.trim();
   const newPrompt = document.getElementById('editInput').value.trim();
   modal.classList.remove('open');
-  if (!newPrompt) return;
+  if (!newEntity && !newCondition && !newPrompt) return;
+  const body = { automation_id: id };
+  if (newEntity) body.entity_id = newEntity;
+  if (newCondition) body.condition = newCondition;
+  if (newPrompt) body.prompt = newPrompt;
   try {
-    await callAPI('POST', '/api/services/llm_smart_assistant/update_automation', {
-      automation_id: id,
-      prompt: newPrompt
+    await callAPI('POST', '/api/services/llm_smart_assistant/update_automation', body);
+    refreshAutomations();
+  } catch(e) { alert('Error: ' + e.message); }
+}
+
+// Add automation modal
+function showAddModal() {
+  document.getElementById('addEntityInput').value = '';
+  document.getElementById('addConditionInput').value = '';
+  document.getElementById('addPromptInput').value = '';
+  document.getElementById('addModalTitle').textContent = i18n.addAutoTitle;
+  document.getElementById('addModal').classList.add('open');
+  setTimeout(() => document.getElementById('addEntityInput').focus(), 100);
+}
+
+async function confirmAdd() {
+  const modal = document.getElementById('addModal');
+  const entity = document.getElementById('addEntityInput').value.trim();
+  const cond = document.getElementById('addConditionInput').value.trim();
+  const prompt = document.getElementById('addPromptInput').value.trim();
+  modal.classList.remove('open');
+  if (!entity || !cond) return;
+  try {
+    await callAPI('POST', '/api/services/llm_smart_assistant/create_automation', {
+      entity_id: entity,
+      condition: cond,
+      prompt: prompt || 'No action specified',
+      description: prompt ? prompt.substring(0, 60) : 'Auto: ' + entity + ' ' + cond
     });
     refreshAutomations();
   } catch(e) { alert('Error: ' + e.message); }
+}
+
+function cancelAdd() {
+  document.getElementById('addModal').classList.remove('open');
 }
 
 function cancelEdit() {

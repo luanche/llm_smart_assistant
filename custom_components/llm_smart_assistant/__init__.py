@@ -176,6 +176,8 @@ def _register_global_services(hass: HomeAssistant) -> None:
             disable = call.data.get("disable", True)
             entry_filter = call.data.get("entry_id", "")
             
+            _LOGGER.info("toggle_automation called: id=%s disable=%s entry=%s", automation_id, disable, entry_filter)
+            
             # Find which coordinator owns this automation
             for eid, coord in hass.data.get(DOMAIN, {}).items():
                 if entry_filter and eid != entry_filter:
@@ -191,7 +193,8 @@ def _register_global_services(hass: HomeAssistant) -> None:
                 if config_entry:
                     new_options = {**config_entry.options, "disabled_automations": disabled}
                     hass.config_entries.async_update_entry(config_entry, options=new_options)
-                    _LOGGER.info("Automation '%s' %s for entry %s", automation_id, "disabled" if disable else "enabled", eid)
+                    _LOGGER.info("Automation '%s' %s for entry %s (disabled=%s)", 
+                                 automation_id, "disabled" if disable else "enabled", eid, disabled)
         
         hass.services.async_register(
             DOMAIN,
@@ -280,20 +283,44 @@ async def _async_register_services(
     )
 
     async def async_update_automation(call):
-        """Update an automation's prompt or description."""
+        """Update an automation's fields and re-register listener if needed."""
         automation_id = call.data.get("automation_id", "")
         prompt = call.data.get("prompt", "")
         description = call.data.get("description", "")
+        entity_id = call.data.get("entity_id", "")
+        condition = call.data.get("condition", "")
         
-        # Find coordinator that owns this automation
         for c in hass.data.get(DOMAIN, {}).values():
-            if automation_id in c._automations:
-                auto = c._automations[automation_id]
+            coord = c
+            if automation_id in coord._automations:
+                auto = coord._automations[automation_id]
+                needs_relisten = False
                 if prompt:
                     auto.prompt = prompt
                 if description:
                     auto.description = description
-                await c._async_save_storage()
+                if entity_id:
+                    auto.entity_id = entity_id
+                    needs_relisten = True
+                if condition:
+                    auto.condition = condition
+                    needs_relisten = True
+                
+                if needs_relisten:
+                    # Remove old listener and register new one
+                    old_listener = coord._automation_listeners.pop(automation_id, None)
+                    if old_listener:
+                        old_listener()
+                    from homeassistant.helpers.event import async_track_state_change_event
+                    remove_listener = async_track_state_change_event(
+                        coord.hass,
+                        auto.entity_id,
+                        lambda event: coord._async_handle_automation_event(auto, event),
+                    )
+                    coord._automation_listeners[automation_id] = remove_listener
+                    _LOGGER.info("Re-registered listener for automation '%s' -> %s %s", automation_id, auto.entity_id, auto.condition)
+                
+                await coord._async_save_storage()
                 _LOGGER.info("Updated automation '%s'", automation_id)
                 break
     
@@ -305,6 +332,8 @@ async def _async_register_services(
             vol.Required("automation_id"): cv.string,
             vol.Optional("prompt"): cv.string,
             vol.Optional("description"): cv.string,
+            vol.Optional("entity_id"): cv.string,
+            vol.Optional("condition"): cv.string,
         }),
     )
 
