@@ -1318,23 +1318,19 @@ class LLMSmartAssistantCoordinator:
         tts_entity = self.tts_entity_id
         media_domain = tts_entity.split(".")[0]
 
-        # Collect mute mechanisms to apply:
-        # 1. User-configured mute entity (media_player for volume_set/volume_mute)
-        # 2. Auto-detected DND switch (xiaomi_miot)
-        # 3. Auto-detected sleep mode switch (xiaomi_miot)
-        _pre_tts_actions: list[tuple[str, str, dict]] = []   # run BEFORE speak
-        _post_tts_actions: list[tuple[str, str, dict]] = []  # run AFTER speak (reversed)
+        # Collect mute mechanisms (only if user enabled anti-echo)
+        _pre_tts_actions: list[tuple[str, str, dict]] = []
+        _post_tts_actions: list[tuple[str, str, dict]] = []
 
-        if media_domain == "media_player":
-            # Always try to discover & toggle DND/sleep switches
+        if media_domain == "media_player" and self.tts_mute_after:
+            # Auto-detect DND/sleep switches
             for suffix in ["no_disturb", "sleep_mode"]:
                 sw_id = tts_entity.replace("play_control", suffix).replace("media_player", "switch")
                 if self.hass.states.get(sw_id):
                     _pre_tts_actions.append(("switch", "turn_off", {"entity_id": sw_id}))
                     _post_tts_actions.append(("switch", "turn_on", {"entity_id": sw_id}))
                     break
-
-            # User-configured mute entity for volume control
+            # User-configured mute entity
             mute_entity = self.tts_mute_entity_id
             if mute_entity and self.hass.states.get(mute_entity):
                 _pre_tts_actions.insert(0, ("media_player", "volume_mute",
