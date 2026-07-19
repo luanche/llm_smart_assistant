@@ -390,10 +390,6 @@ async def _async_register_chat_panel(
         html_path = panel_dir / "index.html"
 
         if html_path.is_file():
-            html_content = await hass.async_add_executor_job(
-                lambda: html_path.read_text(encoding="utf-8")
-            )
-
             class ChatPanelView(HomeAssistantView):
                 """Serve the AI Chat panel HTML."""
                 url = "/api/llm_smart_assistant/chat_panel"
@@ -401,9 +397,14 @@ async def _async_register_chat_panel(
                 requires_auth = False
 
                 async def get(self, request):
+                    # Read fresh on each request so edits take effect without restart
+                    current_html = await hass.async_add_executor_job(
+                        lambda: html_path.read_text(encoding="utf-8")
+                    )
                     return web.Response(
-                        text=html_content,
+                        text=current_html,
                         content_type="text/html",
+                        headers={"Cache-Control": "no-cache, no-store, must-revalidate"},
                     )
 
             hass.http.register_view(ChatPanelView)
@@ -411,11 +412,6 @@ async def _async_register_chat_panel(
             # Try to register a sidebar panel
             try:
                 # Need to also register the JS file endpoint
-                js_path = html_path.with_name("chat.js")
-                js_content = await hass.async_add_executor_job(
-                    lambda: js_path.read_text(encoding="utf-8")
-                )
-
                 class ChatJSView(HomeAssistantView):
                     """Serve the AI Chat panel JavaScript."""
                     url = "/api/llm_smart_assistant/chat_js"
@@ -423,10 +419,13 @@ async def _async_register_chat_panel(
                     requires_auth = False
 
                     async def get(self, request):
+                        current_js = await hass.async_add_executor_job(
+                            lambda: html_path.with_name("chat.js").read_text(encoding="utf-8")
+                        )
                         return web.Response(
-                            text=js_content,
+                            text=current_js,
                             content_type="application/javascript",
-                            headers={"Cache-Control": "no-cache"},
+                            headers={"Cache-Control": "no-cache, no-store, must-revalidate"},
                         )
 
                 hass.http.register_view(ChatJSView)
