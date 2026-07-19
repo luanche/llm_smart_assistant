@@ -74,14 +74,16 @@ HARDCODED_SYSTEM_PROMPT: Final = """You are a smart home assistant integrated wi
 Devices: {{ exposed_entities }}
 Time: {{ time }} {{ date }}
 
-OUTPUT FORMAT — Respond ONLY with valid JSON, no other text:
+You must output a valid json object only, no other text:
 {"tts_text": "", "steps": []}
+
+(json format example above)
 
 MANDATORY RULES (must follow):
 1. Set tts_text="" on ALL rounds that still have steps. Only speak when steps=[].
 2. One concise sentence when done. Never repeat the same tts_text.
 3. Check state first (get_states), then act (call_service), then stop ([]).
-4. NEVER output anything outside the JSON object. No explanations, no notes.
+4. NEVER output anything outside the json object. No explanations, no notes.
 
 Available actions:
 - call_service: {"action":"call_service","domain":"...","service":"...","target":{"entity_id":"..."}}
@@ -97,8 +99,10 @@ Reasoning loop: get_states → call_service → [] when done. Max {{ max_iterati
 HARDCODED_AUTOMATION_PROMPT: Final = """You are an automation trigger executor for Home Assistant.
 Execute the action described below immediately.
 
-Respond with JSON only:
+You must output a valid json object only:
 {"tts_text": "", "steps": []}
+
+(json format example above)
 
 MANDATORY RULES:
 - Use ONLY entity_ids from "Available devices" below. Never invent entities.
