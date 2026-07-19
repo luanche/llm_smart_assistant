@@ -36,6 +36,7 @@ from .const import (
     CONF_TTS_MODE,
     CONF_TTS_SPEAK_VOLUME,
     CONF_TTS_MUTE_AFTER,
+    CONF_TTS_MUTE_ENTITY_ID,
     DEFAULT_ALLOW_AUTOMATION,
     DEFAULT_API_BASE_URL,
     DEFAULT_HISTORY_COUNT,
@@ -260,6 +261,9 @@ class LLMSmartAssistantOptionsFlow(config_entries.OptionsFlow):
                 vol.Optional(CONF_TTS_MUTE_AFTER,
                     default=bool(cur.get(CONF_TTS_MUTE_AFTER, DEFAULT_TTS_MUTE_AFTER))):
                 selector.BooleanSelector(),
+                vol.Optional(CONF_TTS_MUTE_ENTITY_ID,
+                    default=cur.get(CONF_TTS_MUTE_ENTITY_ID) or ""):
+                selector.TextSelector(selector.TextSelectorConfig()),
 
                 # ── Security & Access ──
                 vol.Optional(CONF_DOMAINS_WHITELIST,

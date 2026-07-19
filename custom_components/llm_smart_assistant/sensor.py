@@ -108,9 +108,18 @@ class LLMDebugRawSensor(SensorEntity):
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
-        """Return full raw JSON."""
+        """Return full raw JSON and the prompt that was sent."""
+        prompt_msgs = self.coordinator.last_prompt_messages
+        prompt_preview = ""
+        if prompt_msgs:
+            # Show system prompt + user message preview
+            sys_msg = next((m["content"][:500] for m in prompt_msgs if m["role"] == "system"), "")
+            user_msg = next((m["content"][:300] for m in prompt_msgs if m["role"] == "user"), "")
+            msg_count = len(prompt_msgs)
+            prompt_preview = f"[{msg_count} messages]\n--- SYSTEM ---\n{sys_msg}\n--- USER ---\n{user_msg}"
         return {
             "raw": self.coordinator.last_response_raw,
+            "prompt": prompt_preview,
             "in_progress": self.coordinator.in_progress,
             "round": self.coordinator.current_round,
         }

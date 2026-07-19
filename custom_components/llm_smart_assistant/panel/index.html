@@ -447,7 +447,7 @@
   <div id="header">
     <span id="headerTitle" data-i18n="title"></span>
     <select id="instanceSelect" class="instance-select" onchange="switchInstance()" title=""></select>
-    <button id="debugBtn" class="debug-btn" title="${t('debugBtnTitle')}">📋</button>
+    <button id="debugBtn" class="debug-btn" title="${t('debugBtnTitle')}">🔧</button>
     <span id="statusText" class="status-text" data-i18n="connected"></span>
   </div>
 </div>
@@ -845,6 +845,12 @@ function hideLoad() {
   if (e) e.remove();
 }
 
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
 function setStatus(text, ok) {
   const el = document.getElementById('statusText');
   el.textContent = text;
@@ -887,18 +893,28 @@ function stopVoice() {
 }
 
 // Debug
-document.getElementById('debugBtn').addEventListener('click', () => {
+document.getElementById('debugBtn').addEventListener('click', async () => {
   const modal = document.getElementById('debugModal');
   const content = document.getElementById('debugContent');
-  const existing = content.querySelector('.debug-rounds');
-  if (existing) existing.remove();
+  
+  let html = '<button id="debugModalClose" onclick="document.getElementById(\'debugModal\').classList.remove(\'open\')">✕</button>';
+  
+  // Fetch prompt from debug raw sensor
+  try {
+    const ds = await callAPI('GET', '/api/states/sensor.llm_debug_raw');
+    if (ds && ds.attributes && ds.attributes.prompt) {
+      html += '<div style="margin-bottom:12px">';
+      html += '<div style="font-weight:600;font-size:12px;margin-bottom:4px;color:var(--accent)">Prompt</div>';
+      html += '<pre style="max-height:200px;overflow-y:auto;font-size:10px;padding:8px;background:var(--surface-alt);border-radius:8px;border:1px solid var(--border);white-space:pre-wrap;word-break:break-all">';
+      html += escapeHtml(ds.attributes.prompt);
+      html += '</pre></div>';
+    }
+  } catch(e) {}
   
   if (lastDebugRaw) {
     try {
       const parsed = JSON.parse(lastDebugRaw);
       const rounds = parsed.rounds;
-      
-      let html = '<button id="debugModalClose" onclick="document.getElementById(\'debugModal\').classList.remove(\'open\')">✕</button>';
       
       if (rounds && rounds.length > 0) {
         html += '<div class="debug-rounds">';
@@ -913,13 +929,15 @@ document.getElementById('debugBtn').addEventListener('click', () => {
         });
         html += '</div>';
       } else {
-        html += '<pre>' + JSON.stringify(parsed, null, 2) + '</pre>';
+        html += '<pre style="max-height:300px;overflow-y:auto;font-size:10px">' + JSON.stringify(parsed, null, 2) + '</pre>';
       }
-      content.innerHTML = html;
     } catch(e) {
-      content.innerHTML = '<button id="debugModalClose" onclick="document.getElementById(\'debugModal\').classList.remove(\'open\')">✕</button><pre>' + lastDebugRaw + '</pre>';
+      html += '<pre style="max-height:300px;overflow-y:auto;font-size:10px">' + lastDebugRaw + '</pre>';
     }
+  } else {
+    html += '<span>' + t('noDebugData') + '</span>';
   }
+  content.innerHTML = html;
   modal.classList.add('open');
 });
 document.getElementById('debugModalClose').addEventListener('click', () => {

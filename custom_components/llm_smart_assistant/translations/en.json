@@ -36,6 +36,7 @@
           "tts_custom_template": "Custom TTS Template",
           "tts_speak_volume": "Speak Volume",
           "tts_mute_after": "Mute speaker after TTS (anti-echo)",
+          "tts_mute_entity_id": "Mute Control Entity (media_player for volume)",
           "domains_whitelist": "Allowed Domains",
           "entities_whitelist": "Allowed Entities",
           "allow_automation": "Allow Dynamic Automations",

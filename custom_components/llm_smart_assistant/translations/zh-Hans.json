@@ -41,6 +41,7 @@
           "tts_custom_template": "自定义 TTS 模板",
           "tts_speak_volume": "播报音量",
           "tts_mute_after": "播报后静音（防抢答）",
+          "tts_mute_entity_id": "静音控制实体（media_player 用于调音量）",
           "domains_whitelist": "允许控制的设备类型",
           "entities_whitelist": "允许控制的实体（留空则允许全部）",
           "allow_automation": "允许 AI 创建动态自动化",
