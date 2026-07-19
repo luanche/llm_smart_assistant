@@ -1,0 +1,103 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "LLM Smart Assistant - API Configuration",
+        "description": "Configure your LLM API connection. Must be compatible with OpenAI API format.",
+        "data": {
+          "api_base_url": "API Base URL",
+          "api_key": "API Key",
+          "model_name": "Model Name"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Cannot connect to the API. Please check the URL and try again.",
+      "invalid_auth": "Invalid API key. Please check and try again.",
+      "unknown": "An unexpected error occurred. Please try again."
+    },
+    "abort": {
+      "already_configured": "This integration is already configured."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "LLM Smart Assistant Settings",
+        "description": "Configure prompts, input sensors, TTS, security, and history settings.",
+        "data": {
+          "prompt_default": "Default System Prompt",
+          "prompt_automation": "Automation System Prompt",
+          "input_entities": "Input Sensor Entities",
+          "ignore_duplicate": "Ignore Duplicate Inputs",
+          "tts_entity_id": "TTS Target Entity",
+          "tts_mode": "TTS Mode",
+          "tts_custom_template": "Custom TTS Template",
+          "domains_whitelist": "Allowed Domains",
+          "entities_whitelist": "Allowed Entities",
+          "allow_automation": "Allow Dynamic Automations",
+          "history_mode": "History Truncation Mode",
+          "history_count": "Max Conversation Turns",
+          "temperature": "Temperature (0.0=precise, 2.0=creative)",
+          "max_tokens": "Max Tokens (response length)",
+          "history_time_window": "Time Window (minutes)"
+        }
+      }
+    }
+  },
+  "selector": {
+    "tts_mode": {
+      "options": {
+        "standard": "Standard (TTS/Media Player)",
+        "xiaomi_miot": "Xiaomi MIoT",
+        "custom": "Custom Template"
+      }
+    },
+    "history_mode": {
+      "options": {
+        "count": "By Number of Messages",
+        "time": "By Time Window"
+      }
+    }
+  },
+  "services": {
+    "process_input": {
+      "name": "Process Input",
+      "description": "Manually send text input to the LLM assistant for processing.",
+      "fields": {
+        "text": {
+          "name": "Text",
+          "description": "The input text to process."
+        }
+      }
+    },
+    "create_automation": {
+      "name": "Create Automation",
+      "description": "Create a dynamic automation rule.",
+      "fields": {
+        "entity_id": {
+          "name": "Entity ID",
+          "description": "The sensor entity to monitor."
+        },
+        "condition": {
+          "name": "Condition",
+          "description": "Condition to trigger (e.g., '>30', '==on')."
+        },
+        "prompt": {
+          "name": "Prompt",
+          "description": "The automation prompt for LLM context."
+        }
+      }
+    },
+    "chat": {
+      "name": "Chat",
+      "description": "Send a message to the LLM and get a response.",
+      "fields": {
+        "text": {
+          "name": "Text",
+          "description": "The message to send."
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,37 @@
+# Home Assistant configuration
+
+# Load the default set of integrations
+default_config:
+
+# Virtual devices for testing LLM control
+input_boolean:
+  living_room_light:
+    name: "客厅灯"
+    icon: mdi:lightbulb
+  bed_room_light:
+    name: "卧室灯"
+    icon: mdi:lightbulb
+  tv:
+    name: "电视"
+    icon: mdi:television
+  air_conditioner:
+    name: "空调"
+    icon: mdi:air-conditioner
+
+# Test sensors
+template:
+  - sensor:
+      - name: "Test Voice Input"
+        unique_id: test_voice_input
+        state: ""
+      - name: "Living Room Temperature"
+        unique_id: living_room_temperature
+        unit_of_measurement: "°C"
+        state: "26.5"
+        device_class: temperature
+
+# Enable logging
+logger:
+  logs:
+    custom_components.llm_smart_assistant: info
+    custom_components.llm_smart_assistant.coordinator: info

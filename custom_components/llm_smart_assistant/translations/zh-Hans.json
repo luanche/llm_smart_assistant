@@ -1,0 +1,103 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "LLM 智能助手 - API 配置",
+        "description": "配置您的 LLM API 连接。必须兼容 OpenAI API 格式。",
+        "data": {
+          "api_base_url": "API 地址",
+          "api_key": "API 密钥",
+          "model_name": "模型名称"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "无法连接到 API。请检查 URL 后重试。",
+      "invalid_auth": "API 密钥无效。请检查后重试。",
+      "unknown": "发生未知错误。请重试。"
+    },
+    "abort": {
+      "already_configured": "此集成已配置。"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "LLM 智能助手设置",
+        "description": "配置提示词、输入传感器、TTS 播报、安全权限和历史记录。",
+        "data": {
+          "prompt_default": "默认系统提示词",
+          "prompt_automation": "自动化系统提示词",
+          "input_entities": "输入传感器实体",
+          "ignore_duplicate": "忽略重复输入",
+          "tts_entity_id": "TTS 目标实体",
+          "tts_mode": "TTS 模式",
+          "tts_custom_template": "自定义 TTS 模板",
+          "domains_whitelist": "允许的域",
+          "entities_whitelist": "允许的实体",
+          "allow_automation": "允许动态自动化",
+          "history_mode": "历史截断模式",
+          "history_count": "最大对话轮数",
+          "temperature": "温度 (0.0=精确, 2.0=有创意)",
+          "max_tokens": "最大 Token 数（回复长度）",
+          "history_time_window": "时间窗口（分钟）"
+        }
+      }
+    }
+  },
+  "selector": {
+    "tts_mode": {
+      "options": {
+        "standard": "标准模式 (TTS/媒体播放器)",
+        "xiaomi_miot": "小米 MIoT",
+        "custom": "自定义模板"
+      }
+    },
+    "history_mode": {
+      "options": {
+        "count": "按消息数量",
+        "time": "按时间窗口"
+      }
+    }
+  },
+  "services": {
+    "process_input": {
+      "name": "处理输入",
+      "description": "手动向 LLM 助手发送文本输入进行处理。",
+      "fields": {
+        "text": {
+          "name": "文本",
+          "description": "要处理的输入文本。"
+        }
+      }
+    },
+    "create_automation": {
+      "name": "创建自动化",
+      "description": "创建一条动态自动化规则。",
+      "fields": {
+        "entity_id": {
+          "name": "实体 ID",
+          "description": "要监控的传感器实体。"
+        },
+        "condition": {
+          "name": "条件",
+          "description": "触发条件 (例如 '>30', '==on')。"
+        },
+        "prompt": {
+          "name": "提示词",
+          "description": "LLM 上下文中使用的自动化提示词。"
+        }
+      }
+    },
+    "chat": {
+      "name": "聊天",
+      "description": "发送消息给 LLM 并获得回复。",
+      "fields": {
+        "text": {
+          "name": "消息",
+          "description": "要发送的消息。"
+        }
+      }
+    }
+  }
+}

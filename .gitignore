@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+
+# Editor
+.vscode/
+*.swp
+*.swo
+
+# HA runtime data (keep configuration.yaml only)
+config
+
+# Credentials
+.ha_credentials.json
+
+# Logs
+*.log
+home-assistant.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Pi Coding Agent
+.pi
+
+# User files
+.user

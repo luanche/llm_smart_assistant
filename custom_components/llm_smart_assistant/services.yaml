@@ -1,0 +1,75 @@
+# Services for LLM Smart Assistant
+
+process_input:
+  name: Process Input
+  description: "Manually send text input to the LLM assistant for processing."
+  fields:
+    text:
+      name: Text
+      description: "The input text to process."
+      required: true
+      example: "Turn on the living room lights"
+      selector:
+        text:
+
+create_automation:
+  name: Create Automation
+  description: "Create a dynamic automation rule via LLM."
+  fields:
+    entity_id:
+      name: Entity ID
+      description: "The sensor entity to monitor for state changes."
+      required: true
+      example: "sensor.temperature"
+      selector:
+        entity:
+          domain: sensor
+    condition:
+      name: Condition
+      description: "Condition to trigger the automation (e.g., '>30', '==on', '<5')."
+      required: true
+      example: ">30"
+      selector:
+        text:
+    prompt:
+      name: Automation Prompt
+      description: "The prompt template used for LLM context when automation triggers."
+      required: false
+      selector:
+        text:
+          multiline: true
+    description:
+      name: Description
+      description: "A human-readable description of this automation."
+      required: false
+      example: "Turn on AC when temperature exceeds 30 degrees"
+      selector:
+        text:
+
+remove_automation:
+  name: Remove Automation
+  description: "Remove a dynamically created automation."
+  fields:
+    automation_id:
+      name: Automation ID
+      description: "The ID of the automation to remove."
+      required: true
+      example: "a1b2c3d4-..."
+      selector:
+        text:
+
+get_automations:
+  name: Get Automations
+  description: "List all currently registered dynamic automations."
+
+chat:
+  name: Chat
+  description: "Send a message to the LLM and get a response. Returns tts_text, steps, and raw JSON."
+  fields:
+    text:
+      name: Text
+      description: "The message to send to the AI assistant."
+      required: true
+      example: "你好！请打开客厅灯"
+      selector:
+        text:
