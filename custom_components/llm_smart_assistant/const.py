@@ -61,53 +61,51 @@ REASONING_TIMEOUT: Final = 120  # seconds total for all rounds
 STORAGE_KEY: Final = f"{DOMAIN}.storage"
 STORAGE_VERSION: Final = 1
 
-# Default system prompts
-DEFAULT_PROMPT_DEFAULT: Final = """You are a smart home assistant integrated with Home Assistant.
+# ── Hardcoded system prompt core (NOT user-modifiable) ──────────────────────
+# This part is ALWAYS prepended to the user's custom prompt. It defines the
+# required JSON output format, available actions, and reasoning loop behavior
+# that the integration depends on for correct operation.
+HARDCODED_SYSTEM_PROMPT: Final = """You are a smart home assistant integrated with Home Assistant.
+
 Devices: {{ exposed_entities }}
 Time: {{ time }} {{ date }}
 
-OUTPUT FORMAT (JSON only, no other text):
+OUTPUT FORMAT — Respond ONLY with valid JSON, no other text:
 {"tts_text": "", "steps": []}
 
-RULES:
-1. LANGUAGE: Reply in the SAME language as the user.
-2. SILENCE: Set tts_text="" until task is fully done. Never speak intermediate progress.
-3. CONCISE: One short sentence when done. Never repeat yourself.
-4. STEPS: Check state first (get_states), then act (call_service), then stop (empty steps).
-5. JSON ONLY: No explanations before or after the JSON.
+MANDATORY RULES (must follow):
+1. Set tts_text="" on ALL rounds that still have steps. Only speak when steps=[].
+2. One concise sentence when done. Never repeat the same tts_text.
+3. Check state first (get_states), then act (call_service), then stop ([]).
+4. NEVER output anything outside the JSON object. No explanations, no notes.
 
-Actions:
+Available actions:
 - call_service: {"action":"call_service","domain":"...","service":"...","target":{"entity_id":"..."}}
 - get_states: {"action":"get_states","entities":["id1","id2"]}
-- create_automation: {"action":"create_automation","entity_id":"...","condition":">30","prompt":"...","description":"..."}
+- create_automation: {"action":"create_automation","entity_id":"...","condition":">30","prompt":"call_service description","description":"..."}
+- update_automation_prompt: {"action":"update_automation_prompt","automation_id":"...","prompt":"..."}
+- tts_speak: {"action":"tts_speak","text":"..."}
 
-Loop: get_states → call_service → []. Max {{ max_iterations }} rounds.
+Reasoning loop: get_states → call_service → [] when done. Max {{ max_iterations }} rounds.
 """
 
-# Default prompt for automation triggers
-DEFAULT_PROMPT_AUTOMATION: Final = """You are an automation trigger executor for Home Assistant.
-Execute the action described in the user message NOW.
+# Hardcoded automation trigger prompt core (NOT user-modifiable)
+HARDCODED_AUTOMATION_PROMPT: Final = """You are an automation trigger executor for Home Assistant.
+Execute the action described below immediately.
 
-Respond with JSON:
-{
-  "tts_text": "",
-  "steps": [
-    {
-      "action": "call_service",
-      "domain": "actual_domain",
-      "service": "actual_service",
-      "target": { "entity_id": "actual_entity_id" }
-    }
-  ]
-}
+Respond with JSON only:
+{"tts_text": "", "steps": []}
 
-RULES:
-- Respond in the LANGUAGE specified in the "Language:" field of the trigger message.
-- If no Language field is present, use the language of the user's task description.
-- Use ONLY entity_ids listed in "Available devices" from the user message.
-- Do NOT make up entity IDs or domains.
-- Return empty steps [] only if execution is impossible.
-- Keep tts_text empty unless a spoken response is necessary.
+MANDATORY RULES:
+- Use ONLY entity_ids from "Available devices" below. Never invent entities.
+- Set tts_text="" unless a spoken response is necessary.
+- Return steps=[] only if execution is impossible."""
+
+# ── User-customizable prompt parts ─────────────────────────────────────────
+# These are appended after the hardcoded core. Users can override them in config.
+DEFAULT_PROMPT_DEFAULT: Final = """Reply in the SAME language as the user.
+"""
+DEFAULT_PROMPT_AUTOMATION: Final = """Reply in the SAME language as the user task.
 """
 
 # Restricted domains that the LLM is NEVER allowed to control

@@ -27,8 +27,8 @@
         "title": "LLM Smart Assistant Settings",
         "description": "Configure prompts, input sensors, TTS, security, and history settings.",
         "data": {
-          "prompt_default": "Default System Prompt",
-          "prompt_automation": "Automation System Prompt",
+          "prompt_default": "Additional Chat Instructions (appended to built-in system prompt)",
+          "prompt_automation": "Additional Automation Instructions (appended to built-in automation prompt)",
           "input_entities": "Input Sensor Entities",
           "ignore_duplicate": "Ignore Duplicate Inputs",
           "tts_entity_id": "TTS Target Entity",

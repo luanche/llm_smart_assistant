@@ -49,6 +49,8 @@ from .const import (
     CONF_TTS_MODE,
     DEFAULT_PROMPT_AUTOMATION,
     DEFAULT_PROMPT_DEFAULT,
+    HARDCODED_AUTOMATION_PROMPT,
+    HARDCODED_SYSTEM_PROMPT,
     DOMAIN,
     HISTORY_MODE_COUNT,
     HISTORY_MODE_TIME,
@@ -244,11 +246,15 @@ class LLMSmartAssistantCoordinator:
 
     @property
     def prompt_default(self) -> str:
-        return self._options.get(CONF_PROMPT_DEFAULT, DEFAULT_PROMPT_DEFAULT)
+        """Full system prompt: hardcoded core + user customization."""
+        user_part = self._options.get(CONF_PROMPT_DEFAULT, DEFAULT_PROMPT_DEFAULT)
+        return HARDCODED_SYSTEM_PROMPT + "\n" + user_part
 
     @property
     def prompt_automation(self) -> str:
-        return self._options.get(CONF_PROMPT_AUTOMATION, DEFAULT_PROMPT_AUTOMATION)
+        """Full automation prompt: hardcoded core + user customization."""
+        user_part = self._options.get(CONF_PROMPT_AUTOMATION, DEFAULT_PROMPT_AUTOMATION)
+        return HARDCODED_AUTOMATION_PROMPT + "\n" + user_part
 
     @property
     def input_entities(self) -> list[str]:
