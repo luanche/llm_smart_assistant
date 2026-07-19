@@ -552,7 +552,8 @@ class LLMSmartAssistantCoordinator:
             "max_tokens": self.max_tokens,
         }
 
-        # Request JSON response format if the model supports it
+        # Force JSON output format - required for reliable parsing
+        # Supported by OpenAI, DeepSeek, and most compatible APIs
         payload["response_format"] = {"type": "json_object"}
 
         max_retries = 2
@@ -808,8 +809,9 @@ class LLMSmartAssistantCoordinator:
                 iteration, str(tts_text)[:100], str(steps)[:200]
             )
 
-            # Accumulate TTS
-            if tts_text:
+            # Accumulate TTS only when task is fully complete (no more steps)
+            # If LLM speaks but still has actions, delay the speech to final round
+            if tts_text and not steps:
                 cumulative_tts.append(tts_text)
 
             # Track each round for debug

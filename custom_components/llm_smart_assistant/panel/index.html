@@ -1134,7 +1134,7 @@ async function sendMessage() {
 
     let attempts = 0, lastTts = '', done = false, totalActs = 0, finalRounds = 1;
 
-    while (attempts < 30 && !done) {
+    while (attempts < 60 && !done) {
       await new Promise(r => setTimeout(r, 600));
       try {
         const s = await callAPI('GET', '/api/states/sensor.llm_last_response');

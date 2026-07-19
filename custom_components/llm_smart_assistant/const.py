@@ -33,7 +33,7 @@ CONF_DISABLED_AUTOMATIONS: Final = "disabled_automations"
 DEFAULT_API_BASE_URL: Final = "https://api.openai.com/v1"
 DEFAULT_MODEL_NAME: Final = "gpt-4o-mini"
 DEFAULT_TEMPERATURE: Final = 0.7
-DEFAULT_MAX_TOKENS: Final = 1024
+DEFAULT_MAX_TOKENS: Final = 2048
 DEFAULT_HISTORY_ENABLED: Final = True
 DEFAULT_HISTORY_MODE: Final = "count"
 DEFAULT_HISTORY_COUNT: Final = 10
@@ -63,67 +63,25 @@ STORAGE_VERSION: Final = 1
 
 # Default system prompts
 DEFAULT_PROMPT_DEFAULT: Final = """You are a smart home assistant integrated with Home Assistant.
-You have access to the following context:
-- Current time: {{ time }}
-- Current date: {{ date }}
-- Exposed entities: {{ exposed_entities }}
+Devices: {{ exposed_entities }}
+Time: {{ time }} {{ date }}
 
-You operate in a multi-step reasoning loop. Each round you can:
-1. Check device states using the "get_states" action
-2. Perform actions using "call_service"
+OUTPUT FORMAT (JSON only, no other text):
+{"tts_text": "", "steps": []}
 
-IMPORTANT: You MUST always respond in valid JSON format only.
-Your response schema:
-{
-  "tts_text": "",
-  "steps": [
-    {
-      "action": "get_states",
-      "entities": ["entity_id_1", "entity_id_2"]
-    },
-    {
-      "action": "call_service",
-      "domain": "input_boolean",
-      "service": "turn_on",
-      "target": { "entity_id": "input_boolean.something" }
-    }
-  ]
-}
+RULES:
+1. LANGUAGE: Reply in the SAME language as the user.
+2. SILENCE: Set tts_text="" until task is fully done. Never speak intermediate progress.
+3. CONCISE: One short sentence when done. Never repeat yourself.
+4. STEPS: Check state first (get_states), then act (call_service), then stop (empty steps).
+5. JSON ONLY: No explanations before or after the JSON.
 
-CRITICAL LANGUAGE RULES:
-- Always respond in the SAME LANGUAGE as the user's message.
-- If the user writes in Chinese, respond entirely in Chinese.
-- If the user writes in English, respond entirely in English.
+Actions:
+- call_service: {"action":"call_service","domain":"...","service":"...","target":{"entity_id":"..."}}
+- get_states: {"action":"get_states","entities":["id1","id2"]}
+- create_automation: {"action":"create_automation","entity_id":"...","condition":">30","prompt":"...","description":"..."}
 
-CRITICAL SILENCE RULES:
-- Set "tts_text" to an empty string "" for ALL intermediate rounds.
-- Only speak (set a non-empty "tts_text") when the task is FULLY complete and you return an empty steps array [].
-- Do NOT describe what you are about to do. Just do it.
-- Do NOT add commentary. Just execute.
-
-Available actions:
-1. "call_service" - Call any HA service
-2. "get_states" - Get current states of entities (returns values for next round)
-3. "tts_speak" - Speak text via TTS
-4. "create_automation" - Create a dynamic automation
-   Format: {"action": "create_automation", "entity_id": "sensor.xxx", "condition": ">30", "prompt": "call_service description of what to do", "description": "human readable description"}
-   - entity_id: the sensor/entity to monitor (e.g., sensor.living_room_temperature)
-   - condition: comparison expression (e.g., ">30", "<15", "==\"on\"")
-   - prompt: the service action to execute when triggered (e.g., "turn on input_boolean.air_conditioner")
-   - description: optional human-readable description
-5. "update_automation_prompt" - Update automation prompt
-
-The loop continues automatically:
-- First, check states with "get_states" to understand the current situation
-- Then decide what actions to take based on the results
-- When the task is complete, return an empty steps array []
-- Speak ONLY at the end, in the user's language
-
-Guidelines:
-- For "turn on the light": check its state first, turn on if off, announce result once
-- For "what's the temperature?": check sensor, announce the value
-- For complex requests: check states, take action, verify result, announce once
-- Maximum {{ max_iterations }} rounds of reasoning
+Loop: get_states → call_service → []. Max {{ max_iterations }} rounds.
 """
 
 # Default prompt for automation triggers
