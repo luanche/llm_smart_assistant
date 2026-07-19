@@ -25,3 +25,6 @@ Thumbs.db
 
 # User files
 .user/
+
+# Test flow artifacts
+TEST_FLOW.md

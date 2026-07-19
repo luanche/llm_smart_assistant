@@ -27,6 +27,9 @@ from .services import ServicesExecutor
 
 _LOGGER = logging.getLogger(__name__)
 
+# Module-level cache for suggestions (avoids class-variable scoping issues in dynamic views)
+_SUGGESTIONS_CACHE: dict[str, dict[str, Any]] = {}
+
 PLATFORMS: list[Platform] = [Platform.SENSOR]
 
 
@@ -432,16 +435,22 @@ async def _async_register_chat_panel(
                 hass.http.register_view(ChatJSView)
 
                 # Suggestions API - generates smart suggestions based on user's devices
+                # Supports two URL forms:
+                #   /api/llm_smart_assistant/suggestions?entry_id=xxx
+                #   /api/llm_smart_assistant/{entry_id}/suggestions  (path-based, for clarity)
                 class ChatSuggestionsView(HomeAssistantView):
                     """Generate chat suggestions based on exposed entities."""
                     url = "/api/llm_smart_assistant/suggestions"
                     name = "api:llm_smart_assistant:suggestions"
                     requires_auth = False
 
-                    _cache: dict[str, Any] = {}  # class-level cache
-
                     async def get(self, request):
                         entry_id = request.query.get("entry_id", "")
+                        # Also try path-based entry_id from /api/llm_smart_assistant/{entry_id}/suggestions
+                        path_parts = request.path.strip("/").split("/")
+                        if len(path_parts) == 4 and path_parts[3] == "suggestions":
+                            entry_id = entry_id or path_parts[2]
+
                         coordinator = None
                         if entry_id and entry_id in hass.data.get(DOMAIN, {}):
                             coordinator = hass.data[DOMAIN][entry_id]
@@ -465,7 +474,7 @@ async def _async_register_chat_panel(
                             ("".join(domains) + "|" + "".join(entities)).encode()
                         ).hexdigest()[:16]
 
-                        cached = ChatSuggestionsView._cache.get(entry_id, {})
+                        cached = _SUGGESTIONS_CACHE.get(entry_id, {})
                         if cached.get("hash") == cache_key:
                             return web.json_response({
                                 "suggestions": cached["suggestions"],
@@ -492,7 +501,7 @@ async def _async_register_chat_panel(
                             if raw:
                                 lines = [s.strip() for s in raw.split("\n") if s.strip()]
                                 result = lines[:6]
-                                ChatSuggestionsView._cache[entry_id] = {
+                                _SUGGESTIONS_CACHE[entry_id] = {
                                     "hash": cache_key,
                                     "suggestions": result,
                                 }
@@ -508,7 +517,10 @@ async def _async_register_chat_panel(
                             "hash": cache_key,
                         })
 
+                # Register main suggestions endpoint
                 hass.http.register_view(ChatSuggestionsView)
+
+
 
                 await panel_custom.async_register_panel(
                     hass=hass,

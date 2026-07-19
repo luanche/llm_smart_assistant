@@ -17,24 +17,57 @@
 10. ✅ Chat panel returns HTML (49KB)
 
 ## Phase 4: Chat Functionality
-11. ✅ "turn on the bedroom light" → correct response
+11. ✅ "turn on the bedroom light" → correct English response
 12. ✅ Chinese "关闭电视" → correct Chinese response
 13. ✅ Multi-step "what's the temperature, then turn on the TV if it's above 25" → correct result
 
-## Phase 5: Automation Management
+## Phase 5: Multi-Language & i18n
+
+### 5A: LLM Language Auto-Match
+- [ ] **French**: "allume la lumière du salon" → response en français
+- [ ] **Japanese**: "テレビをつけて" → response in 日本語
+- [ ] **Mixed**: English message when HA language is zh-Hans → response in English (matches user's message)
+- [ ] **Switch HA language to en** → change user's HA language via Profile → Language
+- [ ] **Chat in Chinese while HA=English** → response still in Chinese (matches user's message, not HA config)
+
+### 5B: Automation Language (Language: field)
+- [ ] **Automation trigger message**: Verify LLM receives `Language:` field set to `hass.config.language`
+- [ ] **Automation response language**: When HA=zh-Hans, automation description/prompt should be in Chinese
+- [ ] **Fallback to `hass.config.language`**: When Language: field not parseable, LLM uses HA config language
+
+### 5C: Suggestions Language
+- [ ] **Suggestions in zh-Hans** (when HA language = zh-Hans): Verify response contains Chinese text
+- [ ] **Suggestions in English** (when HA language = en): Verify response contains English text
+
+### 5D: UI i18n (data-i18n + LANGUAGES)
+- [ ] **Panel loads with Chinese text**: Verify key UI labels (send button, placeholder, title, load indicator) show Chinese when HA=zh-Hans
+- [ ] **`t(key)` returns correct string**: Check `t('sendBtn')` returns Chinese
+- [ ] **All 53 keys render**: No missing `{{key}}` placeholders visible in DOM
+- [ ] **No hardcoded English strings**: Only `data-i18n` annotated text shows
+
+### 5E: Translation File Completeness
+- [ ] **i18n audit passes**: `python3 .pi/skills/i18n-audit/check.py` → all checks green
+- [ ] **No empty zh translations**: Every key in `zh-Hans.json` has non-empty value
+- [ ] **Config flow labels match**: Both `en.json` and `zh-Hans.json` have same set of `data` labels
+
+### 5F: Config Flow in Chinese
+- [ ] **Open options flow while HA=zh-Hans**: Fields like "附加聊天指令" show Chinese labels
+- [ ] **Open options flow while HA=en**: Same fields show English labels
+
+## Phase 6: Automation Management
 14. ✅ `get_automations` service registered (returns `[]` via REST — HA REST API doesn't expose service response bodies)
 15. ✅ `create_automation` service creates automation (confirmed in logs + storage file)
 16. ✅ Automations persisted to `.storage/llm_smart_assistant.storage`
 
-## Phase 6: Dynamic Suggestions
+## Phase 7: Dynamic Suggestions
 17. ⚠️ **Suggestions URL mismatch**: docs say `/{entry_id}/suggestions`, actual is `/suggestions?entry_id=xxx`
 18. ✅ Returns suggestions array (3 items)
 19. ❌ **Bug: Caching not working** — second call same speed (~3.1s) as first, different result
 
-## Phase 7: Error Handling
+## Phase 8: Error Handling
 20. ✅ Empty message: gracefully ignored (no message sent)
 
-## Phase 8: Cleanup
+## Phase 9: Cleanup
 21. ✅ Config entry deleted successfully
 
 ---
