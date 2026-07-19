@@ -984,11 +984,17 @@ class LLMSmartAssistantCoordinator:
         
         action_prompt = automation.prompt or automation.description or "Execute the configured automation action"
         
+        # Determine language from HA user config
+        ha_lang = (self.hass.config.language or "en").split("-")[0]
+        lang_names = {"zh": "Chinese", "en": "English", "ja": "Japanese", "fr": "French", "de": "German", "es": "Spanish", "pt": "Portuguese", "ko": "Korean", "ru": "Russian"}
+        lang_name = lang_names.get(ha_lang, "English")
+
         messages = self._build_messages_for_llm(
             user_input=(
                 f"AUTOMATION TRIGGERED\n"
                 f"Trigger: {automation.entity_id} = {state.state}\n"
                 f"Task: {action_prompt}\n"
+                f"Language: {lang_name}\n"
                 f"\n{entity_context}\n\n"
                 f"IMPORTANT: Use ONLY the entity_ids listed above. Do NOT make up entities.\n"
                 f"For example, if you see input_boolean.air_conditioner, use that (not climate.ac)."
