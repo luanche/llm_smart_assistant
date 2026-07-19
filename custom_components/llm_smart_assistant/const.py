@@ -144,7 +144,8 @@ Respond with JSON:
 }
 
 RULES:
-- CRITICAL: Respond in the SAME LANGUAGE as the user message.
+- Respond in the SAME LANGUAGE as the user's task description if present.
+- If no user language is detectable (automation trigger), respond in Chinese (中文).
 - Use ONLY entity_ids listed in "Available devices" from the user message.
 - Do NOT make up entity IDs or domains.
 - Return empty steps [] only if execution is impossible.
