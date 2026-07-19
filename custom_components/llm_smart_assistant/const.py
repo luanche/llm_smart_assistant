@@ -26,12 +26,15 @@ CONF_HISTORY_COUNT: Final = "history_count"
 CONF_HISTORY_TIME_WINDOW: Final = "history_time_window"  # in minutes
 CONF_IGNORE_DUPLICATE: Final = "ignore_duplicate"
 CONF_ALLOW_AUTOMATION: Final = "allow_automation"
+CONF_HISTORY_ENABLED: Final = "history_enabled"
+CONF_DISABLED_AUTOMATIONS: Final = "disabled_automations"
 
 # Default values
 DEFAULT_API_BASE_URL: Final = "https://api.openai.com/v1"
 DEFAULT_MODEL_NAME: Final = "gpt-4o-mini"
 DEFAULT_TEMPERATURE: Final = 0.7
 DEFAULT_MAX_TOKENS: Final = 1024
+DEFAULT_HISTORY_ENABLED: Final = True
 DEFAULT_HISTORY_MODE: Final = "count"
 DEFAULT_HISTORY_COUNT: Final = 10
 DEFAULT_HISTORY_TIME_WINDOW: Final = 60  # 1 hour

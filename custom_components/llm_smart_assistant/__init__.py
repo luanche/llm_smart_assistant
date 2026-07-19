@@ -20,7 +20,7 @@ from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant, SupportsResponse
 from homeassistant.helpers import config_validation as cv
 
-from .const import DOMAIN, CONF_TEMPERATURE, CONF_MAX_TOKENS
+from .const import DOMAIN, CONF_TEMPERATURE, CONF_MAX_TOKENS, CONF_API_BASE_URL, CONF_API_KEY, CONF_MODEL_NAME
 from .coordinator import LLMSmartAssistantCoordinator
 from .services import ServicesExecutor
 
@@ -92,8 +92,11 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
 
 async def _async_update_listener(hass: HomeAssistant, entry: ConfigEntry) -> None:
-    """Handle options update. Sync LLM params from options to data."""
-    sync_keys = [CONF_TEMPERATURE, CONF_MAX_TOKENS]
+    """Handle options update. Sync params from options to data."""
+    sync_keys = [
+        CONF_TEMPERATURE, CONF_MAX_TOKENS,
+        CONF_API_BASE_URL, CONF_API_KEY, CONF_MODEL_NAME,
+    ]
     needs_data_update = any(k in entry.options for k in sync_keys)
 
     if needs_data_update:

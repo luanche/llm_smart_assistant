@@ -30,9 +30,11 @@ from .const import (
     CONF_ALLOW_AUTOMATION,
     CONF_API_BASE_URL,
     CONF_API_KEY,
+    CONF_DISABLED_AUTOMATIONS,
     CONF_DOMAINS_WHITELIST,
     CONF_ENTITIES_WHITELIST,
     CONF_HISTORY_COUNT,
+    CONF_HISTORY_ENABLED,
     CONF_HISTORY_MODE,
     CONF_HISTORY_TIME_WINDOW,
     CONF_IGNORE_DUPLICATE,
@@ -213,15 +215,15 @@ class LLMSmartAssistantCoordinator:
 
     @property
     def api_base_url(self) -> str:
-        return self._data.get(CONF_API_BASE_URL, "")
+        return self._options.get(CONF_API_BASE_URL) or self._data.get(CONF_API_BASE_URL, "")
 
     @property
     def api_key(self) -> str:
-        return self._data.get(CONF_API_KEY, "")
+        return self._options.get(CONF_API_KEY) or self._data.get(CONF_API_KEY, "")
 
     @property
     def model_name(self) -> str:
-        return self._data.get(CONF_MODEL_NAME, "")
+        return self._options.get(CONF_MODEL_NAME) or self._data.get(CONF_MODEL_NAME, "")
 
     @property
     def temperature(self) -> float:
@@ -276,6 +278,10 @@ class LLMSmartAssistantCoordinator:
         return self._options.get(CONF_ENTITIES_WHITELIST, [])
 
     @property
+    def history_enabled(self) -> bool:
+        return self._options.get(CONF_HISTORY_ENABLED, True)
+
+    @property
     def history_mode(self) -> str:
         return self._options.get(CONF_HISTORY_MODE, HISTORY_MODE_COUNT)
 
@@ -286,6 +292,10 @@ class LLMSmartAssistantCoordinator:
     @property
     def history_time_window(self) -> int:
         return int(self._options.get(CONF_HISTORY_TIME_WINDOW, 60))
+
+    @property
+    def disabled_automations(self) -> list:
+        return self._options.get(CONF_DISABLED_AUTOMATIONS, [])
 
     @property
     def allow_automation(self) -> bool:
@@ -628,11 +638,14 @@ class LLMSmartAssistantCoordinator:
 
     def _truncate_history(self) -> None:
         """Truncate history based on configured strategy."""
+        if not self.history_enabled:
+            self._history = self._history[-1:]  # keep only current turn
+            return
         if self.history_mode == HISTORY_MODE_COUNT:
             max_count = max(self.history_count, 1)
             if len(self._history) > max_count:
                 self._history = self._history[-max_count:]
-        elif self.history_mode == HISTORY_MODE_TIME:
+        if self.history_mode == HISTORY_MODE_TIME:
             window_minutes = max(self.history_time_window, 1)
             cutoff = dt_util.utcnow() - timedelta(minutes=window_minutes)
             self._history = [m for m in self._history if m.timestamp >= cutoff]
@@ -1069,6 +1082,11 @@ class LLMSmartAssistantCoordinator:
     ) -> None:
         """Handle a state change event for an automation."""
         if not self._is_started:
+            return
+
+        # Check if this automation is disabled
+        if automation.automation_id in self.disabled_automations:
+            _LOGGER.debug("Automation '%s' is disabled, skipping", automation.automation_id[:8])
             return
 
         new_state: State | None = event.data.get("new_state")
