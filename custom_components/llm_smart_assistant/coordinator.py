@@ -1284,7 +1284,7 @@ class LLMSmartAssistantCoordinator:
 
     async def _async_speak_tts(self, text: str) -> None:
         """Speak text via the configured TTS mechanism.
-        Handles volume adjustment to prevent speaker self-triggering (抢答).
+        Handles DND toggle to prevent speaker self-triggering (抢答).
         """
         if not text or not self.tts_entity_id:
             return
@@ -1292,22 +1292,22 @@ class LLMSmartAssistantCoordinator:
         tts_entity = self.tts_entity_id
         media_domain = tts_entity.split(".")[0]
 
+        # Auto-detect the speaker's DND switch (xiaomi_miot)
+        _dnd_switch = None
+        if media_domain == "media_player":
+            dnd_id = tts_entity.replace("play_control", "no_disturb").replace("media_player", "switch")
+            if self.hass.states.get(dnd_id):
+                _dnd_switch = dnd_id
+
         try:
-            # ── Pre-TTS: raise volume to speak level ──
-            if media_domain == "media_player" and self.tts_speak_volume > 0:
+            # ── Pre-TTS: disable DND so speaker can speak ──
+            if _dnd_switch and self.tts_speak_volume > 0:
                 await self.hass.services.async_call(
-                    "media_player",
-                    "volume_set",
-                    {"entity_id": tts_entity, "volume_level": self.tts_speak_volume},
+                    "switch", "turn_off",
+                    {"entity_id": _dnd_switch},
                     blocking=True,
                 )
-                # Also unmute in case it was muted
-                await self.hass.services.async_call(
-                    "media_player",
-                    "volume_mute",
-                    {"entity_id": tts_entity, "is_volume_muted": False},
-                    blocking=True,
-                )
+                await asyncio.sleep(0.5)
 
             # ── Speak ──
             if self.tts_mode == TTS_MODE_STANDARD:
@@ -1363,23 +1363,18 @@ class LLMSmartAssistantCoordinator:
 
             _LOGGER.info("TTS spoken to %s: %s", tts_entity, text[:100])
 
-            # ── Post-TTS: wait estimated duration, then mute ──
-            if media_domain == "media_player" and self.tts_mute_after:
-                # Estimate speech duration: ~5 chars/sec + 300ms per pause + 300ms base
+            # ── Post-TTS: wait estimated duration, then re-enable DND ──
+            if _dnd_switch and self.tts_mute_after:
+                # Estimate speech duration: ~5 chars/sec + per-pause + base
                 clean = text.replace(" ", "").replace("\n", "")
                 char_count = len(clean)
-                pause_count = text.count(",") + text.count("。") + text.count("!") + text.count("?") + text.count("；")
-                delay_ms = max(500, char_count * 200 + pause_count * 300 + 500)
-                _LOGGER.debug("TTS mute delay: %d ms for %d chars", delay_ms, char_count)
+                pause_count = text.count(",") + text.count("。") + text.count("!") + text.count("?") + text.count(";")
+                delay_ms = max(1000, char_count * 200 + pause_count * 300 + 500)
+                _LOGGER.debug("TTS DND delay: %d ms for %d chars", delay_ms, char_count)
                 await asyncio.sleep(delay_ms / 1000)
                 await self.hass.services.async_call(
-                    "media_player", "volume_set",
-                    {"entity_id": tts_entity, "volume_level": 0.0},
-                    blocking=True,
-                )
-                await self.hass.services.async_call(
-                    "media_player", "volume_mute",
-                    {"entity_id": tts_entity, "is_volume_muted": True},
+                    "switch", "turn_on",
+                    {"entity_id": _dnd_switch},
                     blocking=True,
                 )
 
