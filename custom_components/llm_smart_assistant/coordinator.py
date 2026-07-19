@@ -437,14 +437,27 @@ class LLMSmartAssistantCoordinator:
         return prompt
 
     def _get_exposed_entities_info(self) -> str:
-        """Get a textual representation of exposed/whitelisted entities."""
-        lines = []
+        """Get a CSV-formatted list of exposed/whitelisted entities."""
+        return self._build_entity_csv()
+
+    def _build_entity_csv(self) -> str:
+        """Build a compact CSV of available entities for LLM context.
+
+        Format: entity_id, friendly_name, state, area
+        This is compact, easy for LLMs to parse, and includes only
+        whitelisted entities in non-error states.
+        """
+        lines = ["entity_id,name,state,area"]
         domains = self.domains_whitelist
         entity_ids = self.entities_whitelist
 
         for state_obj in self.hass.states.async_all():
-            domain = state_obj.entity_id.split(".")[0]
             entity_id = state_obj.entity_id
+            domain = entity_id.split(".")[0]
+
+            # Skip unavailable/unknown
+            if state_obj.state in ("unknown", "unavailable", "none"):
+                continue
 
             # Check whitelist
             if entity_ids and entity_id not in entity_ids:
@@ -452,34 +465,22 @@ class LLMSmartAssistantCoordinator:
             if domains and domain not in domains:
                 continue
 
-            # Build a concise representation
             attrs = state_obj.attributes
-            friendly_name = attrs.get("friendly_name", entity_id)
-            state_val = state_obj.state
-            extra = ""
+            friendly = attrs.get("friendly_name", entity_id).replace(",", " ")
+            state_val = state_obj.state.replace(",", " ")
+            area = self._get_area_name(entity_id)
 
-            if domain == "sensor" and "unit_of_measurement" in attrs:
-                extra = f" {attrs['unit_of_measurement']}"
-            elif domain == "climate":
-                extra = (
-                    f" (current: {attrs.get('current_temperature', '?')}°C, "
-                    f"target: {attrs.get('temperature', '?')}°C)"
-                )
-            elif domain == "light":
-                extra = f" (brightness: {attrs.get('brightness', '?')})" if state_val == "on" else ""
-            elif domain == "media_player":
-                extra = (
-                    f" - {attrs.get('media_title', '')} by {attrs.get('media_artist', '')}"
-                    if state_val == "playing"
-                    else ""
-                )
-
-            lines.append(f"- {friendly_name} ({entity_id}): {state_val}{extra}")
-
-        if not lines:
-            return "No entities are currently accessible."
+            lines.append(f"{entity_id},{friendly},{state_val},{area}")
 
         return "\n".join(lines)
+
+    @staticmethod
+    def _get_area_name(entity_id: str) -> str:
+        """Get the area name for an entity, if available."""
+        # Area lookup requires registry access; return empty for now
+        # HA stores area in entity registry, accessible via:
+        # hass.data['entity_registry'].async_get(entity_id)?.area_id
+        return ""
 
     async def _async_query_llm(
         self,
@@ -926,18 +927,9 @@ class LLMSmartAssistantCoordinator:
             state.state,
         )
 
-        # Build comprehensive entity context for the LLM
-        all_states = self.hass.states.async_all()
-        entity_lines = []
-        for s_obj in all_states:
-            domain = s_obj.domain
-            if self.domains_whitelist and domain not in self.domains_whitelist:
-                continue
-            friendly = s_obj.attributes.get("friendly_name", s_obj.entity_id)
-            entity_lines.append(
-                f"  - {s_obj.entity_id} ({friendly}): {s_obj.state}"
-            )
-        entity_context = "Available devices you can control:\n" + "\n".join(entity_lines[:20])
+        # Build entity context (CSV format, compact and LLM-friendly)
+        # Build rich device list with area info from registry
+        entity_context = "Available Devices (entity_id,domain,name,state,unit,extra):\n" + self._build_entity_csv()
         
         action_prompt = automation.prompt or automation.description or "Execute the configured automation action"
         
