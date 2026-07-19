@@ -774,10 +774,10 @@ function addMsg(role, text, raw) {
   p.className = 'msg-text';
   p.textContent = text || t('noResponse');
   div.appendChild(p);
-  const t = document.createElement('div');
-  t.className = 'msg-time';
-  t.textContent = fmt();
-  div.appendChild(t);
+  const tm = document.createElement('div');
+  tm.className = 'msg-time';
+  tm.textContent = fmt();
+  div.appendChild(tm);
   if (raw) div.dataset.debug = raw;
   c.appendChild(div);
   c.scrollTop = c.scrollHeight;
@@ -794,10 +794,10 @@ function showLoad() {
   p.className = 'msg-text';
   p.textContent = t('thinkingText');
   d.appendChild(p);
-  const t = document.createElement('div');
-  t.className = 'msg-time';
-  t.textContent = fmt();
-  d.appendChild(t);
+  const tm = document.createElement('div');
+  tm.className = 'msg-time';
+  tm.textContent = fmt();
+  d.appendChild(tm);
   c.appendChild(d);
   c.scrollTop = c.scrollHeight;
 }
