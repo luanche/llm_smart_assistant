@@ -432,6 +432,7 @@
       if (accessToken) {
         localStorage.setItem('llm_assistant_token', accessToken);
         document.getElementById('statusText').textContent = 'Connected';
+        discoverInstances();
       } else {
         document.getElementById('statusText').textContent = 'No token';
         setStatus('Token required', false);
@@ -570,7 +571,9 @@
       setStatus('Thinking...');
 
       try {
-        await callAPI('POST', '/api/services/llm_smart_assistant/process_input', { text });
+        const inst = document.getElementById('instanceSelect').value;
+        await callAPI('POST', '/api/services/llm_smart_assistant/process_input',
+          inst ? { text, entry_id: inst } : { text });
         await new Promise(r => setTimeout(r, 1000));
 
         let attempts = 0;

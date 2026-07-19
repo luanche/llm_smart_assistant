@@ -64,13 +64,12 @@ async def validate_api_connection(
     api_key: str,
     model_name: str,
 ) -> dict[str, str] | None:
-    """Validate the LLM API connection by listing models."""
+    """Validate the LLM API connection."""
     headers = {
         "Authorization": f"Bearer {api_key}",
         "Content-Type": "application/json",
     }
     url = f"{api_base_url.rstrip('/')}/models"
-
     try:
         async with aiohttp.ClientSession() as session:
             async with session.get(
@@ -82,26 +81,12 @@ async def validate_api_connection(
                     return None
                 if resp.status != 200:
                     return {"base": "cannot_connect"}
-                data = await resp.json()
-                models = data.get("data", [])
-                model_ids = [m.get("id") for m in models]
-                if model_name not in model_ids and model_ids:
-                    _LOGGER.warning(
-                        "Model '%s' not found in provider's model list",
-                        model_name,
-                    )
                 return None
-    except aiohttp.ClientError as exc:
-        _LOGGER.error("API connection error: %s", exc)
+    except aiohttp.ClientError:
         return {"base": "cannot_connect"}
-    except Exception as exc:
-        _LOGGER.error("Unexpected error validating API: %s", exc)
+    except Exception:
         return {"base": "unknown"}
 
-
-# ---------------------------------------------------------------------------
-# Config Flow (first-time setup)
-# ---------------------------------------------------------------------------
 
 class LLMSmartAssistantConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     VERSION = 1
@@ -118,11 +103,11 @@ class LLMSmartAssistantConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             api_base_url = user_input[CONF_API_BASE_URL].rstrip("/")
             api_key = user_input[CONF_API_KEY]
             model_name = user_input[CONF_MODEL_NAME]
-            validation_errors = await validate_api_connection(
+            errs = await validate_api_connection(
                 self.hass, api_base_url, api_key, model_name
             )
-            if validation_errors:
-                errors.update(validation_errors)
+            if errs:
+                errors.update(errs)
             else:
                 return self.async_create_entry(
                     title=title,
@@ -150,170 +135,31 @@ class LLMSmartAssistantConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         )
 
 
-# ---------------------------------------------------------------------------
-# Options Flow
-# ---------------------------------------------------------------------------
-
 class LLMSmartAssistantOptionsFlow(config_entries.OptionsFlow):
-    """Options flow with grouped sections."""
-
-    # Track which section the user is in for multi-step flow
-    SECTIONS = ["api", "llm", "prompts", "input", "tts", "security", "history", "automations"]
+    """Options flow: single page with all settings."""
 
     def __init__(self, config_entry):
         self._data = {}
-        self._section = None
+
+    @staticmethod
+    def _automation_options(automations):
+        if not automations:
+            return []
+        return [{"value": a.automation_id, "label": f"{a.entity_id} {a.condition} \u2192 {a.description or a.prompt or a.automation_id[:8]}"} for a in automations]
 
     async def async_step_init(self, user_input=None):
-        """Show section selector or start with first section."""
-        if user_input is None:
-            return await self.async_step_api()
-        return await self.async_step_api(user_input)
-
-    # ---- Section: API Configuration ----
-
-    async def async_step_api(self, user_input=None):
         errors = {}
+        if user_input is not None:
+            # Remove empty TTS entity to avoid validation error
+            if not user_input.get(CONF_TTS_ENTITY_ID):
+                user_input.pop(CONF_TTS_ENTITY_ID, None)
+            self._data.update(user_input)
+            return self.async_create_entry(title="", data=self._data)
+
         cur = self.config_entry.options
         dat = self.config_entry.data
 
-        if user_input is not None:
-            api = user_input[CONF_API_BASE_URL].rstrip("/")
-            key = user_input[CONF_API_KEY]
-            model = user_input[CONF_MODEL_NAME]
-            errs = await validate_api_connection(self.hass, api, key, model)
-            if errs:
-                errors.update(errs)
-                return self.async_show_form(
-                    step_id="api",
-                    data_schema=self._api_schema(cur, dat),
-                    errors=errors,
-                )
-            user_input[CONF_API_BASE_URL] = api
-            self._data.update(user_input)
-            return await self.async_step_llm()
-
-        return self.async_show_form(
-            step_id="api",
-            data_schema=self._api_schema(cur, dat),
-            description_placeholders={"section": "API Configuration"},
-        )
-
-    def _api_schema(self, cur, dat):
-        return vol.Schema({
-            vol.Required(CONF_API_BASE_URL,
-                         default=cur.get(CONF_API_BASE_URL, dat.get(CONF_API_BASE_URL, DEFAULT_API_BASE_URL))):
-            selector.TextSelector(selector.TextSelectorConfig(type="url")),
-            vol.Required(CONF_API_KEY,
-                         default=cur.get(CONF_API_KEY, dat.get(CONF_API_KEY, ""))):
-            selector.TextSelector(selector.TextSelectorConfig(type="password")),
-            vol.Required(CONF_MODEL_NAME,
-                         default=cur.get(CONF_MODEL_NAME, dat.get(CONF_MODEL_NAME, DEFAULT_MODEL_NAME))):
-            selector.TextSelector(),
-            # Next button hint
-            vol.Optional("_next", default=True): selector.BooleanSelector(),
-        })
-
-    # ---- Section: LLM Parameters ----
-
-    async def async_step_llm(self, user_input=None):
-        if user_input is not None:
-            self._data.update(user_input)
-            return await self.async_step_prompts()
-
-        cur = self.config_entry.options
-        dat = self.config_entry.data
-        return self.async_show_form(
-            step_id="llm",
-            data_schema=vol.Schema({
-                vol.Optional(CONF_TEMPERATURE,
-                             default=float(cur.get(CONF_TEMPERATURE, dat.get(CONF_TEMPERATURE, DEFAULT_TEMPERATURE)))):
-                selector.NumberSelector(selector.NumberSelectorConfig(min=0.0, max=2.0, step=0.1, mode=selector.NumberSelectorMode.BOX)),
-                vol.Optional(CONF_MAX_TOKENS,
-                             default=int(cur.get(CONF_MAX_TOKENS, dat.get(CONF_MAX_TOKENS, DEFAULT_MAX_TOKENS)))):
-                selector.NumberSelector(selector.NumberSelectorConfig(min=64, max=32768, step=1, mode=selector.NumberSelectorMode.BOX)),
-            }),
-            description_placeholders={"section": "LLM Parameters"},
-        )
-
-    # ---- Section: Prompts ----
-
-    async def async_step_prompts(self, user_input=None):
-        if user_input is not None:
-            self._data.update(user_input)
-            return await self.async_step_input()
-
-        cur = self.config_entry.options
-        return self.async_show_form(
-            step_id="prompts",
-            data_schema=vol.Schema({
-                vol.Optional(CONF_PROMPT_DEFAULT,
-                             default=cur.get(CONF_PROMPT_DEFAULT, DEFAULT_PROMPT_DEFAULT)):
-                selector.TextSelector(selector.TextSelectorConfig(multiline=True)),
-                vol.Optional(CONF_PROMPT_AUTOMATION,
-                             default=cur.get(CONF_PROMPT_AUTOMATION, DEFAULT_PROMPT_AUTOMATION)):
-                selector.TextSelector(selector.TextSelectorConfig(multiline=True)),
-            }),
-            description_placeholders={"section": "System Prompts"},
-        )
-
-    # ---- Section: Input Sensors ----
-
-    async def async_step_input(self, user_input=None):
-        if user_input is not None:
-            self._data.update(user_input)
-            return await self.async_step_tts()
-
-        cur = self.config_entry.options
-        return self.async_show_form(
-            step_id="input",
-            data_schema=vol.Schema({
-                vol.Optional(CONF_INPUT_ENTITIES, default=cur.get(CONF_INPUT_ENTITIES, [])):
-                selector.EntitySelector(selector.EntitySelectorConfig(domain=["sensor"], multiple=True)),
-                vol.Optional(CONF_IGNORE_DUPLICATE,
-                             default=cur.get(CONF_IGNORE_DUPLICATE, DEFAULT_IGNORE_DUPLICATE)):
-                selector.BooleanSelector(),
-            }),
-            description_placeholders={"section": "Input Sensors"},
-        )
-
-    # ---- Section: TTS ----
-
-    async def async_step_tts(self, user_input=None):
-        if user_input is not None:
-            if user_input.get(CONF_TTS_ENTITY_ID) in ("", None):
-                user_input[CONF_TTS_ENTITY_ID] = ""
-            self._data.update(user_input)
-            return await self.async_step_security()
-
-        cur = self.config_entry.options
-        return self.async_show_form(
-            step_id="tts",
-            data_schema=self._tts_schema(cur),
-            description_placeholders={"section": "Text-to-Speech"},
-        )
-
-    def _tts_schema(self, cur):
-        return vol.Schema({
-            vol.Optional(CONF_TTS_ENTITY_ID, default=cur.get(CONF_TTS_ENTITY_ID) or ""):
-            selector.EntitySelector(selector.EntitySelectorConfig(multiple=False)),
-            vol.Optional(CONF_TTS_MODE, default=cur.get(CONF_TTS_MODE, TTS_MODE_STANDARD)):
-            selector.SelectSelector(selector.SelectSelectorConfig(
-                options=[TTS_MODE_STANDARD, TTS_MODE_XIAOMI_MIOT, TTS_MODE_CUSTOM],
-            )),
-            vol.Optional(CONF_TTS_CUSTOM_TEMPLATE, default=cur.get(CONF_TTS_CUSTOM_TEMPLATE, "")):
-            selector.TextSelector(selector.TextSelectorConfig(multiline=True)),
-        })
-
-    # ---- Section: Security ----
-
-    async def async_step_security(self, user_input=None):
-        if user_input is not None:
-            self._data.update(user_input)
-            return await self.async_step_history()
-
-        cur = self.config_entry.options
-        # Build domain list
+        # Build domain list for whitelist
         domains = set([
             "alarm_control_panel", "automation", "binary_sensor", "button",
             "camera", "climate", "cover", "device_tracker", "fan",
@@ -327,80 +173,97 @@ class LLMSmartAssistantOptionsFlow(config_entries.OptionsFlow):
             if d not in RESTRICTED_DOMAINS:
                 domains.add(d)
 
+        # Get automations for disable list
+        coordinator = self.hass.data.get(DOMAIN, {}).get(self.config_entry.entry_id)
+        automations = list(coordinator._automations.values()) if coordinator else []
+
         return self.async_show_form(
-            step_id="security",
+            step_id="init",
             data_schema=vol.Schema({
+                # ── API Configuration ──
+                vol.Required(CONF_API_BASE_URL,
+                    default=cur.get(CONF_API_BASE_URL, dat.get(CONF_API_BASE_URL, DEFAULT_API_BASE_URL))):
+                selector.TextSelector(selector.TextSelectorConfig(type="url")),
+                vol.Required(CONF_API_KEY,
+                    default=cur.get(CONF_API_KEY, dat.get(CONF_API_KEY, ""))):
+                selector.TextSelector(selector.TextSelectorConfig(type="password")),
+                vol.Required(CONF_MODEL_NAME,
+                    default=cur.get(CONF_MODEL_NAME, dat.get(CONF_MODEL_NAME, DEFAULT_MODEL_NAME))):
+                selector.TextSelector(),
+
+                # ── LLM Parameters ──
+                vol.Optional(CONF_TEMPERATURE,
+                    default=float(cur.get(CONF_TEMPERATURE, dat.get(CONF_TEMPERATURE, DEFAULT_TEMPERATURE)))):
+                selector.NumberSelector(selector.NumberSelectorConfig(min=0.0, max=2.0, step=0.1, mode=selector.NumberSelectorMode.BOX)),
+                vol.Optional(CONF_MAX_TOKENS,
+                    default=int(cur.get(CONF_MAX_TOKENS, dat.get(CONF_MAX_TOKENS, DEFAULT_MAX_TOKENS)))):
+                selector.NumberSelector(selector.NumberSelectorConfig(min=64, max=32768, step=1, mode=selector.NumberSelectorMode.BOX)),
+
+                # ── System Prompts ──
+                vol.Optional(CONF_PROMPT_DEFAULT,
+                    default=cur.get(CONF_PROMPT_DEFAULT, DEFAULT_PROMPT_DEFAULT)):
+                selector.TextSelector(selector.TextSelectorConfig(multiline=True)),
+                vol.Optional(CONF_PROMPT_AUTOMATION,
+                    default=cur.get(CONF_PROMPT_AUTOMATION, DEFAULT_PROMPT_AUTOMATION)):
+                selector.TextSelector(selector.TextSelectorConfig(multiline=True)),
+
+                # ── Input Sensors ──
+                vol.Optional(CONF_INPUT_ENTITIES,
+                    default=cur.get(CONF_INPUT_ENTITIES, [])):
+                selector.EntitySelector(selector.EntitySelectorConfig(domain=["sensor"], multiple=True)),
+                vol.Optional(CONF_IGNORE_DUPLICATE,
+                    default=cur.get(CONF_IGNORE_DUPLICATE, DEFAULT_IGNORE_DUPLICATE)):
+                selector.BooleanSelector(),
+
+                # ── Text-to-Speech ──
+                vol.Optional(CONF_TTS_ENTITY_ID,
+                    default=cur.get(CONF_TTS_ENTITY_ID) or ""):
+                selector.TextSelector(),
+                vol.Optional(CONF_TTS_MODE,
+                    default=cur.get(CONF_TTS_MODE, TTS_MODE_STANDARD)):
+                selector.SelectSelector(selector.SelectSelectorConfig(
+                    options=[TTS_MODE_STANDARD, TTS_MODE_XIAOMI_MIOT, TTS_MODE_CUSTOM],
+                )),
+                vol.Optional(CONF_TTS_CUSTOM_TEMPLATE,
+                    default=cur.get(CONF_TTS_CUSTOM_TEMPLATE, "")):
+                selector.TextSelector(selector.TextSelectorConfig(multiline=True)),
+
+                # ── Security & Access ──
                 vol.Optional(CONF_DOMAINS_WHITELIST,
-                             default=cur.get(CONF_DOMAINS_WHITELIST, ["light", "switch", "media_player", "input_boolean"])):
+                    default=cur.get(CONF_DOMAINS_WHITELIST, ["light", "switch", "media_player", "input_boolean"])):
                 selector.SelectSelector(selector.SelectSelectorConfig(
                     options=sorted(domains), multiple=True, mode=selector.SelectSelectorMode.DROPDOWN,
                 )),
-                vol.Optional(CONF_ENTITIES_WHITELIST, default=cur.get(CONF_ENTITIES_WHITELIST, [])):
+                vol.Optional(CONF_ENTITIES_WHITELIST,
+                    default=cur.get(CONF_ENTITIES_WHITELIST, [])):
                 selector.EntitySelector(selector.EntitySelectorConfig(multiple=True)),
                 vol.Optional(CONF_ALLOW_AUTOMATION,
-                             default=cur.get(CONF_ALLOW_AUTOMATION, DEFAULT_ALLOW_AUTOMATION)):
+                    default=cur.get(CONF_ALLOW_AUTOMATION, DEFAULT_ALLOW_AUTOMATION)):
                 selector.BooleanSelector(),
-            }),
-            description_placeholders={"section": "Security & Access"},
-        )
 
-    # ---- Section: History ----
-
-    async def async_step_history(self, user_input=None):
-        if user_input is not None:
-            self._data.update(user_input)
-            return await self.async_step_automations()
-
-        cur = self.config_entry.options
-        return self.async_show_form(
-            step_id="history",
-            data_schema=vol.Schema({
+                # ── Conversation History ──
                 vol.Optional(CONF_HISTORY_ENABLED,
-                             default=cur.get(CONF_HISTORY_ENABLED, DEFAULT_HISTORY_ENABLED)):
+                    default=cur.get(CONF_HISTORY_ENABLED, DEFAULT_HISTORY_ENABLED)):
                 selector.BooleanSelector(),
                 vol.Optional(CONF_HISTORY_MODE,
-                             default=cur.get(CONF_HISTORY_MODE, DEFAULT_HISTORY_MODE)):
+                    default=cur.get(CONF_HISTORY_MODE, DEFAULT_HISTORY_MODE)):
                 selector.SelectSelector(selector.SelectSelectorConfig(
                     options=[HISTORY_MODE_COUNT, HISTORY_MODE_TIME],
                 )),
                 vol.Optional(CONF_HISTORY_COUNT,
-                             default=cur.get(CONF_HISTORY_COUNT, DEFAULT_HISTORY_COUNT)):
+                    default=cur.get(CONF_HISTORY_COUNT, DEFAULT_HISTORY_COUNT)):
                 selector.NumberSelector(selector.NumberSelectorConfig(min=1, max=100, step=1, mode=selector.NumberSelectorMode.BOX)),
                 vol.Optional(CONF_HISTORY_TIME_WINDOW,
-                             default=cur.get(CONF_HISTORY_TIME_WINDOW, DEFAULT_HISTORY_TIME_WINDOW)):
+                    default=cur.get(CONF_HISTORY_TIME_WINDOW, DEFAULT_HISTORY_TIME_WINDOW)):
                 selector.NumberSelector(selector.NumberSelectorConfig(min=1, max=1440, step=1, mode=selector.NumberSelectorMode.BOX, unit_of_measurement="minutes")),
-            }),
-            description_placeholders={"section": "Conversation History"},
-        )
 
-    # ---- Section: Automations ----
-
-    async def async_step_automations(self, user_input=None):
-        coordinator = self.hass.data.get(DOMAIN, {}).get(self.config_entry.entry_id)
-        automations = list(coordinator._automations.values()) if coordinator else []
-
-        if user_input is not None:
-            self._data[CONF_DISABLED_AUTOMATIONS] = user_input.get(CONF_DISABLED_AUTOMATIONS, [])
-            self._data.update({k: v for k, v in user_input.items() if k != CONF_DISABLED_AUTOMATIONS})
-            return self.async_create_entry(title="", data=self._data)
-
-        cur = self.config_entry.options
-        disabled = cur.get(CONF_DISABLED_AUTOMATIONS, [])
-        options = {}
-        for auto in automations:
-            label = f"{auto.entity_id} {auto.condition} \u2192 {auto.description or auto.prompt or auto.automation_id[:8]}"
-            options[auto.automation_id] = label[:100]
-
-        schema = {}
-        if options:
-            schema[vol.Optional(CONF_DISABLED_AUTOMATIONS, default=disabled)] = \
+                # ── Disabled Automations ──
+                vol.Optional(CONF_DISABLED_AUTOMATIONS,
+                    default=cur.get(CONF_DISABLED_AUTOMATIONS, [])):
                 selector.SelectSelector(selector.SelectSelectorConfig(
-                    options=sorted(options.items()), multiple=True,
-                    mode=selector.SelectSelectorMode.DROPDOWN,
-                ))
-
-        return self.async_show_form(
-            step_id="automations",
-            data_schema=vol.Schema(schema) if schema else vol.Schema({}),
-            description_placeholders={"section": "Dynamic Automations"},
+                    options=self._automation_options(automations),
+                    multiple=True, mode=selector.SelectSelectorMode.DROPDOWN,
+                )),
+            }),
+            errors=errors,
         )

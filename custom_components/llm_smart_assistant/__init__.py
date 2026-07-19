@@ -139,7 +139,11 @@ async def _async_register_services(
     async def async_process_input(call):
         """Handle the process_input service call."""
         text = call.data.get("text", "")
+        entry_filter = call.data.get("entry_id", "")
         if text:
+            # If entry_filter is set, only process if it matches this instance
+            if entry_filter and entry_filter != entry.entry_id:
+                return
             await coordinator._async_process_user_input(
                 "service_call", text
             )
@@ -191,6 +195,7 @@ async def _async_register_services(
         schema=vol.Schema(
             {
                 vol.Required("text"): cv.string,
+                vol.Optional("entry_id", default=""): cv.string,
             }
         ),
     )
