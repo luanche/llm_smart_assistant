@@ -88,6 +88,15 @@ async def validate_api_connection(
         return {"base": "unknown"}
 
 
+class _OptionalEntitySelector(selector.EntitySelector):
+    """EntitySelector that accepts empty string (optional field)."""
+
+    def __call__(self, data: Any) -> str | list[str]:
+        if not data:
+            return ""
+        return super().__call__(data)
+
+
 class LLMSmartAssistantConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     VERSION = 1
 
@@ -228,9 +237,10 @@ class LLMSmartAssistantOptionsFlow(config_entries.OptionsFlow):
                 selector.BooleanSelector(),
 
                 # ── Text-to-Speech ──
+                # EntitySelector for UI picker; custom subclass accepts empty string
                 vol.Optional(CONF_TTS_ENTITY_ID,
                     default=cur.get(CONF_TTS_ENTITY_ID) or ""):
-                selector.TextSelector(selector.TextSelectorConfig()),
+                _OptionalEntitySelector(selector.EntitySelectorConfig(multiple=False)),
                 vol.Optional(CONF_TTS_MODE,
                     default=cur.get(CONF_TTS_MODE, TTS_MODE_STANDARD)):
                 selector.SelectSelector(selector.SelectSelectorConfig(

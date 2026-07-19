@@ -12,6 +12,12 @@ dist/
 # HA runtime data (keep configuration.yaml only)
 config
 
+# Third-party custom integrations (not our code)
+xiaomi_miot/
+alexa_media*
+hacs/
+hass-xiaomi-miot*
+
 # Credentials
 .ha_credentials.json
 
