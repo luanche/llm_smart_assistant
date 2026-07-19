@@ -281,11 +281,11 @@ class LLMSmartAssistantCoordinator:
 
     @property
     def history_count(self) -> int:
-        return self._options.get(CONF_HISTORY_COUNT, 10)
+        return int(self._options.get(CONF_HISTORY_COUNT, 10))
 
     @property
     def history_time_window(self) -> int:
-        return self._options.get(CONF_HISTORY_TIME_WINDOW, 60)
+        return int(self._options.get(CONF_HISTORY_TIME_WINDOW, 60))
 
     @property
     def allow_automation(self) -> bool:
@@ -816,6 +816,18 @@ class LLMSmartAssistantCoordinator:
                             error = result.get("error", "Unknown error")
                             step_feedback.append(f"  - Failed {domain}.{service} on {entity_target}: {error}")
 
+                    elif action == ACTION_CREATE_AUTOMATION:
+                        # create_automation: feed back the automation id so LLM knows it's done
+                        auto_id = step_result_data.get("automation_id", "")
+                        entity = step_result_data.get("entity_id", "")
+                        cond = step_result_data.get("condition", "")
+                        if success and auto_id:
+                            step_feedback.append(
+                                f"  - create_automation: DONE (id={auto_id[:8]}, entity={entity}, condition={cond})"
+                            )
+                        elif not success:
+                            error = result.get("error", "Unknown error")
+                            step_feedback.append(f"  - create_automation: failed ({error})")
                     elif success:
                         step_feedback.append(f"  - {action}: completed")
                     else:
@@ -911,12 +923,19 @@ class LLMSmartAssistantCoordinator:
         )
 
         # Build automation context
+        action_prompt = automation.prompt or automation.description or "Execute the configured automation action"
+        exposed = self._build_exposed_entities_list()
         messages = self._build_messages_for_llm(
-            user_input=f"Automation '{automation.description}' triggered. "
-            f"Entity {automation.entity_id} is now {state.state}.",
+            user_input=(
+                f"Automation triggered: {automation.description}. "
+                f"Entity {automation.entity_id} is now {state.state}. "
+                f"Action to execute: {action_prompt}. "
+                f"Execute this action NOW by returning call_service steps."
+            ),
             prompt_template=self.prompt_automation,
             entity_id=automation.entity_id,
             state=state.state,
+            exposed_entities=exposed,
         )
 
         # Call LLM with a simpler context
@@ -1050,18 +1069,10 @@ class LLMSmartAssistantCoordinator:
         ):
             return
 
-        # Process the automation trigger
-        task = self.hass.async_create_task(
-            self._async_process_automation_trigger(automation, new_state),
-            name=f"{DOMAIN}_automation_{automation.automation_id}",
+        # Process the automation trigger (use add_job for thread-safety)
+        self.hass.add_job(
+            self._async_process_automation_trigger(automation, new_state)
         )
-        self._unload_tasks.append(task)
-        def _safe_remove(t):
-            try:
-                self._unload_tasks.remove(t)
-            except ValueError:
-                pass
-        task.add_done_callback(_safe_remove)
 
     @staticmethod
     def _evaluate_condition(state: str, condition: str) -> bool:

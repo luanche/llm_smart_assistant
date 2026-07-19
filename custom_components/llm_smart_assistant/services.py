@@ -63,7 +63,19 @@ class ServicesExecutor:
 
     async def _async_execute_step(self, step: dict[str, Any]) -> Any:
         """Execute a single step after validation."""
+        # Normalize: support both {"action": "...", ...} and {"action_name": {...}}
         action = step.get("action", "")
+        if not action:
+            for known in [ACTION_CALL_SERVICE, ACTION_CREATE_AUTOMATION,
+                          ACTION_UPDATE_AUTOMATION_PROMPT, ACTION_TTS_SPEAK,
+                          ACTION_GET_STATES]:
+                if known in step:
+                    action = known
+                    # If step value is a dict, merge it (support {action: {...}})
+                    step_content = step.get(known)
+                    if isinstance(step_content, dict):
+                        step = {**step, **step_content}
+                    break
 
         if action == ACTION_CALL_SERVICE:
             return await self._async_call_service(step)
@@ -131,8 +143,22 @@ class ServicesExecutor:
         target = step.get("target")
         service_data = step.get("service_data", {})
 
+        # Handle "service: 'domain.service'" format
+        if not domain and not service:
+            full_svc = step.get("service", "") or step.get("service_name", "")
+            if full_svc and "." in full_svc:
+                domain, service = full_svc.split(".", 1)
+
+        # Handle "data: {entity_id: ...}" format (from automation triggers)
+        if not target and service_data:
+            target = {"entity_id": service_data.get("entity_id", "")}
+        if not target and step.get("data"):
+            target = {"entity_id": step["data"].get("entity_id", "")}
+            # Also merge any other data
+            service_data = {k: v for k, v in step["data"].items() if k != "entity_id"}
+
         if not domain or not service:
-            raise ValueError("call_service requires 'domain' and 'service' fields")
+            raise ValueError(f"call_service requires 'domain' and 'service' fields (got: {step})")
 
         # Validate against whitelist
         self._validate_service_call(domain, service, target)
@@ -175,7 +201,7 @@ class ServicesExecutor:
 
         entity_id = step.get("entity_id", "")
         condition = step.get("condition", "")
-        prompt = step.get("prompt", "")
+        prompt = step.get("prompt", "") or step.get("description", "")
 
         if not entity_id or not condition:
             raise ValueError(

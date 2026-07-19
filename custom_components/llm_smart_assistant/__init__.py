@@ -17,7 +17,7 @@ from homeassistant.components import frontend, panel_custom
 from homeassistant.components.http import HomeAssistantView
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, SupportsResponse
 from homeassistant.helpers import config_validation as cv
 
 from .const import DOMAIN, CONF_TEMPERATURE, CONF_MAX_TOKENS
@@ -165,7 +165,7 @@ async def _async_register_services(
     async def async_get_automations(call):
         """Handle the get_automations service call."""
         automations = list(coordinator._automations.values())
-        return {
+        result = {
             "automations": [
                 {
                     "automation_id": a.automation_id,
@@ -177,6 +177,8 @@ async def _async_register_services(
             ],
             "count": len(automations),
         }
+        _LOGGER.debug("get_automations returning: %s", result)
+        return result
 
     # Register services
     hass.services.async_register(
@@ -220,6 +222,7 @@ async def _async_register_services(
         "get_automations",
         async_get_automations,
         schema=vol.Schema({}),
+        supports_response=SupportsResponse.OPTIONAL,
     )
 
     _LOGGER.debug("Registered LLM Smart Assistant services")

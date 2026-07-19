@@ -3,6 +3,16 @@
 # Load the default set of integrations
 default_config:
 
+input_number:
+  test_temperature:
+    name: "Test Temperature"
+    initial: 26.5
+    min: -10
+    max: 50
+    step: 0.5
+    unit_of_measurement: "°C"
+    mode: slider
+
 # Virtual devices for testing LLM control
 input_boolean:
   living_room_light:
@@ -27,7 +37,7 @@ template:
       - name: "Living Room Temperature"
         unique_id: living_room_temperature
         unit_of_measurement: "°C"
-        state: "26.5"
+        state: "{{ states('input_number.test_temperature') | float | round(1) }}"
         device_class: temperature
 
 # Enable logging
