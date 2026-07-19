@@ -841,27 +841,20 @@ async function refreshAutomations() {
   const container = document.getElementById('autoContainer');
   try {
     const result = await callAPI('POST', '/api/services/llm_smart_assistant/get_automations?return_response=1', {});
-    let autos = (result.service_response || result).automations || [];
-    if (!Array.isArray(autos)) autos = result.automations || [];
+    const data = result.service_response || result;
+    let autos = data.automations || [];
+    if (!Array.isArray(autos)) autos = [];
+    const disabledIds = data.disabled_ids || [];
     
     if (autos.length === 0) {
       container.innerHTML = '<p style="color:var(--text-secondary);text-align:center;padding:40px 20px;font-size:14px;">' + i18n.noAuto + '</p>';
       return;
     }
     
-        let disabled = [];
-    try {
-      const allEntries = await callAPI('GET', '/api/config/config_entries/entry');
-      const inst = document.getElementById('instanceSelect');
-      const entryId = inst.value;
-      const entry = allEntries.find(e => e.entry_id === entryId) || allEntries.find(e => e.domain === 'llm_smart_assistant');
-      if (entry) disabled = entry.options?.disabled_automations || [];
-    } catch(e) {}
-    
     container.innerHTML = '';
     autos.forEach(a => {
       const id = a.automation_id;
-      const isDisabled = disabled.includes(id);
+      const isDisabled = a.disabled === true || disabledIds.includes(id);
       const card = document.createElement('div');
       card.className = 'auto-card' + (isDisabled ? ' disabled' : '');
       const promptEsc = (a.prompt || '').replace(/'/g, "\\'");

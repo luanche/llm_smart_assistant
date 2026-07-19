@@ -233,6 +233,7 @@ async def _async_register_services(
     async def async_get_automations(call):
         """Handle the get_automations service call."""
         automations = list(coordinator._automations.values())
+        disabled_set = coordinator._disabled_automations_set
         result = {
             "automations": [
                 {
@@ -241,10 +242,12 @@ async def _async_register_services(
                     "condition": a.condition,
                     "description": a.description,
                     "prompt": a.prompt,
+                    "disabled": a.automation_id in disabled_set,
                 }
                 for a in automations
             ],
             "count": len(automations),
+            "disabled_ids": list(disabled_set),
         }
         _LOGGER.debug("get_automations returning: %s", result)
         return result
