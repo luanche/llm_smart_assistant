@@ -348,6 +348,77 @@
     #debugContent::-webkit-scrollbar { width: 3px; }
     #debugContent::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
 
+    /* === MODAL OVERLAY === */
+    .modal-overlay {
+      display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.45);
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
+      z-index: 2000;
+      align-items: center; justify-content: center; padding: 24px;
+      animation: modal-in 0.2s cubic-bezier(0.32, 0.72, 0, 1);
+    }
+    .modal-overlay.open { display: flex; }
+    .modal-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-outer);
+      width: 100%; max-width: 400px;
+      backdrop-filter: blur(32px);
+      box-shadow: var(--shadow-lg);
+      animation: content-in 0.25s cubic-bezier(0.32, 0.72, 0, 1);
+      overflow: hidden;
+    }
+    .modal-header {
+      display: flex; align-items: center;
+      padding: 14px 16px 8px;
+      gap: 8px;
+    }
+    .modal-title {
+      font-size: 15px; font-weight: 590;
+      color: var(--text-primary);
+      flex: 1;
+    }
+    .modal-close {
+      background: none; border: none; font-size: 18px;
+      cursor: pointer; color: var(--text-secondary);
+      padding: 2px 6px; border-radius: 6px;
+      transition: var(--transition);
+    }
+    .modal-close:hover { background: var(--accent-subtle); color: var(--text-primary); }
+    .modal-body { padding: 8px 16px 16px; }
+    .modal-input {
+      width: 100%; border: 1px solid var(--border);
+      border-radius: var(--radius-inner);
+      padding: 10px 12px; font-size: 14px;
+      background: var(--surface-alt);
+      color: var(--text-primary);
+      outline: none; resize: vertical;
+      font-family: inherit; line-height: 1.5;
+      transition: var(--transition);
+    }
+    .modal-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
+    .modal-footer {
+      display: flex; justify-content: flex-end; gap: 8px;
+      padding: 0 16px 14px;
+    }
+    .modal-btn {
+      padding: 8px 18px; border-radius: 10px;
+      border: none; font-size: 13px; font-weight: 500;
+      cursor: pointer; font-family: inherit;
+      transition: var(--transition);
+    }
+    .modal-btn-primary {
+      background: var(--accent); color: #fff;
+    }
+    .modal-btn-primary:hover { background: var(--accent-hover); transform: scale(1.02); }
+    .modal-btn-primary:active { transform: scale(0.97); }
+    .modal-btn-secondary {
+      background: var(--surface-alt); color: var(--text-primary);
+      border: 1px solid var(--border);
+    }
+    .modal-btn-secondary:hover { background: var(--accent-subtle); border-color: var(--accent); }
+
     /* === MOBILE === */
     @media (max-width: 480px) {
       body { font-size: 15px; }
@@ -417,7 +488,24 @@
   </div>
 </div>
 
-<div id="debugModal" onclick="if(event.target===this)this.classList.remove('open')">
+<!-- Edit prompt modal -->
+<div id="editModal" class="modal-overlay" onclick="if(event.target===this)cancelEdit()">
+  <div class="modal-card">
+    <div class="modal-header">
+      <span class="modal-title" id="editModalTitle"></span>
+      <button class="modal-close" onclick="cancelEdit()">✕</button>
+    </div>
+    <div class="modal-body">
+      <textarea id="editInput" class="modal-input" rows="3" placeholder="Describe what action to take..."></textarea>
+    </div>
+    <div class="modal-footer">
+      <button class="modal-btn modal-btn-secondary" onclick="cancelEdit()"></button>
+      <button class="modal-btn modal-btn-primary" onclick="confirmEdit()"></button>
+    </div>
+  </div>
+</div>
+
+<div id="debugModal" class="modal-overlay" onclick="if(event.target===this)this.classList.remove('open')">
   <div id="debugContent">
     <button id="debugModalClose" onclick="document.getElementById('debugModal').classList.remove('open')">✕</button>
     No data yet.
@@ -452,7 +540,10 @@ const i18n = {
   voiceNotSupported: isZh ? '此浏览器不支持语音输入' : 'Voice input not supported in this browser',
   round: isZh ? '轮' : 'round',
   actions: isZh ? '个动作' : 'actions',
-  editPrompt: isZh ? '编辑自动化动作（prompt）：' : 'Edit automation action (prompt):',
+  editPrompt: isZh ? '编辑自动化动作' : 'Edit automation action',
+  editPromptPlaceholder: isZh ? '描述要执行的动作...' : 'Describe what action to take...',
+  cancel: isZh ? '取消' : 'Cancel',
+  save: isZh ? '保存' : 'Save',
   deleteConfirm: isZh ? '确定删除此自动化？' : 'Delete this automation?',
   enable: isZh ? '启用' : 'Enable',
   disable: isZh ? '禁用' : 'Disable',
@@ -464,6 +555,11 @@ const i18n = {
 };
 
 document.title = i18n.title;
+// Set modal button text
+const cancelBtn = document.querySelector('.modal-btn-secondary');
+const saveBtn = document.querySelector('.modal-btn-primary');
+if (cancelBtn) cancelBtn.textContent = i18n.cancel;
+if (saveBtn) saveBtn.textContent = i18n.save;
 document.getElementById('headerTitle').textContent = i18n.title;
 document.getElementById('emptyText').textContent = i18n.empty;
 document.getElementById('tabBar').querySelectorAll('.tab-btn')[0].textContent = i18n.chat;
@@ -691,7 +787,7 @@ async function refreshAutomations() {
           <button class="${isDisabled ? 'toggle-on' : 'toggle-off'}" onclick="toggleAutomation('${id}', ${!isDisabled})">
             ${isDisabled ? i18n.enable : i18n.disable}
           </button>
-          <button onclick="editAutomation('${id}', '${promptEsc}')">${i18n.edit}</button>
+          <button onclick="showEditModal('${id}', '${promptEsc}')">${i18n.edit}</button>
           <button class="delete-btn" onclick="deleteAutomation('${id}')">${i18n.delete}</button>
         </div>
       `;
@@ -712,9 +808,21 @@ async function toggleAutomation(id, disable) {
   } catch(e) { alert('Error: ' + e.message); }
 }
 
-async function editAutomation(id, currentPrompt) {
-  const newPrompt = window.prompt(i18n.editPrompt, currentPrompt);
-  if (newPrompt === null) return;
+function showEditModal(id, currentPrompt) {
+  document.getElementById('editInput').value = currentPrompt || '';
+  document.getElementById('editInput').placeholder = i18n.editPromptPlaceholder || 'Describe what action to take...';
+  document.getElementById('editModalTitle').textContent = i18n.editPrompt;
+  document.getElementById('editModal').dataset.automationId = id;
+  document.getElementById('editModal').classList.add('open');
+  setTimeout(() => document.getElementById('editInput').focus(), 100);
+}
+
+async function confirmEdit() {
+  const modal = document.getElementById('editModal');
+  const id = modal.dataset.automationId;
+  const newPrompt = document.getElementById('editInput').value.trim();
+  modal.classList.remove('open');
+  if (!newPrompt) return;
   try {
     await callAPI('POST', '/api/services/llm_smart_assistant/update_automation', {
       automation_id: id,
@@ -722,6 +830,10 @@ async function editAutomation(id, currentPrompt) {
     });
     refreshAutomations();
   } catch(e) { alert('Error: ' + e.message); }
+}
+
+function cancelEdit() {
+  document.getElementById('editModal').classList.remove('open');
 }
 
 async function deleteAutomation(id) {
