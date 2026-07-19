@@ -504,11 +504,11 @@
         <input id="addEntityInput" class="modal-input" rows="1" data-i18n="placeholderEntity" style="resize:none;">
       </div>
       <div>
-      <label style="font-size:12px;font-weight:500;color:var(--text-secondary);margin-bottom:4px;display:block;" data-i18n="labelCondition"></label>l>
+      <label style="font-size:12px;font-weight:500;color:var(--text-secondary);margin-bottom:4px;display:block;" data-i18n="labelCondition"></label>
         <input id="addConditionInput" class="modal-input" rows="1" data-i18n="placeholderCondition" style="resize:none;">
       </div>
       <div>
-     <label style="font-size:12px;font-weight:500;color:var(--text-secondary);margin-bottom:4px;display:block;" data-i18n="labelAction"></label>el>
+      <label style="font-size:12px;font-weight:500;color:var(--text-secondary);margin-bottom:4px;display:block;" data-i18n="labelAction"></label>
         <textarea id="addPromptInput" class="modal-input" rows="2" data-i18n="placeholderAction"></textarea>
       </div>
     </div>
@@ -944,7 +944,7 @@ async function refreshAutomations() {
       card.innerHTML = `
         <div class="entity">${a.entity_id} ${a.condition}</div>
         <div class="detail">${a.description || ''}</div>
-        <div class="detail" style="font-size:11px;color:var(--text-tertiary)">${t('actionLabel')}: ${a.prompt || t('noActionSpecified')}</div>
+        <div class="detail" style="font-size:11px;color:var(--text-tertiary)">${t('actionLabel')} ${a.prompt || t('noActionSpecified')}</div>
         <div class="actions">
           <button class="${isDisabled ? 'toggle-on' : 'toggle-off'}" onclick="toggleAutomation('${id}', ${!isDisabled})">
             ${isDisabled ? t('enable') : t('disable')}
