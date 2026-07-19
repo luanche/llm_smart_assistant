@@ -34,6 +34,8 @@ from .const import (
     CONF_TTS_CUSTOM_TEMPLATE,
     CONF_TTS_ENTITY_ID,
     CONF_TTS_MODE,
+    CONF_TTS_SPEAK_VOLUME,
+    CONF_TTS_MUTE_AFTER,
     DEFAULT_ALLOW_AUTOMATION,
     DEFAULT_API_BASE_URL,
     DEFAULT_HISTORY_COUNT,
@@ -46,6 +48,8 @@ from .const import (
     DEFAULT_PROMPT_AUTOMATION,
     DEFAULT_PROMPT_DEFAULT,
     DEFAULT_TEMPERATURE,
+    DEFAULT_TTS_SPEAK_VOLUME,
+    DEFAULT_TTS_MUTE_AFTER,
     DOMAIN,
     HISTORY_MODE_COUNT,
     HISTORY_MODE_TIME,
@@ -249,6 +253,13 @@ class LLMSmartAssistantOptionsFlow(config_entries.OptionsFlow):
                 vol.Optional(CONF_TTS_CUSTOM_TEMPLATE,
                     default=cur.get(CONF_TTS_CUSTOM_TEMPLATE, "")):
                 selector.TextSelector(selector.TextSelectorConfig(multiline=True)),
+                # ── TTS Volume & Anti-抢答 ──
+                vol.Optional(CONF_TTS_SPEAK_VOLUME,
+                    default=float(cur.get(CONF_TTS_SPEAK_VOLUME, DEFAULT_TTS_SPEAK_VOLUME))):
+                selector.NumberSelector(selector.NumberSelectorConfig(min=0.0, max=1.0, step=0.1, mode=selector.NumberSelectorMode.BOX)),
+                vol.Optional(CONF_TTS_MUTE_AFTER,
+                    default=bool(cur.get(CONF_TTS_MUTE_AFTER, DEFAULT_TTS_MUTE_AFTER))):
+                selector.BooleanSelector(),
 
                 # ── Security & Access ──
                 vol.Optional(CONF_DOMAINS_WHITELIST,

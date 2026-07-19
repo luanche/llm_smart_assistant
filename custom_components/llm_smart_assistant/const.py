@@ -19,6 +19,8 @@ CONF_INPUT_ENTITIES: Final = "input_entities"
 CONF_TTS_ENTITY_ID: Final = "tts_entity_id"
 CONF_TTS_MODE: Final = "tts_mode"
 CONF_TTS_CUSTOM_TEMPLATE: Final = "tts_custom_template"
+CONF_TTS_SPEAK_VOLUME: Final = "tts_speak_volume"
+CONF_TTS_MUTE_AFTER: Final = "tts_mute_after"
 CONF_DOMAINS_WHITELIST: Final = "domains_whitelist"
 CONF_ENTITIES_WHITELIST: Final = "entities_whitelist"
 CONF_HISTORY_MODE: Final = "history_mode"  # "count" or "time"
@@ -40,6 +42,8 @@ DEFAULT_HISTORY_COUNT: Final = 10
 DEFAULT_HISTORY_TIME_WINDOW: Final = 60  # 1 hour
 DEFAULT_IGNORE_DUPLICATE: Final = True
 DEFAULT_ALLOW_AUTOMATION: Final = True
+DEFAULT_TTS_SPEAK_VOLUME: Final = 0.5
+DEFAULT_TTS_MUTE_AFTER: Final = True
 
 # TTS modes
 TTS_MODE_STANDARD: Final = "standard"

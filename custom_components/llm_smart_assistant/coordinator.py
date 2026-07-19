@@ -47,8 +47,12 @@ from .const import (
     CONF_TTS_CUSTOM_TEMPLATE,
     CONF_TTS_ENTITY_ID,
     CONF_TTS_MODE,
+    CONF_TTS_SPEAK_VOLUME,
+    CONF_TTS_MUTE_AFTER,
     DEFAULT_PROMPT_AUTOMATION,
     DEFAULT_PROMPT_DEFAULT,
+    DEFAULT_TTS_SPEAK_VOLUME,
+    DEFAULT_TTS_MUTE_AFTER,
     HARDCODED_AUTOMATION_PROMPT,
     HARDCODED_SYSTEM_PROMPT,
     DOMAIN,
@@ -279,6 +283,14 @@ class LLMSmartAssistantCoordinator:
     @property
     def tts_mode(self) -> str:
         return self._options.get(CONF_TTS_MODE, TTS_MODE_STANDARD)
+
+    @property
+    def tts_speak_volume(self) -> float:
+        return float(self._options.get(CONF_TTS_SPEAK_VOLUME, DEFAULT_TTS_SPEAK_VOLUME))
+
+    @property
+    def tts_mute_after(self) -> bool:
+        return bool(self._options.get(CONF_TTS_MUTE_AFTER, DEFAULT_TTS_MUTE_AFTER))
 
     @property
     def tts_custom_template(self) -> str:
@@ -1271,32 +1283,43 @@ class LLMSmartAssistantCoordinator:
         return []
 
     async def _async_speak_tts(self, text: str) -> None:
-        """Speak text via the configured TTS mechanism."""
+        """Speak text via the configured TTS mechanism.
+        Handles volume adjustment to prevent speaker self-triggering (抢答).
+        """
         if not text or not self.tts_entity_id:
             return
 
         tts_entity = self.tts_entity_id
+        media_domain = tts_entity.split(".")[0]
 
         try:
-            if self.tts_mode == TTS_MODE_STANDARD:
-                # Standard TTS via tts.speak or media_player.play_media
-                domain = tts_entity.split(".")[0]
+            # ── Pre-TTS: raise volume to speak level ──
+            if media_domain == "media_player" and self.tts_speak_volume > 0:
+                await self.hass.services.async_call(
+                    "media_player",
+                    "volume_set",
+                    {"entity_id": tts_entity, "volume_level": self.tts_speak_volume},
+                    blocking=True,
+                )
+                # Also unmute in case it was muted
+                await self.hass.services.async_call(
+                    "media_player",
+                    "volume_mute",
+                    {"entity_id": tts_entity, "is_volume_muted": False},
+                    blocking=True,
+                )
 
-                if domain == "tts":
+            # ── Speak ──
+            if self.tts_mode == TTS_MODE_STANDARD:
+                if media_domain == "tts":
                     await self.hass.services.async_call(
-                        "tts",
-                        "speak",
-                        {
-                            "entity_id": tts_entity,
-                            "message": text,
-                        },
+                        "tts", "speak",
+                        {"entity_id": tts_entity, "message": text},
                         blocking=True,
                     )
                 else:
-                    # Try media_player.play_media with TTS
                     await self.hass.services.async_call(
-                        "media_player",
-                        "play_media",
+                        "media_player", "play_media",
                         {
                             "entity_id": tts_entity,
                             "media_content_id": text,
@@ -1306,27 +1329,23 @@ class LLMSmartAssistantCoordinator:
                     )
 
             elif self.tts_mode == TTS_MODE_XIAOMI_MIOT:
-                # Xiaomi MIoT specific TTS
                 await self.hass.services.async_call(
-                    "xiaomi_miot",
-                    "play_text",
+                    "xiaomi_miot", "intelligent_speaker",
                     {
                         "entity_id": tts_entity,
                         "text": text,
+                        "execute": False,
+                        "silent": False,
                     },
                     blocking=True,
                 )
 
             elif self.tts_mode == TTS_MODE_CUSTOM:
-                # Custom Jinja2 template - render and execute as service call
                 if self.tts_custom_template:
                     from homeassistant.helpers.template import Template
-
                     tpl = Template(self.tts_custom_template, self.hass)
                     rendered = tpl.async_render({"tts_text": text})
                     _LOGGER.debug("Custom TTS rendered: %s", rendered)
-
-                    # Try to parse rendered template as JSON service call
                     try:
                         service_call = json.loads(rendered)
                         if isinstance(service_call, dict):
@@ -1342,7 +1361,27 @@ class LLMSmartAssistantCoordinator:
                     except (json.JSONDecodeError, Exception) as exc:
                         _LOGGER.error("Custom TTS template did not produce valid service call JSON: %s", exc)
 
-            _LOGGER.debug("TTS spoken to %s: %s", tts_entity, text[:100])
+            _LOGGER.info("TTS spoken to %s: %s", tts_entity, text[:100])
+
+            # ── Post-TTS: wait estimated duration, then mute ──
+            if media_domain == "media_player" and self.tts_mute_after:
+                # Estimate speech duration: ~5 chars/sec + 300ms per pause + 300ms base
+                clean = text.replace(" ", "").replace("\n", "")
+                char_count = len(clean)
+                pause_count = text.count(",") + text.count("。") + text.count("!") + text.count("?") + text.count("；")
+                delay_ms = max(500, char_count * 200 + pause_count * 300 + 500)
+                _LOGGER.debug("TTS mute delay: %d ms for %d chars", delay_ms, char_count)
+                await asyncio.sleep(delay_ms / 1000)
+                await self.hass.services.async_call(
+                    "media_player", "volume_set",
+                    {"entity_id": tts_entity, "volume_level": 0.0},
+                    blocking=True,
+                )
+                await self.hass.services.async_call(
+                    "media_player", "volume_mute",
+                    {"entity_id": tts_entity, "is_volume_muted": True},
+                    blocking=True,
+                )
 
         except Exception as exc:
             _LOGGER.error("TTS failed for %s: %s", tts_entity, exc)
