@@ -1,11 +1,34 @@
 /**
  * AI Chat Panel - LLM Smart Assistant
  * Uses fixed positioning to fill the content area next to the sidebar.
+ * Passes HA auth token to the iframe via URL parameter and postMessage for resilience.
  */
 class LLMChatPanel extends HTMLElement {
   connectedCallback() {
-    this.innerHTML = '<iframe src="/api/llm_smart_assistant/chat_panel" ' +
-      'allow="microphone *" sandbox="allow-same-origin allow-scripts allow-forms allow-popups"></iframe>';
+    // Get HA auth token
+    let token = '';
+    try {
+      const hassConn = window.hassConnection;
+      if (hassConn && hassConn.auth && hassConn.auth.data) {
+        token = hassConn.auth.data.access_token || '';
+      }
+    } catch(e) {}
+
+    const src = '/api/llm_smart_assistant/chat_panel' + (token ? '?auth_token=' + encodeURIComponent(token) : '');
+    this.innerHTML = '<iframe src="' + src + '" ' +
+      'allow="microphone *" sandbox="allow-same-origin allow-scripts allow-forms allow-popups" ' +
+      'style="width:100%;height:100%;border:none;display:block"></iframe>';
+
+    // Listen for token requests from iframe and send token via postMessage
+    window.addEventListener('message', (event) => {
+      if (event.source === this.querySelector('iframe')?.contentWindow &&
+          event.data === '__llm_auth_request__') {
+        event.source.postMessage({
+          type: '__llm_auth_token__',
+          token: token
+        }, '*');
+      }
+    });
 
     const resize = () => {
       if (!this.isConnected) { this._resizeTimer = null; return; }

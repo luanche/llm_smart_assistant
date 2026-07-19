@@ -130,23 +130,50 @@ async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     return True
 
 
-async def _async_register_services(
-    hass: HomeAssistant, coordinator: LLMSmartAssistantCoordinator
-) -> None:
-    """Register custom services for this integration."""
-
+def _register_global_services(hass: HomeAssistant) -> None:
+    """Register shared services that work across all instances."""
+    
+    # Only register once
+    if hass.services.has_service(DOMAIN, "process_input"):
+        return
 
     async def async_process_input(call):
         """Handle the process_input service call."""
         text = call.data.get("text", "")
         entry_filter = call.data.get("entry_id", "")
         if text:
-            # If entry_filter is set, only process if it matches this instance
-            if entry_filter and entry_filter != entry.entry_id:
-                return
-            await coordinator._async_process_user_input(
-                "service_call", text
-            )
+            if entry_filter:
+                # Look up the coordinator for this instance
+                coordinator = hass.data.get(DOMAIN, {}).get(entry_filter)
+                if coordinator:
+                    await coordinator._async_process_user_input("service_call", text)
+                else:
+                    _LOGGER.warning("No coordinator found for entry %s", entry_filter)
+            else:
+                # No filter: process on all instances
+                for coordinator in hass.data.get(DOMAIN, {}).values():
+                    await coordinator._async_process_user_input("service_call", text)
+
+    hass.services.async_register(
+        DOMAIN,
+        "process_input",
+        async_process_input,
+        schema=vol.Schema(
+            {
+                vol.Optional("text", default=""): cv.string,
+                vol.Optional("entry_id", default=""): cv.string,
+            }
+        ),
+    )
+    _LOGGER.info("Global process_input service registered")
+
+
+async def _async_register_services(
+    hass: HomeAssistant, coordinator: LLMSmartAssistantCoordinator
+) -> None:
+    """Register custom services for this integration."""
+    
+    _register_global_services(hass)
 
     async def async_create_automation(call):
         """Handle the create_automation service call."""
@@ -188,18 +215,6 @@ async def _async_register_services(
         return result
 
     # Register services
-    hass.services.async_register(
-        DOMAIN,
-        "process_input",
-        async_process_input,
-        schema=vol.Schema(
-            {
-                vol.Required("text"): cv.string,
-                vol.Optional("entry_id", default=""): cv.string,
-            }
-        ),
-    )
-
     hass.services.async_register(
         DOMAIN,
         "create_automation",
