@@ -55,7 +55,6 @@ MAX_REASONING_ITERATIONS: Final = 10
 REASONING_TIMEOUT: Final = 120  # seconds total for all rounds
 
 # Internal events/keys
-EVENT_NEW_USER_INPUT: Final = f"{DOMAIN}_new_input"
 STORAGE_KEY: Final = f"{DOMAIN}.storage"
 STORAGE_VERSION: Final = 1
 

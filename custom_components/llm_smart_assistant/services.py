@@ -224,24 +224,24 @@ class ServicesExecutor:
         return {"text": text}
 
     def _validate_get_states(self, entities: list[str]) -> None:
-        """Validate that get_states entities are allowed by whitelist."""
+        """Validate that get_states entities are allowed by whitelist (order matches _validate_service_call)."""
         allowed_domains = self.coordinator.domains_whitelist
         allowed_entities = self.coordinator.entities_whitelist
 
         for entity_id in entities:
             domain = entity_id.split(".")[0] if "." in entity_id else entity_id
 
-            # Check entity whitelist first
-            if allowed_entities and entity_id not in allowed_entities:
-                raise StepInterceptionError(
-                    f"Entity '{entity_id}' is not in the entity whitelist"
-                )
-
-            # Check domain whitelist
+            # Check domain whitelist first (matches _validate_service_call order)
             if allowed_domains and domain not in allowed_domains:
                 raise StepInterceptionError(
                     f"Domain '{domain}' is not in the whitelist. "
                     f"Allowed domains: {', '.join(allowed_domains)}"
+                )
+
+            # Check entity whitelist
+            if allowed_entities and entity_id not in allowed_entities:
+                raise StepInterceptionError(
+                    f"Entity '{entity_id}' is not in the entity whitelist"
                 )
 
     async def _async_get_states(self, step: dict[str, Any]) -> dict[str, Any]:

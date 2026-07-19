@@ -9,6 +9,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import uuid
 from datetime import datetime, timedelta
 from typing import Any
 
@@ -166,6 +167,8 @@ class LLMSmartAssistantCoordinator:
 
         # Last processed state per entity (for duplicate detection)
         self._last_states: dict[str, str] = {}
+        # Last trigger time per entity (for debounce)
+        self._last_trigger_time: dict[str, float] = {}
 
         # Background tasks
         self._unload_tasks: list[asyncio.Task] = []
@@ -178,6 +181,8 @@ class LLMSmartAssistantCoordinator:
 
         # Listeners for sensor entity updates
         self._listeners: list[callable] = []
+        # Debounce timer for storage saves
+        self._save_timer = None
 
     # ------------------------------------------------------------------
     # Listener callbacks (for sensor entity updates)
@@ -399,7 +404,12 @@ class LLMSmartAssistantCoordinator:
             name=f"{DOMAIN}_process_input_{entity_id}",
         )
         self._unload_tasks.append(task)
-        task.add_done_callback(lambda t: self._unload_tasks.remove(t))
+        def _safe_remove(t):
+            try:
+                self._unload_tasks.remove(t)
+            except ValueError:
+                pass
+        task.add_done_callback(_safe_remove)
 
     # ------------------------------------------------------------------
     # LLM API communication
@@ -601,9 +611,19 @@ class LLMSmartAssistantCoordinator:
         self._history.append(message)
         self._truncate_history()
         _LOGGER.info("History now has %d messages", len(self._history))
-        # Persist history to .storage/
-        if self._is_started:
-            self.hass.async_create_task(self._async_save_storage())
+        # Schedule debounced save (2s delay, cancels previous pending save)
+        self._schedule_storage_save()
+
+    def _schedule_storage_save(self) -> None:
+        """Save storage after a debounce delay to avoid I/O storms."""
+        # Cancel previous pending save
+        if self._save_timer is not None:
+            self._save_timer.cancel()
+        # Schedule a new save in 2 seconds
+        self._save_timer = self.hass.loop.call_later(
+            2.0,
+            lambda: self.hass.async_create_task(self._async_save_storage())
+        )
 
     def _truncate_history(self) -> None:
         """Truncate history based on configured strategy."""
@@ -697,7 +717,7 @@ class LLMSmartAssistantCoordinator:
 
         while iteration < max_iterations:
             iteration += 1
-            elapsed = asyncio.get_event_loop().time() - start_time
+            elapsed = asyncio.get_running_loop().time() - start_time
             if elapsed > timeout:
                 _LOGGER.warning(
                     "Reasoning loop timed out after %.1fs (%d iterations)",
@@ -934,8 +954,6 @@ class LLMSmartAssistantCoordinator:
 
         Returns the automation_id on success, or None on failure.
         """
-        import uuid
-
         automation_id = str(uuid.uuid4())
 
         automation = DynamicAutomation(
@@ -1038,7 +1056,12 @@ class LLMSmartAssistantCoordinator:
             name=f"{DOMAIN}_automation_{automation.automation_id}",
         )
         self._unload_tasks.append(task)
-        task.add_done_callback(lambda t: self._unload_tasks.remove(t))
+        def _safe_remove(t):
+            try:
+                self._unload_tasks.remove(t)
+            except ValueError:
+                pass
+        task.add_done_callback(_safe_remove)
 
     @staticmethod
     def _evaluate_condition(state: str, condition: str) -> bool:

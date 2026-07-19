@@ -9,7 +9,6 @@ from __future__ import annotations
 import asyncio
 import logging
 import pathlib
-import uuid
 from typing import Any
 
 import voluptuous as vol
@@ -270,7 +269,6 @@ async def _async_register_chat_panel(
         html_path = panel_dir / "index.html"
 
         if html_path.is_file():
-            import asyncio
             html_content = await hass.async_add_executor_job(
                 lambda: html_path.read_text(encoding="utf-8")
             )
@@ -279,7 +277,7 @@ async def _async_register_chat_panel(
                 """Serve the AI Chat panel HTML."""
                 url = "/api/llm_smart_assistant/chat_panel"
                 name = "api:llm_smart_assistant:chat_panel"
-                requires_auth = False
+                requires_auth = True
 
                 async def get(self, request):
                     return web.Response(
@@ -301,7 +299,7 @@ async def _async_register_chat_panel(
                     """Serve the AI Chat panel JavaScript."""
                     url = "/api/llm_smart_assistant/chat_js"
                     name = "api:llm_smart_assistant:chat_js"
-                    requires_auth = False
+                    requires_auth = True
 
                     async def get(self, request):
                         return web.Response(

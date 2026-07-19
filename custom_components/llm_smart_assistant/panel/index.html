@@ -588,6 +588,11 @@
               const round = s.attributes.round || 0;
               const tts = s.state;
 
+              // Show progressive round indicator
+              if (ip && round > 0) {
+                setStatus('Reasoning (round ' + round + ')...');
+              }
+
               // Update display when TTS text changes (final round)
               if (tts && tts !== lastTts) {
                 lastTts = tts;
