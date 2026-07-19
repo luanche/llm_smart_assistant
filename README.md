@@ -2,242 +2,199 @@
 
 [![HACS Custom Integration](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://github.com/hacs/integration)
 
-A powerful Home Assistant custom integration that bridges OpenAI-compatible LLMs (Large Language Models) with your smart home, enabling natural language control, dynamic automations, and TTS voice output.
-
-一款强大的 Home Assistant 自定义集成，桥接兼容 OpenAI API 的大语言模型与您的智能家居，实现自然语言控制、动态自动化和 TTS 语音播报。
+A powerful Home Assistant custom integration that bridges OpenAI-compatible LLMs with your smart home, enabling natural language control, dynamic automations, TTS voice output, and a built-in chat UI.
 
 ---
 
-## Features / 功能特性
+## Features
 
-- **🤖 Multi-Model LLM Support / 多模型 LLM 支持**: Compatible with OpenAI, DeepSeek, Kimi, Gemini, and any OpenAI-compatible API provider.
-- **🎤 Voice Input via Sensors / 传感器语音输入**: Listen to any text sensor (ESP32, Xiaomi, custom voice assistants).
-- **🗣️ TTS Output / 语音播报**: Support standard TTS, Xiaomi MIoT, and custom templates.
-- **🔒 Security First / 安全优先**: Strict whitelist mechanism, restricted domain protection, read-only default.
-- **⚡ Dynamic Automations / 动态自动化**: Create automations using natural language, persisted across restarts.
-- **📝 Conversation History / 对话历史**: Smart history management with count-based or time-window truncation.
-- **🌐 Multi-language UI / 多语言界面**: English and Chinese UI supported.
-- **⚙️ Full Config Flow / 完整配置界面**: All settings configurable via Home Assistant UI.
+- **🤖 Multi-Model LLM Support** — OpenAI, DeepSeek, Kimi, Gemini, and any OpenAI-compatible API.
+- **💬 Built-in AI Chat Panel** — Full-featured chat UI with multi-round reasoning, progress display, and debug modal.
+- **🎤 Voice Input** — SpeechRecognition (browser) + text sensor monitoring.
+- **🗣️ TTS Output** — Standard TTS, Xiaomi MIoT, and custom Jinja2 templates.
+- **⚡ Dynamic Automations** — Create/Edit/Disable automations via natural language, persisted across restarts.
+- **🔄 Multi-Step Reasoning (ReAct)** — LLM checks states, acts, observes, and iterates until complete.
+- **🔒 Security** — Domain + entity whitelist, restricted operations, action interceptor.
+- **📝 Conversation History** — Smart history with count + time-window dual truncation.
+- **🌐 Multi-Language** — English + Chinese UI, easy to extend (see `LANGUAGES` in `index.html`).
+- **⚙️ Full Config Flow** — 24 fields in a single-page comprehensive form.
+- **🏗️ Multi-Instance** — Multiple independent LLM instances with per-instance chat selection.
 
 ---
 
-## Installation / 安装
+## Installation
 
-### HACS Installation (Recommended) / HACS 安装（推荐）
+### HACS (Recommended)
 
-1. Add this repository as a custom repository in HACS:
-   - HACS → Integrations → Custom repositories
-   - Repository: `https://github.com/your_username/llm_smart_assistant`
-   - Category: Integration
-2. Search for "LLM Smart Assistant" in HACS and install.
+1. Add this repo as a custom integration repository in HACS.
+2. Search for "LLM Smart Assistant" and install.
 3. Restart Home Assistant.
 
-### Manual Installation / 手动安装
-
-1. Copy the `custom_components/llm_smart_assistant` directory to your HA `config/custom_components/` directory.
-2. Restart Home Assistant.
-
-### Docker Local Development / Docker 本地开发
+### Manual
 
 ```bash
-# Clone the repository
-git clone https://github.com/your_username/llm_smart_assistant.git
+cp -r custom_components/llm_smart_assistant /path/to/ha/config/custom_components/
+# Restart HA
+```
+
+### Docker Development
+
+```bash
+git clone <repo-url>
 cd llm_smart_assistant
-
-# Start Home Assistant with the integration
 docker compose up -d
-
 # Access at http://localhost:8123
 ```
 
 ---
 
-## Configuration / 配置
+## Quick Start
 
-### Initial Setup / 初始设置
-
-1. Go to **Settings → Devices & Services → Add Integration**.
-2. Search for "LLM Smart Assistant".
-3. Enter your API configuration:
-   - **API Base URL**: e.g., `https://api.openai.com/v1`
-   - **API Key**: Your API key
-   - **Model Name**: e.g., `gpt-4o-mini`, `deepseek-chat`
-   - **Temperature**: Response creativity (0.0 - 2.0)
-   - **Max Tokens**: Maximum response length
-
-### Options Configuration / 选项配置
-
-After installation, click **Configure** on the integration to set up:
-
-#### Prompts / 提示词
-- **Default Prompt**: System prompt for general conversations.
-- **Automation Prompt**: System prompt for automation triggers.
-
-Available context variables:
-- `{{ time }}` - Current time
-- `{{ date }}` - Current date
-- `{{ exposed_entities }}` - List of accessible entities
-
-#### Input Sensors / 输入传感器
-- Select text sensor entities to monitor.
-- Enable/disable duplicate input filtering.
-
-#### TTS Configuration / TTS 配置
-- **Target Entity**: Media player or TTS entity.
-- **Mode**: Standard, Xiaomi MIoT, or Custom template.
-- **Custom Template**: Jinja2 template for custom TTS actions.
-
-#### Security / 安全
-- **Allowed Domains**: e.g., `light`, `switch`, `media_player`
-- **Allowed Entities**: Specific entities the LLM can control.
-- **Allow Dynamic Automations**: Enable/disable natural language automation creation.
-
-#### History / 历史记录
-- **Mode**: Count-based or time-window based truncation.
-- **Count/Max Turns**: Number of conversation turns to keep.
-- **Time Window**: Time window in minutes.
+1. **Add Integration**: Settings → Devices & Services → Add Integration → "LLM Smart Assistant"
+2. **Configure API**: Enter Base URL (e.g. `https://api.deepseek.com/v1`), API Key, Model
+3. **Open AI Chat**: Navigate to `http://<ha-url>/llm-chat` or click "AI Chat" in the sidebar
+4. **Start Talking**: Type "turn on the living room light" or "创建自动化，当温度>30度打开空调"
 
 ---
 
-## Usage / 使用
+## Configuration
 
-### Voice Control / 语音控制
+### Initial Setup
 
-When a monitored text sensor changes state (e.g., a voice assistant captures speech), the integration automatically:
+| Field | Description | Example |
+|-------|-------------|---------|
+| API Base URL | OpenAI-compatible endpoint | `https://api.deepseek.com/v1` |
+| API Key | Your API key | `sk-...` |
+| Model Name | Model identifier | `deepseek-chat`, `gpt-4o-mini` |
+| Temperature | Creativity (0.0–2.0) | `0.4` |
+| Max Tokens | Max response length | `1024` |
+| Title | Instance name (for multi-instance) | `Living Room AI` |
 
-1. Receives the text input
-2. Builds context with HA state information
-3. Sends to LLM with the configured system prompt
-4. Parses the JSON response
-5. Executes actions (turn on lights, adjust climate, etc.)
-6. Speaks the response via TTS
+### Prompts
 
-### Service Calls / 服务调用
+- **Default Prompt** — System prompt for general chat (uses `{{ time }}`, `{{ date }}`, `{{ exposed_entities }}`)
+- **Automation Prompt** — System prompt for automation trigger execution
 
-The integration exposes these services:
+### Security
 
-| Service | Description |
-|---------|-------------|
-| `llm_smart_assistant.process_input` | Manually send text for processing |
-| `llm_smart_assistant.create_automation` | Create a dynamic automation |
-| `llm_smart_assistant.remove_automation` | Remove a dynamic automation |
-| `llm_smart_assistant.get_automations` | List all active automations |
+- **Allowed Domains** — Default: `light`, `switch`, `media_player`, `sensor`, `input_boolean`
+- **Allowed Entities** — Specific entity whitelist (empty = all in allowed domains)
+- **Allow Automations** — Enable/disable natural language automation creation
 
-### Example LLM Response Format / 示例 LLM 响应格式
+### History
 
-The LLM must respond in this JSON format:
-
-```json
-{
-  "tts_text": "好的，已经为您打开了客厅的灯。",
-  "steps": [
-    {
-      "action": "call_service",
-      "domain": "light",
-      "service": "turn_on",
-      "target": { "entity_id": "light.living_room" }
-    }
-  ]
-}
-```
-
-### Dynamic Automation Example / 动态自动化示例
-
-User says: "帮我创建一个自动化，当温度高于30度时帮我开空调"
-
-The LLM responds with:
-```json
-{
-  "tts_text": "已为您创建温度自动化",
-  "steps": [
-    {
-      "action": "create_automation",
-      "entity_id": "sensor.temperature",
-      "condition": ">30",
-      "description": "当温度高于30度时开空调"
-    }
-  ]
-}
-```
+Both count AND time-window constraints apply simultaneously:
+- **Max Turns** — Keep last N conversation turns
+- **Time Window** — Keep messages within N minutes
 
 ---
 
-## File Structure / 文件结构
+## AI Chat Panel
+
+The built-in web UI at `/llm-chat` provides:
+
+- **Multi-Round Reasoning** — Shows "Reasoning (round N)..." during processing
+- **Progressive Display** — Responses appear round-by-round
+- **Debug Modal** — Small 📋 button shows full reasoning trace per round
+- **Instance Selector** — Switch between multiple LLM instances
+- **Automations Management** — View, enable/disable, edit, delete, and add automations
+- **Voice Input** — Browser SpeechRecognition (🎤 button)
+- **Mobile Responsive** — Adapts to small screens
+
+The panel uses a `data-i18n` attribute system for multi-language support. Adding a new language is as simple as adding an entry to the `LANGUAGES` object in `index.html`.
+
+---
+
+## Service Calls
+
+| Service | Parameters | Description |
+|---------|-----------|-------------|
+| `process_input` | `text`, `entry_id` (optional) | Send text for LLM processing |
+| `create_automation` | `entity_id`, `condition`, `prompt`, `description` | Create a dynamic automation |
+| `update_automation` | `automation_id`, `entity_id`, `condition`, `prompt` | Update automation fields + re-register listener |
+| `toggle_automation` | `automation_id`, `disable`, `entry_id` | Enable/disable automation (adds/removes listener) |
+| `remove_automation` | `automation_id` | Delete an automation |
+| `get_automations` | — | List all automations with disabled status |
+
+---
+
+## Dynamic Automations
+
+Created via natural language or the "Add Automation" button in the AI Chat panel.
+
+```
+User: "当温度高于30度时打开空调"
+→ LLM creates: sensor.living_room_temperature >30 → turn on input_boolean.air_conditioner
+```
+
+Automations are:
+- **Persisted** across HA restarts (stored in `.storage/llm_smart_assistant.storage`)
+- **Listener-based** — Uses `async_track_state_change_event` for real-time triggers
+- **Editable** — Entity, condition, and action can be changed via the Edit modal
+- **Disableable** — Disabling removes the listener entirely; re-enabling re-registers it
+
+---
+
+## File Structure
 
 ```
 custom_components/llm_smart_assistant/
-├── __init__.py           # Integration entry point
-├── manifest.json         # Dependency declaration and version
-├── const.py              # Constants and default values
-├── config_flow.py        # ConfigFlow and OptionsFlow
-├── coordinator.py        # Core logic: state listening, LLM API, response parsing
+├── __init__.py           # Entry point, services, panel registration
+├── manifest.json         # Dependencies and version
+├── const.py              # Constants, defaults, prompts
+├── config_flow.py        # Single-page config/options flow (24 fields)
+├── coordinator.py        # Core: LLM API, reasoning loop, automation listeners
 ├── services.py           # Action executor with whitelist interceptor
-├── storage.py            # Dynamic automation persistence
+├── sensor.py             # LLMLastResponseSensor + LLMDebugRawSensor
 ├── services.yaml         # Service definitions
-├── translations/
-│   ├── en.json           # English translations
-│   └── zh-Hans.json      # Chinese translations
+├── icon.svg              # Integration icon
+├── panel/
+│   ├── index.html        # AI Chat UI (multi-language via data-i18n)
+│   └── chat.js           # LitElement wrapper for sidebar panel
+└── translations/
+    ├── en.json           # HA translation keys (English)
+    └── zh-Hans.json      # HA translation keys (Chinese)
 ```
 
 ---
 
-## Security / 安全机制
-
-- **Read-Only Default**: LLM cannot modify system configuration by default.
-- **Domain Whitelist**: Only allowed domains can be controlled.
-- **Entity Whitelist**: Specific entity-level control.
-- **Restricted Operations**: Core HA operations (restart, stop, config changes) are always blocked.
-- **Action Interceptor**: Every LLM-requested action is validated before execution.
-
----
-
-## Requirements / 系统要求
-
-- Home Assistant 2024.6 or later
-- An OpenAI-compatible API key (or any compatible provider)
-- Python 3.12+
-
----
-
-## Development / 开发
+## Development
 
 ```bash
-# Clone the repository
-git clone https://github.com/your_username/llm_smart_assistant.git
-cd llm_smart_assistant
-
-# Start dev environment
+# Start environment
 docker compose up -d
 
 # Check logs
-docker compose logs -f homeassistant
+docker compose logs -f
 
-# The integration code is in custom_components/llm_smart_assistant/
-# Changes are automatically reflected in the running container
+# The integration code is at custom_components/llm_smart_assistant/
+# Panel files are read fresh on each request (no restart needed for HTML/JS changes)
+
+# Run i18n audit
+python3 .pi/skills/i18n-audit/check.py
+
+# Save i18n baseline for diff
+python3 .pi/skills/i18n-audit/check.py --save-baseline
 ```
+
+### Requirements
+
+- Home Assistant 2024.6+
+- Python 3.12+
+- OpenAI-compatible API key
 
 ---
 
-## License / 许可证
+## Security
 
-MIT License
+- **Read-Only Default** — LLM cannot modify system configuration
+- **Domain Whitelist** — Only allowed domains can be controlled
+- **Entity Whitelist** — Specific entity-level restrictions
+- **Restricted Operations** — Core HA operations (restart, stop, config changes) always blocked
+- **Action Interceptor** — Every LLM-requested action validated before execution
 
-Copyright (c) 2024
+---
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+## License
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+MIT
