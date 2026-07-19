@@ -651,14 +651,17 @@ class LLMSmartAssistantCoordinator:
 
                 if parsed is None:
                     _LOGGER.error(
-                        "Failed to parse LLM response as JSON\nRaw: %s",
-                        content[:500],
+                        "Failed to parse LLM response as JSON (attempt %d/%d)\nRaw: %s",
+                        attempt + 1, max_retries + 1, content[:500],
                     )
-                    return None
+                    last_error = "JSON parse failed"
+                    continue
 
                 if not isinstance(parsed, dict):
-                    _LOGGER.error("LLM response is not a JSON object: %s", str(parsed)[:200])
-                    return None
+                    _LOGGER.error("LLM response is not a JSON object (attempt %d/%d): %s",
+                        attempt + 1, max_retries + 1, str(parsed)[:200])
+                    last_error = "Not a JSON object"
+                    continue
 
                 _LOGGER.info("LLM JSON parsed: tts_text='%s', steps=%s",
                     str(parsed.get("tts_text",""))[:100],
@@ -676,7 +679,11 @@ class LLMSmartAssistantCoordinator:
                 return None
 
         _LOGGER.error("LLM API request failed after %d retries: %s", max_retries, last_error)
-        return None
+        # Return a fallback response so the user gets a graceful message
+        return {
+            "tts_text": "",
+            "steps": [],
+        }
 
     # ------------------------------------------------------------------
     # Conversation history management
