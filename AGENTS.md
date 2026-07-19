@@ -47,6 +47,11 @@ Tags (`v*`) trigger the GitHub Actions release pipeline (`.github/workflows/rele
 - **Dynamic Automations**: Created via LLM or UI; persisted in `.storage/llm_smart_assistant.storage`; use `async_track_state_change_event` for real-time triggers
 - **ReAct Loop**: LLM gets states → acts → observes → repeats until steps empty
 - **Security**: Domain + entity whitelist; action interceptor validates every LLM-requested action
+- **Prompt Split**: Hardcoded core (JSON format, actions, loop behavior) is NOT user-modifiable; user can only customize appended instructions
+- **TTS**: Supports Standard (media_player), Xiaomi MIoT (`intelligent_speaker`), and Custom templates; auto-mute via DND/sleep switch or configurable mute entity
+- **Voice Input**: Input sensors trigger `_async_process_user_input` on state change; duplicate detection with noise filtering for Xiaomi conversation sensor
+- **Brand Icons**: `brand/icon.png` + `brand/logo.png` served by HA's brands API at `/api/brands/integration/llm_smart_assistant/`
+- **`_OptionalEntitySelector`**: Custom `EntitySelector` subclass that accepts empty strings (used for optional entity fields)
 
 ## Language Policy
 

@@ -62,13 +62,28 @@ All settings are configured in a single-page form accessible via **Settings → 
 | Max Tokens | Maximum response length |
 
 ### Prompts
-- **Default Prompt** — System prompt for chat. Supports `{{ time }}`, `{{ date }}`, `{{ exposed_entities }}`.
-- **Automation Prompt** — System prompt for automation trigger execution.
+- **Hardcoded Core** — Critical logic (JSON format, actions, loop behavior) is built-in and NOT user-modifiable.
+- **Additional Instructions** — User-customizable tips appended after the hardcoded core.
+  Supports `{{ time }}`, `{{ date }}`, `{{ exposed_entities }}`.
 
 ### Security
 - **Allowed Domains** — Which entity domains the LLM can control (default: `light`, `switch`, `media_player`, `sensor`, `input_boolean`).
 - **Allowed Entities** — Specific entity whitelist (leave empty to allow all within allowed domains).
 - **Allow Automations** — Enable/disable LLM-based automation creation.
+
+### TTS (Text-to-Speech)
+| Field | Description |
+|-------|-------------|
+| TTS Entity | Media player to speak through (EntitySelector) |
+| TTS Mode | `Standard` (media_player), `Xiaomi MIoT`, or `Custom Template` |
+| Custom Template | Jinja2 template for custom TTS service calls |
+| Speak Volume | Volume level (0.0–1.0) to set before speaking |
+| Mute After | Enable mute/DND after TTS to prevent speaker echo (抢答) |
+| Mute Entity | Separate media_player entity for volume/mute control (optional) |
+
+### Voice Input
+Add `sensor.*` entities to **Input Sensors** to enable voice-initiated conversations.
+The coordinator monitors state changes and automatically processes new input.
 
 ### History
 Both constraints apply simultaneously:
@@ -83,7 +98,7 @@ The built-in web UI provides:
 
 - **Multi-round Reasoning** — Status shows "Reasoning (round N)..." during processing.
 - **Progressive Display** — Responses appear round-by-round.
-- **Debug Modal** — Click 📋 to view the full reasoning trace.
+- **Debug Modal** — Click 🔧 to view the full reasoning trace and the generated prompt (scrollable).
 - **Instance Selector** — Switch between multiple configured instances.
 - **Automations Tab** — View, create, edit, enable/disable, and delete automations.
 - **Voice Input** — Click 🎤 to use browser speech recognition.
@@ -127,6 +142,10 @@ custom_components/llm_smart_assistant/
 ├── services.py
 ├── sensor.py
 ├── services.yaml
+├── icons.json
+├── brand/
+│   ├── icon.png
+│   └── logo.png
 ├── panel/
 │   ├── index.html        # AI Chat UI
 │   └── chat.js           # Sidebar panel component

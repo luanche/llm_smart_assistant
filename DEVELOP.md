@@ -28,7 +28,10 @@ custom_components/llm_smart_assistant/
 ├── services.py           # Step executor with whitelist interceptor
 ├── sensor.py             # LLMLastResponseSensor + LLMDebugRawSensor (polling-based)
 ├── services.yaml         # Service definitions for HA
-├── icon.svg
+├── icons.json
+├── brand/
+│   ├── icon.png
+│   └── logo.png
 ├── panel/
 │   ├── index.html        # AI Chat UI (Lit-free, vanilla JS, multi-language via LANGUAGES object)
 │   └── chat.js           # LitElement wrapper that creates the iframe
