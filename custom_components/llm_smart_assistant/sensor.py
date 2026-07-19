@@ -112,9 +112,9 @@ class LLMDebugRawSensor(SensorEntity):
         prompt_msgs = self.coordinator.last_prompt_messages
         prompt_preview = ""
         if prompt_msgs:
-            # Show system prompt + user message preview
-            sys_msg = next((m["content"][:500] for m in prompt_msgs if m["role"] == "system"), "")
-            user_msg = next((m["content"][:300] for m in prompt_msgs if m["role"] == "user"), "")
+            # Full system and user prompt (no truncation)
+            sys_msg = next((m["content"] for m in prompt_msgs if m["role"] == "system"), "")
+            user_msg = next((m["content"] for m in prompt_msgs if m["role"] == "user"), "")
             msg_count = len(prompt_msgs)
             prompt_preview = f"[{msg_count} messages]\n--- SYSTEM ---\n{sys_msg}\n--- USER ---\n{user_msg}"
         return {
