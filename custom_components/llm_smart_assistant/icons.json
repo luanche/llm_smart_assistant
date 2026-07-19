@@ -1,0 +1,9 @@
+{
+  "entity": {
+    "sensor": {
+      "_": {
+        "icon": "mdi:robot-happy"
+      }
+    }
+  }
+}

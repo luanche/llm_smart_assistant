@@ -263,7 +263,7 @@ class LLMSmartAssistantOptionsFlow(config_entries.OptionsFlow):
                 selector.BooleanSelector(),
                 vol.Optional(CONF_TTS_MUTE_ENTITY_ID,
                     default=cur.get(CONF_TTS_MUTE_ENTITY_ID) or ""):
-                selector.TextSelector(selector.TextSelectorConfig()),
+                _OptionalEntitySelector(selector.EntitySelectorConfig(multiple=False)),
 
                 # ── Security & Access ──
                 vol.Optional(CONF_DOMAINS_WHITELIST,
