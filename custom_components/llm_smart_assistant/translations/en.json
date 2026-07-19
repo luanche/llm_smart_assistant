@@ -7,7 +7,8 @@
         "data": {
           "api_base_url": "API Base URL",
           "api_key": "API Key",
-          "model_name": "Model Name"
+          "model_name": "Model Name",
+          "title": "title"
         }
       }
     },
@@ -40,7 +41,12 @@
           "history_count": "Max Conversation Turns",
           "temperature": "Temperature (0.0=precise, 2.0=creative)",
           "max_tokens": "Max Tokens (response length)",
-          "history_time_window": "Time Window (minutes)"
+          "history_time_window": "Time Window (minutes)",
+          "api_base_url": "api_base_url",
+          "api_key": "api_key",
+          "disabled_automations": "disabled_automations",
+          "history_enabled": "history_enabled",
+          "model_name": "model_name"
         }
       }
     }
