@@ -167,6 +167,44 @@ def _register_global_services(hass: HomeAssistant) -> None:
     )
     _LOGGER.info("Global process_input service registered")
 
+    # Also register toggle_automation globally
+    if not hass.services.has_service(DOMAIN, "toggle_automation"):
+        
+        async def async_toggle_automation(call):
+            """Enable or disable a dynamic automation across all instances."""
+            automation_id = call.data.get("automation_id", "")
+            disable = call.data.get("disable", True)
+            entry_filter = call.data.get("entry_id", "")
+            
+            # Find which coordinator owns this automation
+            for eid, coord in hass.data.get(DOMAIN, {}).items():
+                if entry_filter and eid != entry_filter:
+                    continue
+                disabled = list(coord._get_disabled_automations())
+                if disable:
+                    if automation_id not in disabled:
+                        disabled.append(automation_id)
+                else:
+                    disabled = [d for d in disabled if d != automation_id]
+                
+                config_entry = hass.config_entries.async_get_entry(eid)
+                if config_entry:
+                    new_options = {**config_entry.options, "disabled_automations": disabled}
+                    hass.config_entries.async_update_entry(config_entry, options=new_options)
+                    _LOGGER.info("Automation '%s' %s for entry %s", automation_id, "disabled" if disable else "enabled", eid)
+        
+        hass.services.async_register(
+            DOMAIN,
+            "toggle_automation",
+            async_toggle_automation,
+            schema=vol.Schema({
+                vol.Required("automation_id"): cv.string,
+                vol.Optional("disable", default=True): cv.boolean,
+                vol.Optional("entry_id", default=""): cv.string,
+            }),
+        )
+        _LOGGER.info("Global toggle_automation service registered")
+
 
 async def _async_register_services(
     hass: HomeAssistant, coordinator: LLMSmartAssistantCoordinator
@@ -270,44 +308,7 @@ async def _async_register_services(
         }),
     )
 
-    async def async_toggle_automation(call):
-        """Enable or disable a dynamic automation."""
-        automation_id = call.data.get("automation_id", "")
-        disable = call.data.get("disable", True)
-        
-        # Find the config entry for this coordinator
-        entry_id = next(
-            (eid for eid, c in hass.data.get(DOMAIN, {}).items() if c is coordinator),
-            None
-        )
-        if not entry_id:
-            _LOGGER.error("Cannot find config entry for toggle_automation")
-            return
-        
-        # Update disabled_automations in options
-        disabled = list(coordinator._get_disabled_automations())
-        if disable:
-            if automation_id not in disabled:
-                disabled.append(automation_id)
-        else:
-            disabled = [d for d in disabled if d != automation_id]
-        
-        # Store via options update
-        config_entry = hass.config_entries.async_get_entry(entry_id)
-        if config_entry:
-            new_options = {**config_entry.options, "disabled_automations": disabled}
-            hass.config_entries.async_update_entry(config_entry, options=new_options)
-            _LOGGER.info("Automation '%s' %s", automation_id, "disabled" if disable else "enabled")
-
-    hass.services.async_register(
-        DOMAIN,
-        "toggle_automation",
-        async_toggle_automation,
-        schema=vol.Schema({
-            vol.Required("automation_id"): cv.string,
-            vol.Optional("disable", default=True): cv.boolean,
-        }),
-    )
+    # toggle_automation is registered globally (see _register_global_services)
 
     hass.services.async_register(
         DOMAIN,

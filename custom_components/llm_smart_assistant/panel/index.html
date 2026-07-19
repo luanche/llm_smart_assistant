@@ -488,6 +488,19 @@
   </div>
 </div>
 
+<!-- Confirm modal -->
+<div id="confirmModal" class="modal-overlay" onclick="if(event.target===this)cancelConfirm()">
+  <div class="modal-card" style="max-width:320px;">
+    <div class="modal-body" style="padding:20px 16px 8px;">
+      <p id="confirmText" style="font-size:14px;line-height:1.5;text-align:center;color:var(--text-primary);margin-bottom:16px;"></p>
+    </div>
+    <div class="modal-footer">
+      <button class="modal-btn modal-btn-secondary" onclick="cancelConfirm()">Cancel</button>
+      <button class="modal-btn modal-btn-primary" style="background:var(--danger);" onclick="confirmDelete()">Delete</button>
+    </div>
+  </div>
+</div>
+
 <!-- Edit prompt modal -->
 <div id="editModal" class="modal-overlay" onclick="if(event.target===this)cancelEdit()">
   <div class="modal-card">
@@ -543,6 +556,7 @@ const i18n = {
   editPrompt: isZh ? '编辑自动化动作' : 'Edit automation action',
   editPromptPlaceholder: isZh ? '描述要执行的动作...' : 'Describe what action to take...',
   cancel: isZh ? '取消' : 'Cancel',
+  deleteConfirmBtn: isZh ? '删除' : 'Delete',
   save: isZh ? '保存' : 'Save',
   deleteConfirm: isZh ? '确定删除此自动化？' : 'Delete this automation?',
   enable: isZh ? '启用' : 'Enable',
@@ -560,6 +574,11 @@ const cancelBtn = document.querySelector('.modal-btn-secondary');
 const saveBtn = document.querySelector('.modal-btn-primary');
 if (cancelBtn) cancelBtn.textContent = i18n.cancel;
 if (saveBtn) saveBtn.textContent = i18n.save;
+// Set all modal secondary buttons to Cancel
+document.querySelectorAll('.modal-btn-secondary').forEach(b => b.textContent = i18n.cancel);
+// Set delete button
+const delBtn = document.querySelector('#confirmModal .modal-btn-primary');
+if (delBtn) delBtn.textContent = i18n.deleteConfirmBtn;
 document.getElementById('headerTitle').textContent = i18n.title;
 document.getElementById('emptyText').textContent = i18n.empty;
 document.getElementById('tabBar').querySelectorAll('.tab-btn')[0].textContent = i18n.chat;
@@ -788,7 +807,7 @@ async function refreshAutomations() {
             ${isDisabled ? i18n.enable : i18n.disable}
           </button>
           <button onclick="showEditModal('${id}', '${promptEsc}')">${i18n.edit}</button>
-          <button class="delete-btn" onclick="deleteAutomation('${id}')">${i18n.delete}</button>
+          <button class="delete-btn" onclick="showDeleteConfirm('${id}')">${i18n.delete}</button>
         </div>
       `;
       container.appendChild(card);
@@ -799,13 +818,20 @@ async function refreshAutomations() {
 }
 
 async function toggleAutomation(id, disable) {
+  setStatus(disable ? 'Disabling...' : 'Enabling...');
   try {
+    const inst = document.getElementById('instanceSelect').value;
     await callAPI('POST', '/api/services/llm_smart_assistant/toggle_automation', {
       automation_id: id,
-      disable: disable
+      disable: disable,
+      entry_id: inst || ''
     });
     refreshAutomations();
-  } catch(e) { alert('Error: ' + e.message); }
+    setStatus(i18n.connected);
+  } catch(e) { 
+    setStatus('Error: ' + e.message, false);
+    setTimeout(() => setStatus(i18n.connected), 3000);
+  }
 }
 
 function showEditModal(id, currentPrompt) {
@@ -836,12 +862,24 @@ function cancelEdit() {
   document.getElementById('editModal').classList.remove('open');
 }
 
-async function deleteAutomation(id) {
-  if (!window.confirm(i18n.deleteConfirm)) return;
+function showDeleteConfirm(id) {
+  document.getElementById('confirmModal').dataset.automationId = id;
+  document.getElementById('confirmText').textContent = i18n.deleteConfirm;
+  document.getElementById('confirmModal').classList.add('open');
+}
+
+async function confirmDelete() {
+  const modal = document.getElementById('confirmModal');
+  const id = modal.dataset.automationId;
+  modal.classList.remove('open');
   try {
     await callAPI('POST', '/api/services/llm_smart_assistant/remove_automation', { automation_id: id });
     refreshAutomations();
   } catch(e) { alert('Error: ' + e.message); }
+}
+
+function cancelConfirm() {
+  document.getElementById('confirmModal').classList.remove('open');
 }
 
 function suggest(text) {
