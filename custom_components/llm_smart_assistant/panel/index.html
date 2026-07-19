@@ -864,7 +864,7 @@ async function refreshAutomations() {
       card.innerHTML = `
         <div class="entity">${a.entity_id} ${a.condition}</div>
         <div class="detail">${a.description || ''}</div>
-        <div class="detail" style="font-size:11px;color:var(--text-tertiary)">${isZh ? '动作' : 'Action'}: ${a.prompt || '(none)'}</div>
+        <div class="detail" style="font-size:11px;color:var(--text-tertiary)">${isZh ? '动作' : 'Action'}: ${a.prompt || i18n.noActionSpecified}</div>
         <div class="actions">
           <button class="${isDisabled ? 'toggle-on' : 'toggle-off'}" onclick="toggleAutomation('${id}', ${!isDisabled})">
             ${isDisabled ? i18n.enable : i18n.disable}
