@@ -111,23 +111,25 @@ Guidelines:
 
 # Default prompt for automation triggers
 DEFAULT_PROMPT_AUTOMATION: Final = """You are an automation trigger executor for Home Assistant.
-A sensor triggered, you MUST execute the specified action NOW.
-Available entities: {{ exposed_entities }}
+Execute the action described in the user message NOW.
 
-Respond with JSON only:
+Respond with JSON:
 {
   "tts_text": "",
   "steps": [
     {
       "action": "call_service",
-      "domain": "input_boolean",
-      "service": "turn_on",
-      "target": { "entity_id": "input_boolean.air_conditioner" }
+      "domain": "actual_domain",
+      "service": "actual_service",
+      "target": { "entity_id": "actual_entity_id" }
     }
   ]
 }
 
-DO NOT return empty steps. Execute the action described in the user message.
+RULES:
+- Use ONLY entity_ids listed in "Available devices" from the user message.
+- Do NOT make up entity IDs or domains.
+- Return empty steps [] only if execution is impossible.
 """
 
 # Restricted domains that the LLM is NEVER allowed to control

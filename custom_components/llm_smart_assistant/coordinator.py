@@ -914,7 +914,11 @@ class LLMSmartAssistantCoordinator:
     async def _async_process_automation_trigger(
         self, automation: DynamicAutomation, state: State
     ) -> None:
-        """Process a dynamic automation trigger."""
+        """Process a dynamic automation trigger via LLM.
+        
+        Passes the full available entities list to the LLM so it can
+        determine the correct action and entity IDs dynamically.
+        """
         _LOGGER.info(
             "Automation '%s' triggered by %s = %s",
             automation.automation_id,
@@ -922,23 +926,34 @@ class LLMSmartAssistantCoordinator:
             state.state,
         )
 
-        # Build automation context
+        # Build comprehensive entity context for the LLM
+        all_states = self.hass.states.async_all()
+        entity_lines = []
+        for s_obj in all_states:
+            domain = s_obj.domain
+            if self.domains_whitelist and domain not in self.domains_whitelist:
+                continue
+            friendly = s_obj.attributes.get("friendly_name", s_obj.entity_id)
+            entity_lines.append(
+                f"  - {s_obj.entity_id} ({friendly}): {s_obj.state}"
+            )
+        entity_context = "Available devices you can control:\n" + "\n".join(entity_lines[:20])
+        
         action_prompt = automation.prompt or automation.description or "Execute the configured automation action"
-        exposed = self._build_exposed_entities_list()
+        
         messages = self._build_messages_for_llm(
             user_input=(
-                f"Automation triggered: {automation.description}. "
-                f"Entity {automation.entity_id} is now {state.state}. "
-                f"Action to execute: {action_prompt}. "
-                f"Execute this action NOW by returning call_service steps."
+                f"AUTOMATION TRIGGERED\n"
+                f"Trigger: {automation.entity_id} = {state.state}\n"
+                f"Task: {action_prompt}\n"
+                f"\n{entity_context}\n\n"
+                f"IMPORTANT: Use ONLY the entity_ids listed above. Do NOT make up entities.\n"
+                f"For example, if you see input_boolean.air_conditioner, use that (not climate.ac)."
             ),
             prompt_template=self.prompt_automation,
-            entity_id=automation.entity_id,
-            state=state.state,
-            exposed_entities=exposed,
         )
 
-        # Call LLM with a simpler context
+        # Call LLM
         response = await self._async_query_llm(messages)
 
         if response is None:
@@ -949,6 +964,13 @@ class LLMSmartAssistantCoordinator:
 
         tts_text = response.get("tts_text", "")
         steps = response.get("steps", [])
+
+        # If LLM returned empty steps, try fallback matching
+        if not steps:
+            _LOGGER.info("LLM returned empty steps, trying fallback entity match")
+            steps = self._try_fallback_automation_action(automation)
+            if steps:
+                _LOGGER.info("Fallback matched: %s", steps)
 
         # Execute steps
         if steps and self.executor:
@@ -1116,6 +1138,31 @@ class LLMSmartAssistantCoordinator:
     # ------------------------------------------------------------------
     # TTS (Text-to-Speech)
     # ------------------------------------------------------------------
+
+    def _try_fallback_automation_action(self, automation: DynamicAutomation) -> list[dict]:
+        """Fallback: match automation prompt to entity names and generate steps."""
+        action_prompt = (automation.prompt or automation.description or "").lower()
+        all_states = self.hass.states.async_all()
+        
+        for s_obj in all_states:
+            domain = s_obj.domain
+            if self.domains_whitelist and domain not in self.domains_whitelist:
+                continue
+            friendly = s_obj.attributes.get("friendly_name", "").lower()
+            eid_tail = s_obj.entity_id.split(".")[-1].replace("_", " ")
+            
+            # Check if entity name appears in the action prompt
+            if (eid_tail in action_prompt or friendly in action_prompt):
+                # Determine service from keywords in prompt
+                if any(w in action_prompt for w in ["turn on", "打开", "开启", "open"]):
+                    return [{"action": "call_service", "domain": domain,
+                             "service": "turn_on", 
+                             "target": {"entity_id": s_obj.entity_id}}]
+                if any(w in action_prompt for w in ["turn off", "关闭", "关掉", "close", "停止"]):
+                    return [{"action": "call_service", "domain": domain,
+                             "service": "turn_off",
+                             "target": {"entity_id": s_obj.entity_id}}]
+        return []
 
     async def _async_speak_tts(self, text: str) -> None:
         """Speak text via the configured TTS mechanism."""
