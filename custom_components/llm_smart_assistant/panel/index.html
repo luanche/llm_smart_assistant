@@ -539,8 +539,19 @@
       <span class="modal-title" id="editModalTitle"></span>
       <button class="modal-close" onclick="cancelEdit()">✕</button>
     </div>
-    <div class="modal-body">
-      <textarea id="editInput" class="modal-input" rows="3" placeholder="${i18n.editPromptPlaceholder}"></textarea>
+    <div class="modal-body" style="display:flex;flex-direction:column;gap:10px;">
+      <div>
+        <label style="font-size:12px;font-weight:500;color:var(--text-secondary);margin-bottom:4px;display:block;">${i18n.labelEntityId}</label>
+        <input id="editEntityInput" class="modal-input" rows="1" placeholder="" style="resize:none;">
+      </div>
+      <div>
+        <label style="font-size:12px;font-weight:500;color:var(--text-secondary);margin-bottom:4px;display:block;">${i18n.labelCondition}</label>
+        <input id="editConditionInput" class="modal-input" rows="1" placeholder="" style="resize:none;">
+      </div>
+      <div>
+        <label style="font-size:12px;font-weight:500;color:var(--text-secondary);margin-bottom:4px;display:block;">${i18n.labelAction}</label>
+        <textarea id="editInput" class="modal-input" rows="2" placeholder="" style="resize:none;"></textarea>
+      </div>
     </div>
     <div class="modal-footer">
       <button class="modal-btn modal-btn-secondary" onclick="cancelEdit()"></button>
@@ -897,7 +908,9 @@ async function toggleAutomation(id, disable) {
 
 function showEditModal(id, entity, condition, prompt) {
   document.getElementById('editEntityInput').value = entity || '';
+  document.getElementById('editEntityInput').placeholder = i18n.placeholderEntity || 'sensor.living_room_temperature';
   document.getElementById('editConditionInput').value = condition || '';
+  document.getElementById('editConditionInput').placeholder = i18n.placeholderCondition || '>30';
   document.getElementById('editInput').value = prompt || '';
   document.getElementById('editInput').placeholder = i18n.editPromptPlaceholder || 'Describe what action to take...';
   document.getElementById('editModalTitle').textContent = i18n.editPrompt;
