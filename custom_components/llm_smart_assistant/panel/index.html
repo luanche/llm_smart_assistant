@@ -586,6 +586,9 @@ const i18n = {
   actions: isZh ? '个动作' : 'actions',
   editPrompt: isZh ? '编辑自动化' : 'Edit automation',
   addAutoTitle: isZh ? '添加自动化' : 'Add Automation',
+  add: isZh ? '添加' : 'Add',
+  save: isZh ? '保存' : 'Save',
+  cancel: isZh ? '取消' : 'Cancel',
   editPromptPlaceholder: isZh ? '描述要执行的动作...' : 'Describe what action to take...',
   cancel: isZh ? '取消' : 'Cancel',
   deleteConfirmBtn: isZh ? '删除' : 'Delete',
@@ -604,11 +607,15 @@ document.title = i18n.title;
 // Set modal button text
 const cancelBtn = document.querySelector('.modal-btn-secondary');
 const saveBtn = document.querySelector('.modal-btn-primary');
-if (cancelBtn) cancelBtn.textContent = i18n.cancel;
-if (saveBtn) saveBtn.textContent = i18n.save;
-// Set all modal secondary buttons to Cancel
+// Set all modal button texts
 document.querySelectorAll('.modal-btn-secondary').forEach(b => b.textContent = i18n.cancel);
-// Set delete button
+// Edit modal save
+const editSave = document.querySelector('#editModal .modal-btn-primary');
+if (editSave) editSave.textContent = i18n.save;
+// Add modal add
+const addBtn_ = document.querySelector('#addModal .modal-btn-primary');
+if (addBtn_) addBtn_.textContent = i18n.add;
+// Confirm modal delete
 const delBtn = document.querySelector('#confirmModal .modal-btn-primary');
 if (delBtn) delBtn.textContent = i18n.deleteConfirmBtn;
 document.getElementById('headerTitle').textContent = i18n.title;
