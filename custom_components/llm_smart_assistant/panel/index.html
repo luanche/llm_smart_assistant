@@ -726,7 +726,7 @@ const addBtn_ = document.querySelector('#addModal .modal-btn-primary');
 if (addBtn_) addBtn_.textContent = t('add');
 // Confirm modal delete
 const delBtn = document.querySelector('#confirmModal .modal-btn-primary');
-if (delBtn) delBtn.textContent = t('delete')ConfirmBtn;
+if (delBtn) delBtn.textContent = t('deleteConfirmBtn');
 document.getElementById('headerTitle').textContent = t('title');
 document.getElementById('emptyText').textContent = t('empty');
 document.getElementById('tabBar').querySelectorAll('.tab-btn')[0].textContent = t('chat');
@@ -985,8 +985,8 @@ function showEditModal(id, entity, condition, prompt) {
   document.getElementById('editConditionInput').value = condition || '';
   document.getElementById('editConditionInput').placeholder = t('placeholderCondition') || '>30';
   document.getElementById('editInput').value = prompt || '';
-  document.getElementById('editInput').placeholder = t('edit')PromptPlaceholder || 'Describe what action to take...';
-  document.getElementById('editModalTitle').textContent = t('edit')Prompt;
+  document.getElementById('editInput').placeholder = t('editPromptPlaceholder') || 'Describe what action to take...';
+  document.getElementById('editModalTitle').textContent = t('editPrompt');
   document.getElementById('editModal').dataset.automationId = id;
   document.getElementById('editModal').classList.add('open');
   setTimeout(() => document.getElementById('editEntityInput').focus(), 100);
@@ -1015,7 +1015,7 @@ function showAddModal() {
   document.getElementById('addEntityInput').value = '';
   document.getElementById('addConditionInput').value = '';
   document.getElementById('addPromptInput').value = '';
-  document.getElementById('addModalTitle').textContent = t('add')AutoTitle;
+  document.getElementById('addModalTitle').textContent = t('addAutoTitle');
   document.getElementById('addModal').classList.add('open');
   setTimeout(() => document.getElementById('addEntityInput').focus(), 100);
 }
@@ -1048,7 +1048,7 @@ function cancelEdit() {
 
 function showDeleteConfirm(id) {
   document.getElementById('confirmModal').dataset.automationId = id;
-  document.getElementById('confirmText').textContent = t('delete')Confirm;
+  document.getElementById('confirmText').textContent = t('deleteConfirm');
   document.getElementById('confirmModal').classList.add('open');
 }
 
@@ -1178,6 +1178,7 @@ function applyI18n() {
 }
 
 // Init
+(async function init() {
   // 1. Try auth_token from URL query parameter (passed by chat.js wrapper)
   try {
     const params = new URLSearchParams(window.location.search);
