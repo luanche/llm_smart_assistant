@@ -277,7 +277,7 @@ async def _async_register_chat_panel(
                 """Serve the AI Chat panel HTML."""
                 url = "/api/llm_smart_assistant/chat_panel"
                 name = "api:llm_smart_assistant:chat_panel"
-                requires_auth = True
+                requires_auth = False
 
                 async def get(self, request):
                     return web.Response(
@@ -299,7 +299,7 @@ async def _async_register_chat_panel(
                     """Serve the AI Chat panel JavaScript."""
                     url = "/api/llm_smart_assistant/chat_js"
                     name = "api:llm_smart_assistant:chat_js"
-                    requires_auth = True
+                    requires_auth = False
 
                     async def get(self, request):
                         return web.Response(
