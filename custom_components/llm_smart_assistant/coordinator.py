@@ -1318,50 +1318,40 @@ class LLMSmartAssistantCoordinator:
         tts_entity = self.tts_entity_id
         media_domain = tts_entity.split(".")[0]
 
-        # Determine which entity to use for muting:
-        # 1. User-specified mute entity (e.g. a media_player that supports volume_set)
-        # 2. Auto-detect DND switch (xiaomi_miot)
-        # 3. Auto-detect sleep mode switch (xiaomi_miot fallback)
-        _mute_switches = []
+        # Collect mute mechanisms to apply:
+        # 1. User-configured mute entity (media_player for volume_set/volume_mute)
+        # 2. Auto-detected DND switch (xiaomi_miot)
+        # 3. Auto-detected sleep mode switch (xiaomi_miot)
+        _pre_tts_actions: list[tuple[str, str, dict]] = []   # run BEFORE speak
+        _post_tts_actions: list[tuple[str, str, dict]] = []  # run AFTER speak (reversed)
+
         if media_domain == "media_player":
+            # Always try to discover & toggle DND/sleep switches
+            for suffix in ["no_disturb", "sleep_mode"]:
+                sw_id = tts_entity.replace("play_control", suffix).replace("media_player", "switch")
+                if self.hass.states.get(sw_id):
+                    _pre_tts_actions.append(("switch", "turn_off", {"entity_id": sw_id}))
+                    _post_tts_actions.append(("switch", "turn_on", {"entity_id": sw_id}))
+                    break
+
+            # User-configured mute entity for volume control
             mute_entity = self.tts_mute_entity_id
             if mute_entity and self.hass.states.get(mute_entity):
-                _mute_switches.append(("media_player", "volume_set",
+                _pre_tts_actions.insert(0, ("media_player", "volume_mute",
+                    {"entity_id": mute_entity, "is_volume_muted": False}))
+                _pre_tts_actions.insert(0, ("media_player", "volume_set",
+                    {"entity_id": mute_entity, "volume_level": self.tts_speak_volume}))
+                _post_tts_actions.append(("media_player", "volume_set",
                     {"entity_id": mute_entity, "volume_level": 0.0}))
-                _mute_switches.append(("media_player", "volume_mute",
+                _post_tts_actions.append(("media_player", "volume_mute",
                     {"entity_id": mute_entity, "is_volume_muted": True}))
-            else:
-                # Auto-detect DND or sleep mode switches
-                for suffix in ["no_disturb", "sleep_mode"]:
-                    sw_id = tts_entity.replace("play_control", suffix).replace("media_player", "switch")
-                    if self.hass.states.get(sw_id):
-                        _mute_switches.append(("switch", "turn_on", {"entity_id": sw_id}))
-                        break
 
         try:
-            # ── Pre-TTS: disable mute so speaker can speak ──
-            if _mute_switches:
-                first = _mute_switches[0]
-                if first[0] == "media_player":
-                    # Unmute and set volume for speaking
-                    await self.hass.services.async_call(
-                        first[0], "volume_mute",
-                        {"entity_id": first[1]["entity_id"], "is_volume_muted": False},
-                        blocking=True,
-                    )
-                    await self.hass.services.async_call(
-                        first[0], "volume_set",
-                        {"entity_id": first[1]["entity_id"], "volume_level": self.tts_speak_volume},
-                        blocking=True,
-                    )
-                else:
-                    # Turn off DND/sleep switch
-                    await self.hass.services.async_call(
-                        "switch", "turn_off",
-                        {"entity_id": first[2]["entity_id"]},
-                        blocking=True,
-                    )
-                    await asyncio.sleep(0.5)
+            # ── Pre-TTS: prepare speaker for speaking ──
+            for domain, service, data in _pre_tts_actions:
+                await self.hass.services.async_call(domain, service, data, blocking=True)
+            if _pre_tts_actions:
+                await asyncio.sleep(0.3)
 
             # ── Speak ──
             if self.tts_mode == TTS_MODE_STANDARD:
@@ -1418,7 +1408,7 @@ class LLMSmartAssistantCoordinator:
             _LOGGER.info("TTS spoken to %s: %s", tts_entity, text[:100])
 
             # ── Post-TTS: wait estimated duration, then re-mute ──
-            if _mute_switches and self.tts_mute_after:
+            if _post_tts_actions and self.tts_mute_after:
                 # Estimate speech duration: ~5 chars/sec + per-pause + base
                 clean = text.replace(" ", "").replace("\n", "")
                 char_count = len(clean)
@@ -1426,11 +1416,9 @@ class LLMSmartAssistantCoordinator:
                 delay_ms = max(1000, char_count * 200 + pause_count * 300 + 500)
                 _LOGGER.debug("TTS mute delay: %d ms for %d chars", delay_ms, char_count)
                 await asyncio.sleep(delay_ms / 1000)
-                for action in _mute_switches:
-                    await self.hass.services.async_call(
-                        action[0], action[1], action[2],
-                        blocking=True,
-                    )
+                # Re-mute (reverse order for switches first, then volume)
+                for domain, service, data in reversed(_post_tts_actions):
+                    await self.hass.services.async_call(domain, service, data, blocking=True)
 
         except Exception as exc:
             _LOGGER.error("TTS failed for %s: %s", tts_entity, exc)
