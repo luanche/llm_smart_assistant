@@ -423,17 +423,22 @@ class LLMSmartAssistantCoordinator:
         if new_state is None:
             return
 
-        state_text = str(new_state.state)
+        state_text = str(new_state.state).strip()
 
         # Skip empty/unavailable states
         if not state_text or state_text in ("", "unavailable", "unknown", "none"):
             return
 
-        # Duplicate detection
+        # Duplicate detection (handles Xiaomi MIoT phantom updates with same content)
         if self.ignore_duplicate:
             last_state = self._last_states.get(entity_id)
             if last_state == state_text:
-                _LOGGER.debug("Ignoring duplicate input from %s", entity_id)
+                _LOGGER.debug("Ignoring duplicate input from %s (same text)", entity_id)
+                return
+            # Also check if the previous state text is a substring of the new one
+            # (Xiaomi sometimes appends timestamps or other noise)
+            if last_state and state_text.startswith(last_state) and len(state_text) > len(last_state) + 5:
+                _LOGGER.debug("Ignoring appended noise from %s: '%s' -> '%s'", entity_id, last_state, state_text)
                 return
 
         self._last_states[entity_id] = state_text
