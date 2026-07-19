@@ -12,7 +12,7 @@ You are developing a Home Assistant custom integration called **LLM Smart Assist
 - HA runs in Docker: `docker compose up -d` in project root
 - Restart HA for Python changes: `docker compose restart`
 - Panel files (`panel/index.html`, `panel/chat.js`) are read fresh on every request — no restart needed for HTML/JS changes
-- HA at `http://localhost:8123`, credentials: `agent` / `passward`
+- HA at `http://localhost:8123`, credentials: `agent` / `password`
 
 ## Workflow
 

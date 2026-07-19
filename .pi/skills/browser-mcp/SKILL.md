@@ -47,7 +47,7 @@ playwright_edge_browser_type target="[ref=f2e16]" text="value"
 # Fill multiple form fields at once
 playwright_edge_browser_fill_form fields='[
   {"target":"#username","name":"Username","type":"textbox","value":"agent"},
-  {"target":"#password","name":"Password","type":"textbox","value":"passward"}
+  {"target":"#password","name":"Password","type":"textbox","value":"password"}
 ]'
 
 # Select dropdown option
@@ -109,7 +109,7 @@ async (page) => {
   await page.waitForTimeout(1000);
   await page.evaluate(() => {
     document.querySelector('input[name=username]').value = 'agent';
-    document.querySelector('input[name=password]').value = 'passward';
+    document.querySelector('input[name=password]').value = 'password';
   });
   await page.click('button[type=submit]');
   await page.waitForTimeout(2000);
@@ -135,7 +135,7 @@ async (page) => {
 ```bash
 1. playwright_edge_browser_navigate url="http://localhost:8123/auth/login"
 2. playwright_edge_browser_type target="input[type=text]" text="agent"
-3. playwright_edge_browser_type target="input[type=password]" text="passward"
+3. playwright_edge_browser_type target="input[type=password]" text="password"
 4. playwright_edge_browser_click target="button:has-text('Log in')"
 5. playwright_edge_browser_wait_for time=2
 6. playwright_edge_browser_navigate url="http://localhost:8123/target-page"
