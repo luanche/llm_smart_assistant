@@ -1,676 +1,648 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>AI Chat</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
-
     :root {
-      --bg: #f5f5f7;
-      --surface: #ffffff;
-      --surface-alt: #f0f0f2;
-      --border: #e0e0e4;
-      --text-primary: #1d1d1f;
-      --text-secondary: #86868b;
-      --text-tertiary: #aeaeb2;
-      --accent: #007aff;
-      --accent-hover: #0066d6;
-      --accent-subtle: rgba(0, 122, 255, 0.08);
-      --shadow-sm: 0 1px 3px rgba(0,0,0,0.04);
-      --shadow-md: 0 4px 12px rgba(0,0,0,0.06);
-      --radius-sm: 8px;
-      --radius-md: 12px;
-      --radius-lg: 20px;
-      --radius-full: 9999px;
+      --bg: #f5f5f7; --surface: #fff; --surface-alt: #f0f0f2;
+      --border: #e0e0e4; --text-primary: #1d1d1f; --text-secondary: #86868b;
+      --accent: #007aff; --accent-hover: #0066d6; --accent-subtle: rgba(0,122,255,0.08);
+      --radius-sm: 8px; --radius-md: 12px; --radius-lg: 20px; --radius-full: 9999px;
+      --danger: #ff3b30; --success: #34c759;
     }
-
     @media (prefers-color-scheme: dark) {
       :root {
-        --bg: #1c1c1e;
-        --surface: #2c2c2e;
-        --surface-alt: #3a3a3c;
-        --border: #38383a;
-        --text-primary: #f5f5f7;
-        --text-secondary: #98989d;
-        --text-tertiary: #636366;
-        --accent: #0a84ff;
-        --accent-hover: #409cff;
-        --accent-subtle: rgba(10, 132, 255, 0.12);
-        --shadow-sm: 0 1px 3px rgba(0,0,0,0.2);
-        --shadow-md: 0 4px 12px rgba(0,0,0,0.3);
+        --bg: #1c1c1e; --surface: #2c2c2e; --surface-alt: #3a3a3c;
+        --border: #38383a; --text-primary: #f5f5f7; --text-secondary: #98989d;
+        --accent: #0a84ff; --accent-hover: #409cff; --accent-subtle: rgba(10,132,255,0.12);
+        --danger: #ff453a; --success: #30d158;
       }
     }
-
+    html, body { height: 100%; overflow: hidden; }
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, sans-serif;
-      background: var(--bg);
-      color: var(--text-primary);
-      height: 100vh;
-      display: flex;
-      flex-direction: column;
-      transition: background 0.2s, color 0.2s;
-      -webkit-font-smoothing: antialiased;
+      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+      background: var(--bg); color: var(--text-primary);
+      display: flex; flex-direction: column; font-size: 16px;
     }
 
-    /* ── Header ── */
-    .header {
-      background: var(--surface);
-      padding: 0 20px;
-      border-bottom: 1px solid var(--border);
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      flex-shrink: 0;
-      height: 52px;
-      backdrop-filter: blur(20px);
-      -webkit-backdrop-filter: blur(20px);
+    #header {
+      display: flex; align-items: center; gap: 8px;
+      padding: 12px 16px; background: var(--surface);
+      border-bottom: 1px solid var(--border); flex-shrink: 0;
+      backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
     }
-    .header-title {
-      font-size: 15px;
-      font-weight: 600;
-      letter-spacing: -0.01em;
-      flex: 1;
-    }
-    .header-status {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      font-size: 11px;
-      color: var(--text-tertiary);
-    }
-    .header-status .dot {
-      width: 6px;
-      height: 6px;
-      border-radius: 50%;
-      background: #34c759;
-      display: inline-block;
+    #headerTitle { font-size: 18px; font-weight: 600; margin-right: auto; }
+    #statusText { font-size: 12px; color: var(--text-secondary); }
+    .instance-select {
+      font-size: 13px; padding: 4px 8px; border: 1px solid var(--border);
+      border-radius: var(--radius-sm); background: var(--surface);
+      color: var(--text-primary); display: none; max-width: 120px;
     }
     .debug-btn {
-      width: 26px; height: 26px; border: none; background: none;
-      cursor: pointer; font-size: 13px; opacity: 0.2;
-      color: var(--text-secondary); border-radius: 6px;
-      display: flex; align-items: center; justify-content: center;
-      transition: opacity 0.15s, background 0.15s;
+      background: none; border: none; font-size: 16px; cursor: pointer;
+      opacity: 0.25; transition: opacity 0.2s; padding: 4px;
     }
-    .debug-btn:hover { opacity: 0.6; background: var(--accent-subtle); }
+    .debug-btn:hover { opacity: 0.6; }
 
-    /* ── Chat Container ── */
-    .chat-container {
-      flex: 1; overflow-y: auto; padding: 16px;
-      display: flex; flex-direction: column; gap: 8px;
-      scroll-behavior: smooth;
+    /* Tabs */
+    #tabBar {
+      display: flex; border-bottom: 1px solid var(--border);
+      background: var(--surface); flex-shrink: 0;
     }
+    .tab-btn {
+      flex: 1; padding: 10px; text-align: center; font-size: 14px;
+      background: none; border: none; cursor: pointer;
+      color: var(--text-secondary); border-bottom: 2px solid transparent;
+    }
+    .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 600; }
 
-    /* ── Messages ── */
-    .msg {
-      max-width: 80%;
-      padding: 12px 16px;
-      border-radius: var(--radius-lg);
-      line-height: 1.55;
-      font-size: 15px;
-      word-break: break-word;
-      animation: msgIn 0.25s ease-out;
-    }
-    @keyframes msgIn {
-      from { opacity: 0; transform: translateY(8px) scale(0.98); }
-      to { opacity: 1; transform: translateY(0) scale(1); }
-    }
+    /* Chat tab */
+    #chatTab, #autoTab { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
+    #autoTab { display: none; }
 
+    #chatContainer {
+      flex: 1; overflow-y: auto; padding: 12px 16px 8px;
+      display: flex; flex-direction: column; gap: 10px;
+    }
+    #inputArea {
+      display: flex; align-items: flex-end; gap: 8px; padding: 8px 12px;
+      background: var(--surface); border-top: 1px solid var(--border); flex-shrink: 0;
+    }
+    #inputField {
+      flex: 1; border: 1px solid var(--border); border-radius: var(--radius-lg);
+      padding: 10px 16px; font-size: 16px; background: var(--surface-alt);
+      color: var(--text-primary); outline: none; resize: none;
+      font-family: inherit; min-height: 44px; max-height: 120px;
+    }
+    #inputField:focus { border-color: var(--accent); }
+    #sendBtn, #voiceBtn {
+      width: 44px; height: 44px; border-radius: 50%; border: none;
+      background: var(--accent); color: #fff; font-size: 20px;
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0; transition: opacity 0.2s;
+    }
+    #sendBtn:disabled { opacity: 0.4; cursor: not-allowed; }
+    #voiceBtn {
+      background: var(--surface-alt); color: var(--text-primary);
+      font-size: 18px; border: 1px solid var(--border);
+    }
+    #voiceBtn.listening { background: var(--danger); color: #fff; }
+
+    /* Messages */
+    .msg { max-width: 85%; padding: 10px 14px; border-radius: var(--radius-md);
+      line-height: 1.5; word-wrap: break-word; position: relative; }
     .msg.user {
-      align-self: flex-end;
-      background: var(--accent);
-      color: #fff;
+      align-self: flex-end; background: var(--accent); color: #fff;
       border-bottom-right-radius: 4px;
     }
-
     .msg.assistant {
-      align-self: flex-start;
-      background: var(--surface);
-      color: var(--text-primary);
-      border: 1px solid var(--border);
-      border-bottom-left-radius: 4px;
-      box-shadow: var(--shadow-sm);
+      align-self: flex-start; background: var(--surface);
+      border: 1px solid var(--border); border-bottom-left-radius: 4px;
+    }
+    .msg-time { font-size: 11px; color: var(--text-tertiary); margin-top: 4px; }
+    .msg.user .msg-time { color: rgba(255,255,255,0.7); }
+    .loading { opacity: 0.6; }
+    @keyframes pulse { 0%,100%{opacity:0.4} 50%{opacity:1} }
+    .loading .msg-text { animation: pulse 1.5s ease-in-out infinite; }
+    .steps-list { margin-top: 6px; font-size: 12px; color: var(--text-secondary);
+      border-top: 1px solid var(--border); padding-top: 6px; }
+    .step-item { padding: 2px 0; }
+
+    /* Empty state */
+    #emptyState { text-align: center; padding: 40px 20px; color: var(--text-secondary); }
+    #emptyState p { margin-bottom: 16px; font-size: 15px; }
+    .suggestion-btn {
+      display: inline-block; margin: 4px; padding: 8px 16px;
+      border: 1px solid var(--border); border-radius: var(--radius-full);
+      background: var(--surface); color: var(--accent); font-size: 14px;
+      cursor: pointer; transition: all 0.2s; font-family: inherit;
+    }
+    .suggestion-btn:hover { background: var(--accent-subtle); border-color: var(--accent); }
+
+    /* Automations tab */
+    #autoContainer { flex: 1; overflow-y: auto; padding: 16px; }
+    .auto-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius-md); padding: 12px 16px; margin-bottom: 10px;
+    }
+    .auto-card .entity { font-weight: 600; font-size: 14px; }
+    .auto-card .detail { font-size: 13px; color: var(--text-secondary); margin: 4px 0; }
+    .auto-card .actions { display: flex; gap: 8px; margin-top: 8px; }
+    .auto-card .actions button {
+      padding: 4px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border);
+      background: var(--surface); cursor: pointer; font-size: 13px; font-family: inherit;
+    }
+    .auto-card .actions button:hover { background: var(--accent-subtle); }
+    .auto-card .actions .delete-btn { color: var(--danger); border-color: var(--danger); }
+    .auto-card.disabled { opacity: 0.5; }
+    .auto-card .toggle-on { color: var(--success); }
+    .auto-card .toggle-off { color: var(--text-secondary); }
+
+    /* Debug modal */
+    #debugModal {
+      display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.5); z-index: 1000;
+      align-items: center; justify-content: center; padding: 20px;
+    }
+    #debugModal.open { display: flex; }
+    #debugContent {
+      background: var(--surface); border-radius: var(--radius-md);
+      padding: 20px; max-width: 90vw; max-height: 80vh; overflow: auto;
+      font-family: 'SF Mono', Menlo, monospace; font-size: 12px;
+      white-space: pre-wrap; position: relative; color: var(--text-primary);
+    }
+    #debugModalClose {
+      position: absolute; top: 8px; right: 12px; background: none;
+      border: none; font-size: 24px; cursor: pointer; color: var(--text-secondary);
     }
 
-    .msg.system {
-      align-self: center;
-      background: var(--surface-alt);
-      color: var(--text-secondary);
-      font-size: 12px;
-      border-radius: var(--radius-sm);
-      padding: 6px 12px;
-      border: 1px solid var(--border);
-    }
-
-    .msg .msg-time {
-      font-size: 10px;
-      color: var(--text-tertiary);
-      margin-top: 6px;
-      letter-spacing: 0.02em;
-    }
-    .msg.user .msg-time { color: rgba(255,255,255,0.55); }
-
-    /* Steps */
-    .steps-list {
-      margin-top: 8px;
-      padding: 8px 10px;
-      background: var(--bg);
-      border-radius: var(--radius-sm);
-      font-size: 12px;
-    }
-    .steps-list .step-item {
-      padding: 2px 0;
-      color: var(--text-secondary);
-    }
-    .steps-list .step-item::before {
-      content: '';
-      display: inline-block;
-      width: 4px; height: 4px;
-      border-radius: 50%;
-      background: var(--accent);
-      margin-right: 8px;
-      vertical-align: middle;
-    }
-
-    /* ── Input Area ── */
-    .input-area {
-      display: flex;
-      gap: 8px;
-      padding: 12px 16px;
-      background: var(--surface);
-      border-top: 1px solid var(--border);
-      flex-shrink: 0;
-      align-items: center;
-    }
-    .input-area input {
-      flex: 1;
-      padding: 10px 16px;
-      border: 1px solid var(--border);
-      border-radius: var(--radius-full);
-      background: var(--bg);
-      color: var(--text-primary);
-      font-size: 15px;
-      outline: none;
-      transition: border-color 0.15s, box-shadow 0.15s;
-      font-family: inherit;
-    }
-    .input-area input:focus {
-      border-color: var(--accent);
-      box-shadow: 0 0 0 3px var(--accent-subtle);
-    }
-    .input-area input::placeholder {
-      color: var(--text-tertiary);
-    }
-    .input-area button {
-      width: 38px; height: 38px;
-      border: none; border-radius: 50%;
-      background: var(--accent); color: #fff;
-      font-size: 16px; cursor: pointer;
-      display: flex; align-items: center; justify-content: center;
-      transition: background 0.15s, transform 0.1s, box-shadow 0.15s;
-      flex-shrink: 0;
-    }
-    .input-area button:hover:not(:disabled) {
-      background: var(--accent-hover);
-    }
-    .input-area button:active:not(:disabled) {
-      transform: scale(0.92);
-    }
-    .input-area button:disabled {
-      opacity: 0.3; cursor: not-allowed;
-    }
-
-    /* ── Typing Indicator ── */
-    .loading { opacity: 0.7; }
-    .typing-indicator {
-      display: flex;
-      gap: 5px;
-      padding: 4px 0;
-      align-items: center;
-    }
-    .typing-indicator span {
-      width: 7px; height: 7px;
-      background: var(--accent);
-      border-radius: 50%;
-      animation: pulse 1.2s infinite ease-in-out both;
-    }
-    .typing-indicator span:nth-child(2) { animation-delay: 0.16s; }
-    .typing-indicator span:nth-child(3) { animation-delay: 0.32s; }
-    @keyframes pulse {
-      0%, 80%, 100% { transform: scale(0.4); opacity: 0.4; }
-      40% { transform: scale(1); opacity: 1; }
-    }
-
-    /* ── Status Bar ── */
-    .status-bar {
-      padding: 4px 16px;
-      font-size: 10px;
-      color: var(--text-tertiary);
-      background: var(--surface);
-      border-top: 1px solid var(--border);
-      flex-shrink: 0;
-      text-align: center;
-      letter-spacing: 0.02em;
-    }
-
-    /* ── Empty State ── */
-    .empty-state {
-      display: flex; flex-direction: column;
-      align-items: center; justify-content: center;
-      flex: 1; padding: 48px 24px;
-    }
-    .empty-state .illustration {
-      width: 64px; height: 64px;
-      background: var(--accent-subtle);
-      border-radius: var(--radius-lg);
-      display: flex; align-items: center; justify-content: center;
-      font-size: 28px; margin-bottom: 20px;
-    }
-    .empty-state h2 {
-      font-size: 17px;
-      font-weight: 600;
-      letter-spacing: -0.01em;
-      color: var(--text-primary);
-      margin-bottom: 6px;
-    }
-    .empty-state p {
-      font-size: 13px;
-      color: var(--text-secondary);
-      max-width: 300px;
-      text-align: center;
-      line-height: 1.5;
-    }
-    .suggestions {
-      display: flex;
-      gap: 6px;
-      flex-wrap: wrap;
-      margin-top: 20px;
-      justify-content: center;
-    }
-    .suggestions button {
-      padding: 6px 14px;
-      border: 1px solid var(--border);
-      border-radius: var(--radius-full);
-      background: var(--surface);
-      color: var(--text-secondary);
-      font-size: 12px;
-      cursor: pointer;
-      transition: all 0.15s;
-      font-family: inherit;
-    }
-    .suggestions button:hover {
-      border-color: var(--accent);
-      color: var(--accent);
-      background: var(--accent-subtle);
-    }
-
-    /* ── Debug Modal ── */
-    .debug-modal {
-      display: none;
-      position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-      background: rgba(0,0,0,0.3);
-      z-index: 999;
-      align-items: center; justify-content: center;
-      backdrop-filter: blur(4px);
-      -webkit-backdrop-filter: blur(4px);
-    }
-    .debug-modal.open { display: flex; }
-    .debug-modal .modal-content {
-      background: var(--surface);
-      border-radius: var(--radius-md);
-      max-width: 90vw; max-height: 80vh;
-      width: 600px; padding: 20px;
-      overflow: auto;
-      box-shadow: var(--shadow-md);
-    }
-    .debug-modal .modal-header {
-      display: flex; justify-content: space-between; align-items: center;
-      margin-bottom: 12px;
-    }
-    .debug-modal .modal-header h3 {
-      font-size: 14px; font-weight: 600;
-      color: var(--text-primary);
-    }
-    .debug-modal .modal-header button {
-      background: none; border: none; font-size: 18px;
-      cursor: pointer; color: var(--text-tertiary);
-      padding: 2px 6px; border-radius: 4px;
-    }
-    .debug-modal .modal-header button:hover {
-      background: var(--accent-subtle);
-    }
-    .debug-modal pre {
-      background: var(--bg);
-      padding: 12px; border-radius: var(--radius-sm);
-      font-size: 11px;
-      font-family: 'SF Mono', 'Cascadia Code', 'Fira Code', monospace;
-      white-space: pre-wrap; word-break: break-all;
-      color: var(--text-secondary);
-      max-height: 55vh; overflow: auto;
-      line-height: 1.6;
-      border: 1px solid var(--border);
-    }
-
-    /* ── Scrollbar ── */
-    .chat-container::-webkit-scrollbar { width: 4px; }
-    .chat-container::-webkit-scrollbar-track { background: transparent; }
-    .chat-container::-webkit-scrollbar-thumb {
-      background: var(--border);
-      border-radius: 2px;
+    /* Mobile */
+    @media (max-width: 480px) {
+      body { font-size: 15px; }
+      #header { padding: 10px 12px; }
+      #headerTitle { font-size: 16px; }
+      .msg { max-width: 92%; padding: 8px 12px; font-size: 15px; }
+      #inputArea { padding: 6px 8px; gap: 6px; }
+      #inputField { padding: 8px 12px; font-size: 16px; min-height: 40px; }
+      #sendBtn, #voiceBtn { width: 40px; height: 40px; font-size: 18px; }
+      #chatContainer { padding: 8px 10px; gap: 8px; }
+      #emptyState { padding: 24px 12px; }
+      .suggestion-btn { font-size: 13px; padding: 6px 12px; }
+      .instance-select { max-width: 90px; }
+      #debugContent { max-width: 95vw; padding: 12px; font-size: 11px; }
+      .auto-card { padding: 10px 12px; }
     }
   </style>
 </head>
 <body>
-  <div class="header">
-    <span class="header-title">AI Chat</span>
-    <button class="debug-btn" id="debugBtn" title="Debug">&#x1F4CB;</button>
-    <div class="header-status">
-      <span class="dot" id="statusDot"></span>
-      <span id="statusText">Ready</span>
+
+<div id="header">
+  <span id="headerTitle">AI Chat</span>
+  <select id="instanceSelect" class="instance-select" onchange="switchInstance()" title="Select AI instance"></select>
+  <button id="debugBtn" class="debug-btn" title="Debug">📋</button>
+  <span id="statusText" class="status-text">Connected</span>
+</div>
+
+<div id="tabBar">
+  <button class="tab-btn active" onclick="switchTab('chat')">💬 Chat</button>
+  <button class="tab-btn" onclick="switchTab('auto')">⚡ Automations</button>
+</div>
+
+<div id="chatTab">
+  <div id="chatContainer">
+    <div id="emptyState">
+      <p id="emptyText">Ask me to control your smart home devices...</p>
+      <button class="suggestion-btn" onclick="suggest('Turn on the living room light')">Turn on living room light</button>
+      <button class="suggestion-btn" onclick="suggest('Turn off the TV')">Turn off the TV</button>
+      <button class="suggestion-btn" onclick="suggest('What is the temperature?')">What is the temperature?</button>
+      <button class="suggestion-btn" onclick="suggest('Open the bedroom light')">Open bedroom light</button>
     </div>
   </div>
-
-  <div class="debug-modal" id="debugModal">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h3>Debug &mdash; Raw Response</h3>
-        <button id="debugModalClose">&times;</button>
-      </div>
-      <pre id="debugContent">No data yet.</pre>
-    </div>
+  <div id="inputArea">
+    <button id="voiceBtn" onclick="toggleVoice()" title="Voice input">🎤</button>
+    <textarea id="inputField" rows="1" placeholder="Message..." onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMessage()}"></textarea>
+    <button id="sendBtn" onclick="sendMessage()" title="Send">↑</button>
   </div>
+</div>
 
-  <div class="chat-container" id="chatContainer">
-    <div class="empty-state" id="emptyState">
-      <div class="illustration">&#x1F4AC;</div>
-      <h2>Start a conversation</h2>
-      <p>Ask the AI assistant to help control your smart home devices.</p>
-      <div class="suggestions">
-        <button onclick="suggest('Turn on the living room light')">Turn on living room light</button>
-        <button onclick="suggest('What is the temperature?')">Check temperature</button>
-        <button onclick="suggest('Turn off the TV')">Turn off TV</button>
-      </div>
-    </div>
+<div id="autoTab">
+  <div id="autoContainer">
+    <p style="color:var(--text-secondary);text-align:center;padding:40px 20px;">Loading automations...</p>
   </div>
+</div>
 
-  <div class="input-area">
-    <input type="text" id="inputField" placeholder="Message..." autofocus
-      onkeydown="if(event.key==='Enter') sendMessage()">
-    <button id="sendBtn" onclick="sendMessage()" title="Send">&#x2191;</button>
+<div id="debugModal" onclick="if(event.target===this)this.classList.remove('open')">
+  <div id="debugContent">
+    <button id="debugModalClose" onclick="document.getElementById('debugModal').classList.remove('open')">×</button>
+    No data yet.
   </div>
+</div>
 
-  <div class="status-bar" id="statusBar">Connected</div>
+<script>
+const HA_URL = '';
+let accessToken = '';
+let loading = false;
+let lastDebugRaw = '';
+let currentInstanceId = '';
+let voiceRecognition = null;
+let isListening = false;
 
-  <script>
-    const HA_URL = window.location.origin;
-    let accessToken = '';
-    let loading = false;
-    let lastDebugRaw = '';
+// Detect language
+const lang = navigator.language || navigator.userLanguage || 'en';
+const isZh = lang.startsWith('zh');
 
-    function setStatus(text, ok) {
-      document.getElementById('statusBar').textContent = text;
-      const dot = document.getElementById('statusDot');
-      dot.style.background = ok === false ? '#ff3b30' : ok === undefined ? '#34c759' : ok ? '#34c759' : '#ff3b30';
-    }
+// i18n
+const i18n = {
+  title: isZh ? 'AI 聊天' : 'AI Chat',
+  empty: isZh ? '向我发送指令来控制您的智能家居设备...' : 'Ask me to control your smart home devices...',
+  thinking: isZh ? '思考中...' : 'Thinking...',
+  reasoning: isZh ? '推理中' : 'Reasoning',
+  connected: isZh ? '已连接' : 'Connected',
+  noToken: isZh ? '需要 Token' : 'No token',
+  tokenRequired: isZh ? 'Token 验证失败' : 'Token required',
+  timeout: isZh ? '请求超时，请重试' : 'Timed out, please retry',
+  noResponse: isZh ? '（无回复）' : '(no response)',
+  autoLoading: isZh ? '加载自动化...' : 'Loading automations...',
+  noAuto: isZh ? '还没有动态自动化。让 AI 创建一个吧！' : 'No automations yet. Ask AI to create one!',
+  voiceHint: isZh ? '正在聆听...' : 'Listening...',
+  round: isZh ? '轮' : 'round',
+  actions: isZh ? '个动作' : 'actions',
+  voiceNotSupported: isZh ? '此浏览器不支持语音输入' : 'Voice input not supported in this browser',
+};
 
-    async function getToken() {
-      try {
-        if (window.parent && window.parent.hassConnection) {
-          const conn = await window.parent.hassConnection;
-          accessToken = conn.auth.data.access_token;
-          document.getElementById('statusText').textContent = 'Connected';
-          return;
-        }
-      } catch(e) {}
-      try {
-        const stored = localStorage.getItem('llm_assistant_token');
-        if (stored) { accessToken = stored; document.getElementById('statusText').textContent = 'Connected'; return; }
-      } catch(e) {}
-      accessToken = prompt('Enter HA access token (Settings / Security / Long-lived access tokens)') || '';
-      if (accessToken) {
-        localStorage.setItem('llm_assistant_token', accessToken);
-        document.getElementById('statusText').textContent = 'Connected';
-        discoverInstances();
+document.title = i18n.title;
+document.getElementById('headerTitle').textContent = i18n.title;
+document.getElementById('emptyText').textContent = i18n.empty;
+
+if (isZh) {
+  // Update suggestion buttons to Chinese
+  const btns = document.querySelectorAll('.suggestion-btn');
+  const zhTexts = ['打开客厅灯', '关闭电视', '当前温度是多少？', '打开卧室灯'];
+  btns.forEach((b, i) => { if (i < zhTexts.length) b.textContent = zhTexts[i]; });
+}
+
+async function callAPI(method, path, body) {
+  const headers = { 'Content-Type': 'application/json' };
+  if (accessToken) headers['Authorization'] = 'Bearer ' + accessToken;
+  const resp = await fetch(HA_URL + path, { method, headers, body: body ? JSON.stringify(body) : null });
+  if (!resp.ok) throw new Error('Status ' + resp.status);
+  return resp.json();
+}
+
+function fmt() {
+  const d = new Date();
+  return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
+function switchTab(tab) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelector(`.tab-btn[onclick*="${tab}"]`).classList.add('active');
+  document.getElementById('chatTab').style.display = tab === 'chat' ? 'flex' : 'none';
+  document.getElementById('autoTab').style.display = tab === 'auto' ? 'flex' : 'none';
+  if (tab === 'auto') refreshAutomations();
+}
+
+function addMsg(role, text, raw) {
+  const c = document.getElementById('chatContainer');
+  const es = document.getElementById('emptyState');
+  if (es) es.remove();
+  const div = document.createElement('div');
+  div.className = 'msg ' + role;
+  const p = document.createElement('div');
+  p.className = 'msg-text';
+  p.textContent = text || i18n.noResponse;
+  div.appendChild(p);
+  const t = document.createElement('div');
+  t.className = 'msg-time';
+  t.textContent = fmt();
+  div.appendChild(t);
+  if (raw) div.dataset.debug = raw;
+  c.appendChild(div);
+  c.scrollTop = c.scrollHeight;
+}
+
+function showLoad() {
+  const c = document.getElementById('chatContainer');
+  const d = document.createElement('div');
+  d.className = 'msg assistant loading';
+  d.id = 'loadingIndicator';
+  const p = document.createElement('div');
+  p.className = 'msg-text';
+  p.textContent = i18n.thinking;
+  d.appendChild(p);
+  const t = document.createElement('div');
+  t.className = 'msg-time';
+  t.textContent = fmt();
+  d.appendChild(t);
+  c.appendChild(d);
+  c.scrollTop = c.scrollHeight;
+}
+
+function hideLoad() {
+  const e = document.getElementById('loadingIndicator');
+  if (e) e.remove();
+}
+
+function setStatus(text, ok) {
+  const el = document.getElementById('statusText');
+  el.textContent = text;
+  el.style.color = ok !== false ? 'var(--text-secondary)' : 'var(--danger)';
+}
+
+// Voice input
+function toggleVoice() {
+  if (isListening) { stopVoice(); return; }
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRecognition) { alert(i18n.voiceNotSupported); return; }
+  voiceRecognition = new SpeechRecognition();
+  voiceRecognition.lang = lang;
+  voiceRecognition.continuous = false;
+  voiceRecognition.interimResults = false;
+  voiceRecognition.onresult = (e) => {
+    const text = e.results[0][0].transcript;
+    document.getElementById('inputField').value = text;
+    stopVoice();
+    sendMessage();
+  };
+  voiceRecognition.onerror = () => stopVoice();
+  voiceRecognition.onend = () => stopVoice();
+  voiceRecognition.start();
+  isListening = true;
+  document.getElementById('voiceBtn').classList.add('listening');
+  document.getElementById('voiceBtn').textContent = '🔴';
+  setStatus(i18n.voiceHint);
+}
+
+function stopVoice() {
+  if (voiceRecognition) {
+    try { voiceRecognition.stop(); } catch(e) {}
+    voiceRecognition = null;
+  }
+  isListening = false;
+  document.getElementById('voiceBtn').classList.remove('listening');
+  document.getElementById('voiceBtn').textContent = '🎤';
+  setStatus(i18n.connected);
+}
+
+// Debug
+document.getElementById('debugBtn').addEventListener('click', () => {
+  const modal = document.getElementById('debugModal');
+  const content = document.getElementById('debugContent');
+  if (lastDebugRaw) {
+    try {
+      const parsed = JSON.parse(lastDebugRaw);
+      const rounds = parsed.rounds;
+      if (rounds && rounds.length > 1) {
+        let output = '';
+        rounds.forEach((r, i) => {
+          const stepCount = (r.steps || []).length;
+          const ttsDisplay = r.tts_text || '(silent)';
+          output += '=== Round ' + r.round + ' ===\n';
+          output += stepCount > 0 ? 'Steps: ' + JSON.stringify(r.steps, null, 2) + '\n' : 'Steps: []\n';
+          output += 'TTS: "' + ttsDisplay + '"';
+          if (i < rounds.length - 1) output += '\n\n';
+        });
+        content.textContent = output;
       } else {
-        document.getElementById('statusText').textContent = 'No token';
-        setStatus('Token required', false);
+        content.textContent = JSON.stringify(parsed, null, 2);
       }
+    } catch(e) { content.textContent = lastDebugRaw; }
+  }
+  modal.classList.add('open');
+});
+document.getElementById('debugModalClose').addEventListener('click', () => {
+  document.getElementById('debugModal').classList.remove('open');
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') document.getElementById('debugModal').classList.remove('open');
+});
+
+// Instance discovery
+async function discoverInstances() {
+  try {
+    const allEntries = await callAPI('GET', '/api/config/config_entries/entry');
+    const configs = allEntries.filter(e => e.domain === 'llm_smart_assistant');
+    const sel = document.getElementById('instanceSelect');
+    sel.innerHTML = '';
+    // Always show selector if there are instances
+    configs.forEach(e => {
+      const opt = document.createElement('option');
+      opt.value = e.entry_id;
+      opt.textContent = e.title || e.entry_id.slice(0, 8);
+      sel.appendChild(opt);
+    });
+    if (configs.length > 1) {
+      sel.style.display = 'inline-block';
+    } else {
+      sel.style.display = 'none';
     }
+  } catch(e) {}
+}
 
-    async function callAPI(method, path, body) {
-      const headers = { 'Content-Type': 'application/json' };
-      if (accessToken) headers['Authorization'] = 'Bearer ' + accessToken;
-      const resp = await fetch(HA_URL + path, { method, headers, body: body ? JSON.stringify(body) : null });
-      if (!resp.ok) throw new Error('Status ' + resp.status);
-      return resp.json();
+function switchInstance() {
+  currentInstanceId = document.getElementById('instanceSelect').value;
+  const label = document.getElementById('instanceSelect').selectedOptions[0]?.text || 'default';
+  setStatus('→ ' + label);
+}
+
+// Automations management
+async function refreshAutomations() {
+  const container = document.getElementById('autoContainer');
+  try {
+    const result = await callAPI('POST', '/api/services/llm_smart_assistant/get_automations?return_response=1', {});
+    let autos = (result.service_response || result).automations || [];
+    if (!Array.isArray(autos)) autos = result.automations || [];
+    
+    if (autos.length === 0) {
+      container.innerHTML = '<p style="color:var(--text-secondary);text-align:center;padding:40px 20px;">' + i18n.noAuto + '</p>';
+      return;
     }
+    
+    // Get disabled list from options
+    let disabled = [];
+    try {
+      const allEntries = await callAPI('GET', '/api/config/config_entries/entry');
+      const inst = document.getElementById('instanceSelect');
+      const entryId = inst.value || '01KXWJYS0N9E8GG01VMY8NZ650';
+      const entry = allEntries.find(e => e.entry_id === entryId) || allEntries.find(e => e.domain === 'llm_smart_assistant');
+      if (entry) disabled = entry.options?.disabled_automations || [];
+    } catch(e) {}
+    
+    container.innerHTML = '';
+    autos.forEach(a => {
+      const id = a.automation_id;
+      const isDisabled = disabled.includes(id);
+      const card = document.createElement('div');
+      card.className = 'auto-card' + (isDisabled ? ' disabled' : '');
+      card.innerHTML = `
+        <div class="entity">${a.entity_id} ${a.condition}</div>
+        <div class="detail">${(a.description || '')}</div>
+        <div class="detail" style="font-size:12px;color:var(--text-tertiary)">${isZh ? '动作' : 'Action'}: ${a.prompt || '(none)'}</div>
+        <div class="actions">
+          <button class="${isDisabled ? 'toggle-on' : 'toggle-off'}" onclick="toggleAutomation('${id}', ${!isDisabled})">
+            ${isDisabled ? (isZh ? '启用' : 'Enable') : (isZh ? '禁用' : 'Disable')}
+          </button>
+          <button onclick="editAutomation('${id}', '${(a.prompt || '').replace(/'/g, "\'")}', '${(a.description || '').replace(/'/g, "\'")}')">${isZh ? '编辑' : 'Edit'}</button>
+          <button class="delete-btn" onclick="deleteAutomation('${id}')">${isZh ? '删除' : 'Delete'}</button>
+        </div>
+      `;
+      container.appendChild(card);
+    });
+  } catch(e) {
+    container.innerHTML = '<p style="color:var(--danger);text-align:center;padding:40px 20px;">Error: ' + e.message + '</p>';
+  }
+}
 
-    function fmt() {
-      const d = new Date();
-      return String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
-    }
+async function toggleAutomation(id, disable) {
+  try {
+    await callAPI('POST', '/api/services/llm_smart_assistant/toggle_automation', {
+      automation_id: id,
+      disable: disable
+    });
+    refreshAutomations();
+  } catch(e) { alert('Error: ' + e.message); }
+}
 
-    function addMsg(role, text, raw) {
-      const c = document.getElementById('chatContainer');
-      const es = document.getElementById('emptyState');
-      if (es) es.remove();
+async function editAutomation(id, currentPrompt, desc) {
+  const newPrompt = window.prompt(isZh ? '编辑自动化动作（prompt）：' : 'Edit automation action (prompt):', currentPrompt);
+  if (newPrompt === null) return;
+  try {
+    await callAPI('POST', '/api/services/llm_smart_assistant/update_automation', {
+      automation_id: id,
+      prompt: newPrompt
+    });
+    refreshAutomations();
+  } catch(e) { alert('Error: ' + e.message); }
+}
 
-      const div = document.createElement('div');
-      div.className = 'msg ' + role;
+async function deleteAutomation(id) {
+  if (!confirm(isZh ? '确定删除此自动化？' : 'Delete this automation?')) return;
+  try {
+    await callAPI('POST', '/api/services/llm_smart_assistant/remove_automation', { automation_id: id });
+    refreshAutomations();
+  } catch(e) { alert('Error: ' + e.message); }
+}
 
-      if (role === 'assistant') {
-        let main = text;
-        const stepLines = text.match(/\u2192 .*/g);
-        let stepsHtml = '';
-        if (stepLines && stepLines.length) {
-          main = text.split('\u26A1')[0] || text;
-          stepsHtml = '<div class="steps-list">' + stepLines.map(s => '<div class="step-item">' + s + '</div>').join('') + '</div>';
-        }
-        const p = document.createElement('div');
-        p.textContent = (main || text).replace(/[\uD83D\uDC4D\u26A1].*$/, '').trim() || '(no text)';
-        div.appendChild(p);
-        if (stepsHtml) {
-          const w = document.createElement('div');
-          w.innerHTML = stepsHtml;
-          div.appendChild(w);
-        }
-        const t = document.createElement('div');
-        t.className = 'msg-time';
-        t.textContent = fmt();
-        div.appendChild(t);
-        if (raw) div.dataset.debug = typeof raw === 'string' ? raw : JSON.stringify(raw, null, 2);
-      } else {
-        const p = document.createElement('div');
-        p.textContent = text;
-        div.appendChild(p);
-        const t = document.createElement('div');
-        t.className = 'msg-time';
-        t.textContent = fmt();
-        div.appendChild(t);
-      }
+function suggest(text) {
+  document.getElementById('inputField').value = text;
+  sendMessage();
+}
 
-      c.appendChild(div);
-      c.scrollTop = c.scrollHeight;
-    }
+// Main send
+async function sendMessage() {
+  const input = document.getElementById('inputField');
+  const btn = document.getElementById('sendBtn');
+  const text = input.value.trim();
+  if (!text || loading) return;
+  input.value = '';
+  loading = true; btn.disabled = true;
 
-    function showLoad() {
-      const c = document.getElementById('chatContainer');
-      const es = document.getElementById('emptyState');
-      if (es) es.remove();
-      const d = document.createElement('div');
-      d.className = 'msg assistant loading';
-      d.id = 'loadingIndicator';
-      d.innerHTML = '<div class="typing-indicator"><span></span><span></span><span></span></div>';
-      c.appendChild(d);
-      c.scrollTop = c.scrollHeight;
-    }
+  addMsg('user', text);
+  showLoad();
+  setStatus(i18n.thinking);
 
-    function hideLoad() {
-      const e = document.getElementById('loadingIndicator');
-      if (e) e.remove();
-    }
+  try {
+    const inst = document.getElementById('instanceSelect').value;
+    const body = inst ? { text, entry_id: inst } : { text };
+    await callAPI('POST', '/api/services/llm_smart_assistant/process_input', body);
+    await new Promise(r => setTimeout(r, 1000));
 
-    function suggest(t) {
-      document.getElementById('inputField').value = t;
-      sendMessage();
-    }
+    let attempts = 0, lastTts = '', done = false, totalActs = 0, finalRounds = 1;
 
-    document.getElementById('debugBtn').addEventListener('click', () => {
-      const modal = document.getElementById('debugModal');
-      const content = document.getElementById('debugContent');
-      if (lastDebugRaw) {
-        try {
-          const parsed = JSON.parse(lastDebugRaw);
-          const rounds = parsed.rounds;
-          if (rounds && rounds.length > 1) {
-            // Show all rounds with clear separation
-            let output = '';
-            rounds.forEach((r, i) => {
-              const stepCount = (r.steps || []).length;
-              const ttsDisplay = r.tts_text || '(silent)';
-              output += '=== Round ' + r.round + ' ===\n';
-              if (stepCount > 0) {
-                output += 'Steps: ' + JSON.stringify(r.steps, null, 2) + '\n';
-              } else {
-                output += 'Steps: []\n';
-              }
-              output += 'TTS: "' + ttsDisplay + '"';
-              if (i < rounds.length - 1) output += '\n\n';
-            });
-            content.textContent = output;
-          } else {
-            content.textContent = JSON.stringify(parsed, null, 2);
+    while (attempts < 30 && !done) {
+      await new Promise(r => setTimeout(r, 600));
+      try {
+        const s = await callAPI('GET', '/api/states/sensor.llm_last_response');
+        if (s) {
+          const ip = s.attributes.in_progress !== false;
+          const round = s.attributes.round || 0;
+          const tts = s.state;
+
+          if (ip && round > 0) {
+            setStatus(i18n.reasoning + ' (' + i18n.round + ' ' + round + ')...');
           }
-        } catch(e) { content.textContent = lastDebugRaw; }
-      }
-      modal.classList.add('open');
-    });
-    document.getElementById('debugModalClose').addEventListener('click', () => {
-      document.getElementById('debugModal').classList.remove('open');
-    });
-    document.getElementById('debugModal').addEventListener('click', (e) => {
-      if (e.target === e.currentTarget) e.target.classList.remove('open');
-    });
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape') document.getElementById('debugModal').classList.remove('open');
-    });
 
-    async function sendMessage() {
-      const input = document.getElementById('inputField');
-      const btn = document.getElementById('sendBtn');
-      const text = input.value.trim();
-      if (!text || loading) return;
-      input.value = '';
-      loading = true;
-      btn.disabled = true;
-
-      addMsg('user', text);
-      showLoad();
-      setStatus('Thinking...');
-
-      try {
-        const inst = document.getElementById('instanceSelect').value;
-        await callAPI('POST', '/api/services/llm_smart_assistant/process_input',
-          inst ? { text, entry_id: inst } : { text });
-        await new Promise(r => setTimeout(r, 1000));
-
-        let attempts = 0;
-        let lastTts = '';
-        let done = false;
-        let totalActs = 0;
-        let finalRounds = 1;
-
-        while (attempts < 30 && !done) {
-          await new Promise(r => setTimeout(r, 600));
-          try {
-            const s = await callAPI('GET', '/api/states/sensor.llm_last_response');
-            if (s) {
-              const ip = s.attributes.in_progress !== false;
-              const round = s.attributes.round || 0;
-              const tts = s.state;
-
-              // Show progressive round indicator
-              if (ip && round > 0) {
-                setStatus('Reasoning (round ' + round + ')...');
+          if (tts && tts !== lastTts) {
+            lastTts = tts;
+            try {
+              const fr = s.attributes.full_response;
+              if (fr) {
+                const p = JSON.parse(fr);
+                lastDebugRaw = JSON.stringify(p, null, 2);
+                totalActs = (p.steps || []).filter(x => x.action === 'call_service').length;
               }
-
-              // Update display when TTS text changes (final round)
-              if (tts && tts !== lastTts) {
-                lastTts = tts;
-                try {
-                  const fr = s.attributes.full_response;
-                  if (fr) {
-                    const p = JSON.parse(fr);
-                    lastDebugRaw = JSON.stringify(p, null, 2);
-                    totalActs = (p.steps || []).filter(x => x.action === 'call_service').length;
-                  }
-                } catch(e) {}
-                hideLoad();
-                const existing = document.getElementById('progMsg');
-                if (existing) {
-                  const tp = existing.querySelector('.msg-text');
-                  if (tp) tp.textContent = tts;
-                } else {
-                  hideLoad(); showLoad(); hideLoad();
-                  addMsg('assistant', tts, lastDebugRaw);
-                  const m = document.querySelector('.msg.assistant:last-child');
-                  if (m) m.id = 'progMsg';
-                }
-                setStatus('Round ' + round);
-              }
-
-              // Check completion regardless of state
-              if (!ip) {
-                done = true;
-                finalRounds = round || 1;
-                try {
-                  const fr = s.attributes.full_response;
-                  if (fr) {
-                    const p = JSON.parse(fr);
-                    lastDebugRaw = JSON.stringify(p, null, 2);
-                    totalActs = (p.steps || []).filter(x => x.action === 'call_service').length;
-                  }
-                } catch(e) {}
-                // If we never got tts, read it from final state
-                if (!lastTts && tts) lastTts = tts;
-              }
-            }
-          } catch(e) {}
-          attempts++;
-        }
-
-        hideLoad();
-        if (lastTts) {
-          setStatus(finalRounds + ' round' + (finalRounds > 1 ? 's' : '') + ', ' + totalActs + ' action' + (totalActs !== 1 ? 's' : ''));
-        } else {
-          try {
-            const d = await callAPI('GET', '/api/states/sensor.llm_debug_raw');
-            if (d && d.state) {
-              addMsg('assistant', 'Response received (see debug)', d.attributes.raw || d.state);
-              lastDebugRaw = d.attributes.raw || d.state;
-              setStatus('Done', true);
+            } catch(e) {}
+            hideLoad();
+            const existing = document.getElementById('progMsg');
+            if (existing) {
+              const tp = existing.querySelector('.msg-text');
+              if (tp) tp.textContent = tts;
             } else {
-              addMsg('assistant', 'Timed out. Check HA logs.');
-              setStatus('Timed out', false);
+              hideLoad(); showLoad(); hideLoad();
+              addMsg('assistant', tts, lastDebugRaw);
+              const m = document.querySelector('.msg.assistant:last-child');
+              if (m) m.id = 'progMsg';
             }
-          } catch(e) {
-            addMsg('assistant', 'Timed out. Check HA logs.');
-            setStatus('Timed out', false);
+            setStatus(i18n.round + ' ' + round);
+          }
+
+          if (!ip) {
+            done = true;
+            finalRounds = round || 1;
+            try {
+              const fr = s.attributes.full_response;
+              if (fr) {
+                const p = JSON.parse(fr);
+                lastDebugRaw = JSON.stringify(p, null, 2);
+                totalActs = (p.steps || []).filter(x => x.action === 'call_service').length;
+              }
+            } catch(e) {}
+            if (!lastTts && tts) lastTts = tts;
           }
         }
-      } catch(err) {
-        hideLoad();
-        addMsg('system', 'Error: ' + err.message);
-        setStatus('Error', false);
-      }
-      loading = false;
-      btn.disabled = false;
-      input.focus();
+      } catch(e) {}
+      attempts++;
     }
 
-    getToken();
-  </script>
+    hideLoad();
+    if (done) {
+      setStatus(finalRounds + ' ' + i18n.round + ', ' + totalActs + ' ' + i18n.actions);
+    } else {
+      setStatus(i18n.timeout, false);
+    }
+  } catch(e) {
+    hideLoad();
+    setStatus(e.message, false);
+  }
+
+  loading = false;
+  btn.disabled = false;
+}
+
+// Init
+(async function init() {
+  // Try token from parent HA frontend (when loaded in iframe)
+  try {
+    const parentConn = parent?.__THREE_HA__?.connection;
+    if (parentConn?.auth?.data?.access_token) {
+      accessToken = parentConn.auth.data.access_token;
+    }
+  } catch(e) {}
+  // Try token from HA websocket connection (when in main window)
+  try {
+    if (!accessToken) {
+      const wsToken = window.hassConnection?.auth?.data?.access_token;
+      if (wsToken) accessToken = wsToken;
+    }
+  } catch(e) {}
+  // Try localStorage
+  try {
+    if (!accessToken) {
+      const stored = localStorage.getItem('llm_assistant_token');
+      if (stored) accessToken = stored;
+    }
+  } catch(e) {}
+  
+  if (accessToken) {
+    document.getElementById('statusText').textContent = i18n.connected;
+    discoverInstances();
+    return;
+  }
+  
+  // Prompt for token
+  accessToken = window.prompt(isZh ? '请输入 HA 长效 Token\n（HA左下角用户名 → 安全 → 长效访问令牌 → 创建令牌）' : 'Enter HA long-lived access token') || '';
+  if (accessToken) {
+    try { localStorage.setItem('llm_assistant_token', accessToken); } catch(e) {}
+    document.getElementById('statusText').textContent = i18n.connected;
+    discoverInstances();
+  } else {
+    document.getElementById('statusText').textContent = i18n.noToken;
+    setStatus(i18n.tokenRequired, false);
+  }
+})();
+</script>
 </body>
 </html>

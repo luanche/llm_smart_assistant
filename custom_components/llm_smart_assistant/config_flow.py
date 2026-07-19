@@ -150,9 +150,12 @@ class LLMSmartAssistantOptionsFlow(config_entries.OptionsFlow):
     async def async_step_init(self, user_input=None):
         errors = {}
         if user_input is not None:
-            # Remove empty TTS entity to avoid validation error
+            # Remove empty TTS entity to avoid validation error from EntitySelector
             if not user_input.get(CONF_TTS_ENTITY_ID):
                 user_input.pop(CONF_TTS_ENTITY_ID, None)
+            # Ensure disabled_automations is a list
+            if CONF_DISABLED_AUTOMATIONS not in user_input:
+                user_input[CONF_DISABLED_AUTOMATIONS] = []
             self._data.update(user_input)
             return self.async_create_entry(title="", data=self._data)
 
@@ -218,7 +221,8 @@ class LLMSmartAssistantOptionsFlow(config_entries.OptionsFlow):
                 # ── Text-to-Speech ──
                 vol.Optional(CONF_TTS_ENTITY_ID,
                     default=cur.get(CONF_TTS_ENTITY_ID) or ""):
-                selector.TextSelector(),
+                selector.EntitySelector(
+                    selector.EntitySelectorConfig(multiple=False)),
                 vol.Optional(CONF_TTS_MODE,
                     default=cur.get(CONF_TTS_MODE, TTS_MODE_STANDARD)):
                 selector.SelectSelector(selector.SelectSelectorConfig(
@@ -257,7 +261,7 @@ class LLMSmartAssistantOptionsFlow(config_entries.OptionsFlow):
                     default=cur.get(CONF_HISTORY_TIME_WINDOW, DEFAULT_HISTORY_TIME_WINDOW)):
                 selector.NumberSelector(selector.NumberSelectorConfig(min=1, max=1440, step=1, mode=selector.NumberSelectorMode.BOX, unit_of_measurement="minutes")),
 
-                # ── Disabled Automations ──
+                # ── Dynamic Automations ──
                 vol.Optional(CONF_DISABLED_AUTOMATIONS,
                     default=cur.get(CONF_DISABLED_AUTOMATIONS, [])):
                 selector.SelectSelector(selector.SelectSelectorConfig(

@@ -297,6 +297,9 @@ class LLMSmartAssistantCoordinator:
     def disabled_automations(self) -> list:
         return self._options.get(CONF_DISABLED_AUTOMATIONS, [])
 
+    def _get_disabled_automations(self):
+        return self._options.get(CONF_DISABLED_AUTOMATIONS, [])
+
     @property
     def allow_automation(self) -> bool:
         return self._options.get(CONF_ALLOW_AUTOMATION, True)
@@ -637,18 +640,18 @@ class LLMSmartAssistantCoordinator:
         )
 
     def _truncate_history(self) -> None:
-        """Truncate history based on configured strategy."""
+        """Truncate history: apply BOTH count AND time constraints."""
         if not self.history_enabled:
             self._history = self._history[-1:]  # keep only current turn
             return
-        if self.history_mode == HISTORY_MODE_COUNT:
-            max_count = max(self.history_count, 1)
-            if len(self._history) > max_count:
-                self._history = self._history[-max_count:]
-        if self.history_mode == HISTORY_MODE_TIME:
-            window_minutes = max(self.history_time_window, 1)
-            cutoff = dt_util.utcnow() - timedelta(minutes=window_minutes)
-            self._history = [m for m in self._history if m.timestamp >= cutoff]
+        # Always apply count constraint
+        max_count = max(self.history_count, 1)
+        if len(self._history) > max_count:
+            self._history = self._history[-max_count:]
+        # Always apply time constraint
+        window_minutes = max(self.history_time_window, 1)
+        cutoff = dt_util.utcnow() - timedelta(minutes=window_minutes)
+        self._history = [m for m in self._history if m.timestamp >= cutoff]
 
     def _build_messages_for_llm(
         self,

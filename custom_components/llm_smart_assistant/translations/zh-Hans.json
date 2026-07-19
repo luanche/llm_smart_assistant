@@ -5,6 +5,7 @@
         "title": "LLM 智能助手 - API 配置",
         "description": "配置您的 LLM API 连接。必须兼容 OpenAI API 格式。",
         "data": {
+          "title": "实例名称",
           "api_base_url": "API 地址",
           "api_key": "API 密钥",
           "model_name": "模型名称"
@@ -24,8 +25,13 @@
     "step": {
       "init": {
         "title": "LLM 智能助手设置",
-        "description": "配置提示词、输入传感器、TTS 播报、安全权限和历史记录。",
+        "description": "配置 API、提示词、输入传感器、TTS 播报、安全权限、历史记录和动态自动化。",
         "data": {
+          "api_base_url": "API 地址",
+          "api_key": "API 密钥",
+          "model_name": "模型名称",
+          "temperature": "温度 (0.0=精确, 2.0=有创意)",
+          "max_tokens": "最大 Token 数（回复长度）",
           "prompt_default": "默认系统提示词",
           "prompt_automation": "自动化系统提示词",
           "input_entities": "输入传感器实体",
@@ -33,14 +39,14 @@
           "tts_entity_id": "TTS 目标实体",
           "tts_mode": "TTS 模式",
           "tts_custom_template": "自定义 TTS 模板",
-          "domains_whitelist": "允许的域",
-          "entities_whitelist": "允许的实体",
-          "allow_automation": "允许动态自动化",
+          "domains_whitelist": "允许控制的设备类型",
+          "entities_whitelist": "允许控制的实体（留空则允许全部）",
+          "allow_automation": "允许 AI 创建动态自动化",
+          "history_enabled": "启用对话历史",
           "history_mode": "历史截断模式",
-          "history_count": "最大对话轮数",
-          "temperature": "温度 (0.0=精确, 2.0=有创意)",
-          "max_tokens": "最大 Token 数（回复长度）",
-          "history_time_window": "时间窗口（分钟）"
+          "history_count": "最大消息数",
+          "history_time_window": "时间窗口（分钟）",
+          "disabled_automations": "禁用的自动化（勾选以停用）"
         }
       }
     }
