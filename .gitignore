@@ -23,8 +23,5 @@ home-assistant.log*
 .DS_Store
 Thumbs.db
 
-# Pi Coding Agent
-.pi
-
 # User files
-.user.pi/skills/i18n-audit/.i18n-baseline
+.user/
