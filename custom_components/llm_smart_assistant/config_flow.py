@@ -180,6 +180,14 @@ class LLMSmartAssistantOptionsFlow(config_entries.OptionsFlow):
         coordinator = self.hass.data.get(DOMAIN, {}).get(self.config_entry.entry_id)
         automations = list(coordinator._automations.values()) if coordinator else []
 
+        # Migrate old-format full prompts to new shorter defaults
+        _old_prompt = cur.get(CONF_PROMPT_DEFAULT, "")
+        _is_old_format = len(_old_prompt) > 200 or "You are a smart home assistant integrated with Home Assistant" in _old_prompt
+        _migrated_prompt = DEFAULT_PROMPT_DEFAULT if _is_old_format else (_old_prompt or DEFAULT_PROMPT_DEFAULT)
+        _old_auto = cur.get(CONF_PROMPT_AUTOMATION, "")
+        _is_old_auto_format = len(_old_auto) > 200 or "You are an automation trigger executor for Home Assistant" in _old_auto
+        _migrated_auto = DEFAULT_PROMPT_AUTOMATION if _is_old_auto_format else (_old_auto or DEFAULT_PROMPT_AUTOMATION)
+
         return self.async_show_form(
             step_id="init",
             data_schema=vol.Schema({
@@ -203,17 +211,12 @@ class LLMSmartAssistantOptionsFlow(config_entries.OptionsFlow):
                 selector.NumberSelector(selector.NumberSelectorConfig(min=64, max=32768, step=1, mode=selector.NumberSelectorMode.BOX)),
 
                 # ── System Prompts ──
-                # Detect old-format prompts (containing now-hardcoded content)
-                # and migrate to new shorter defaults automatically
-                _old_prompt = cur.get(CONF_PROMPT_DEFAULT, "")
-                _is_old_format = len(_old_prompt) > 200 or "You are a smart home assistant integrated with Home Assistant" in _old_prompt
+                # (migration of old full prompts happens before the schema)
                 vol.Optional(CONF_PROMPT_DEFAULT,
-                    default=DEFAULT_PROMPT_DEFAULT if _is_old_format else (_old_prompt or DEFAULT_PROMPT_DEFAULT)):
+                    default=_migrated_prompt):
                 selector.TextSelector(selector.TextSelectorConfig(multiline=True)),
-                _old_auto = cur.get(CONF_PROMPT_AUTOMATION, "")
-                _is_old_auto_format = len(_old_auto) > 200 or "You are an automation trigger executor for Home Assistant" in _old_auto
                 vol.Optional(CONF_PROMPT_AUTOMATION,
-                    default=DEFAULT_PROMPT_AUTOMATION if _is_old_auto_format else (_old_auto or DEFAULT_PROMPT_AUTOMATION)):
+                    default=_migrated_auto):
                 selector.TextSelector(selector.TextSelectorConfig(multiline=True)),
 
                 # ── Input Sensors ──
@@ -227,8 +230,7 @@ class LLMSmartAssistantOptionsFlow(config_entries.OptionsFlow):
                 # ── Text-to-Speech ──
                 vol.Optional(CONF_TTS_ENTITY_ID,
                     default=cur.get(CONF_TTS_ENTITY_ID) or ""):
-                selector.EntitySelector(
-                    selector.EntitySelectorConfig(multiple=False)),
+                selector.TextSelector(selector.TextSelectorConfig()),
                 vol.Optional(CONF_TTS_MODE,
                     default=cur.get(CONF_TTS_MODE, TTS_MODE_STANDARD)):
                 selector.SelectSelector(selector.SelectSelectorConfig(
