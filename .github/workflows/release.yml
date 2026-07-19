@@ -1,0 +1,46 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Create release archive
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          ARCHIVE="llm_smart_assistant_${VERSION}.zip"
+          cd custom_components/llm_smart_assistant
+          zip -r "../../${ARCHIVE}" . \
+            -x "*/__pycache__/*" "*.pyc" ".DS_Store"
+          cd ../..
+          echo "archive=${ARCHIVE}" >> $GITHUB_ENV
+          echo "version=${VERSION}" >> $GITHUB_ENV
+
+      - name: Generate release notes
+        run: |
+          cat > RELEASE_NOTES.md << 'EOF'
+          ## LLM Smart Assistant ${{ env.version }}
+
+          ### Installation
+          Download the zip archive below and extract into your Home Assistant `custom_components/` directory, then restart HA.
+
+          Or install via HACS by adding this repository as a custom integration.
+          EOF
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: v${{ env.version }}
+          body_path: RELEASE_NOTES.md
+          files: ${{ env.archive }}
+          fail_on_unmatched_files: true

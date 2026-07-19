@@ -1,10 +1,10 @@
 {
   "domain": "llm_smart_assistant",
   "name": "LLM Smart Assistant",
-  "codeowners": ["@your_github_username"],
+  "codeowners": ["@luanche"],
   "config_flow": true,
   "dependencies": [],
-  "documentation": "https://github.com/your_repo/llm_smart_assistant",
+  "documentation": "https://github.com/luanche/llm_smart_assistant",
   "integration_type": "hub",
   "iot_class": "cloud_polling",
   "requirements": [],
