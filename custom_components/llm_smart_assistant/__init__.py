@@ -171,30 +171,23 @@ def _register_global_services(hass: HomeAssistant) -> None:
     if not hass.services.has_service(DOMAIN, "toggle_automation"):
         
         async def async_toggle_automation(call):
-            """Enable or disable a dynamic automation across all instances."""
+            """Enable or disable a dynamic automation (adds/removes listener)."""
             automation_id = call.data.get("automation_id", "")
             disable = call.data.get("disable", True)
             entry_filter = call.data.get("entry_id", "")
             
-            _LOGGER.info("toggle_automation called: id=%s disable=%s entry=%s", automation_id, disable, entry_filter)
+            _LOGGER.info("toggle_automation: id=%s disable=%s entry=%s", automation_id, disable, entry_filter)
             
-            # Find which coordinator owns this automation
             for eid, coord in hass.data.get(DOMAIN, {}).items():
                 if entry_filter and eid != entry_filter:
                     continue
-                disabled = list(coord._get_disabled_automations())
+                if automation_id not in coord._automations:
+                    _LOGGER.warning("Automation '%s' not found in entry %s", automation_id, eid)
+                    continue
                 if disable:
-                    if automation_id not in disabled:
-                        disabled.append(automation_id)
+                    await coord.async_disable_automation(automation_id)
                 else:
-                    disabled = [d for d in disabled if d != automation_id]
-                
-                config_entry = hass.config_entries.async_get_entry(eid)
-                if config_entry:
-                    new_options = {**config_entry.options, "disabled_automations": disabled}
-                    hass.config_entries.async_update_entry(config_entry, options=new_options)
-                    _LOGGER.info("Automation '%s' %s for entry %s (disabled=%s)", 
-                                 automation_id, "disabled" if disable else "enabled", eid, disabled)
+                    await coord.async_enable_automation(automation_id)
         
         hass.services.async_register(
             DOMAIN,

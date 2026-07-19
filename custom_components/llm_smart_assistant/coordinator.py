@@ -161,6 +161,7 @@ class LLMSmartAssistantCoordinator:
         # Dynamic automations
         self._automations: dict[str, DynamicAutomation] = {}
         self._automation_listeners: dict[str, callable] = {}
+        self._disabled_automations_set: set = set()
 
         # Storage for persistence
         self._store = Store(
@@ -298,7 +299,7 @@ class LLMSmartAssistantCoordinator:
         return self._options.get(CONF_DISABLED_AUTOMATIONS, [])
 
     def _get_disabled_automations(self):
-        return self._options.get(CONF_DISABLED_AUTOMATIONS, [])
+        return list(self._disabled_automations_set)
 
     @property
     def allow_automation(self) -> bool:
@@ -1048,9 +1049,8 @@ class LLMSmartAssistantCoordinator:
             return False
 
         # Remove listener
-        remove_listener = self._automation_listeners.pop(automation_id, None)
-        if remove_listener:
-            remove_listener()
+        self._unregister_automation_listener(automation_id)
+        self._disabled_automations_set.discard(automation_id)
 
         # Remove from dict
         self._automations.pop(automation_id, None)
@@ -1059,6 +1059,43 @@ class LLMSmartAssistantCoordinator:
         await self._async_save_storage()
 
         _LOGGER.info("Removed dynamic automation '%s'", automation_id)
+        return True
+
+    def _register_automation_listener(self, automation: "DynamicAutomation") -> None:
+        """Register the state change listener for an automation."""
+        from homeassistant.helpers.event import async_track_state_change_event
+        remove_listener = async_track_state_change_event(
+            self.hass,
+            automation.entity_id,
+            lambda event: self._async_handle_automation_event(automation, event),
+        )
+        self._automation_listeners[automation.automation_id] = remove_listener
+
+    def _unregister_automation_listener(self, automation_id: str) -> None:
+        """Unregister the state change listener for an automation."""
+        remove_listener = self._automation_listeners.pop(automation_id, None)
+        if remove_listener:
+            remove_listener()
+
+    async def async_disable_automation(self, automation_id: str) -> bool:
+        """Disable an automation by removing its listener."""
+        if automation_id not in self._automations:
+            return False
+        self._unregister_automation_listener(automation_id)
+        self._disabled_automations_set.add(automation_id)
+        await self._async_save_storage()
+        _LOGGER.info("Disabled automation '%s' (listener removed)", automation_id)
+        return True
+
+    async def async_enable_automation(self, automation_id: str) -> bool:
+        """Enable an automation by re-registering its listener."""
+        if automation_id not in self._automations:
+            return False
+        automation = self._automations[automation_id]
+        self._register_automation_listener(automation)
+        self._disabled_automations_set.discard(automation_id)
+        await self._async_save_storage()
+        _LOGGER.info("Enabled automation '%s' (listener re-registered)", automation_id)
         return True
 
     async def _async_register_automation_listeners(self) -> None:
