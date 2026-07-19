@@ -1010,7 +1010,7 @@ class LLMSmartAssistantCoordinator:
                 continue
             friendly = state_obj.attributes.get("friendly_name", state_obj.entity_id)
             lines.append(f"  - {state_obj.entity_id} ({friendly}): {state_obj.state}")
-        return "\n".join(lines[:500])
+        return "\n".join(lines)
 
     async def _async_process_automation_trigger(
         self, automation: DynamicAutomation, state: State
