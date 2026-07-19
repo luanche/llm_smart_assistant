@@ -19,10 +19,9 @@ jobs:
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
           ARCHIVE="llm_smart_assistant_${VERSION}.zip"
-          cd custom_components/llm_smart_assistant
-          zip -r "../../${ARCHIVE}" . \
+          # Zip from repo root with custom_components/ prefix for HACS compat
+          zip -r "${ARCHIVE}" custom_components/llm_smart_assistant/ \
             -x "*/__pycache__/*" "*.pyc" ".DS_Store"
-          cd ../..
           echo "archive=${ARCHIVE}" >> $GITHUB_ENV
           echo "version=${VERSION}" >> $GITHUB_ENV
 
