@@ -1118,6 +1118,10 @@ async function sendMessage() {
   input.value = '';
   loading = true; btn.disabled = true;
 
+  // Clear progressive message marker from previous conversation
+  const oldProg = document.getElementById('progMsg');
+  if (oldProg) oldProg.id = '';
+
   addMsg('user', text);
   showLoad();
   setStatus(t('thinkingText'));
@@ -1185,6 +1189,9 @@ async function sendMessage() {
     }
 
     hideLoad();
+    // Clear progressive marker so next conversation creates fresh bubbles
+    const doneProg = document.getElementById('progMsg');
+    if (doneProg) doneProg.id = '';
     if (done) {
       setStatus(finalRounds + ' ' + t('round') + ', ' + totalActs + ' ' + t('actions'));
     } else {
