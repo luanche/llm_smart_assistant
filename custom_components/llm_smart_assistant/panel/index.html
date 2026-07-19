@@ -590,6 +590,8 @@ const LANGUAGES = {
     noAuto: 'No automations yet. Ask AI to create one!',
     voiceHint: 'Listening...',
     voiceNotSupported: 'Voice input not supported in this browser',
+    microphoneBlocked: 'Microphone blocked — use HTTPS or type your message',
+    voiceError: 'Voice input error, please try again',
     round: 'round',
     actions: 'actions',
     editPrompt: 'Edit automation',
@@ -645,6 +647,8 @@ const LANGUAGES = {
     noAuto: '还没有动态自动化。让 AI 创建一个吧！',
     voiceHint: '正在聆听...',
     voiceNotSupported: '此浏览器不支持语音输入',
+    microphoneBlocked: '麦克风被阻止 — 请使用 HTTPS 或直接输入文字',
+    voiceError: '语音输入出错，请重试',
     round: '轮',
     actions: '个动作',
     editPrompt: '编辑自动化',
@@ -872,13 +876,30 @@ function toggleVoice() {
     stopVoice();
     sendMessage();
   };
-  voiceRecognition.onerror = () => stopVoice();
-  voiceRecognition.onend = () => stopVoice();
-  voiceRecognition.start();
-  isListening = true;
-  document.getElementById('voiceBtn').classList.add('listening');
-  document.getElementById('voiceBtn').textContent = '🔴';
-  setStatus(t('voiceHint'));
+  voiceRecognition.onerror = (e) => {
+    stopVoice();
+    if (e.error === 'not-allowed') {
+      setStatus('❌ ' + t('microphoneBlocked'), false);
+      setTimeout(() => setStatus(t('connected')), 5000);
+    } else {
+      setStatus(t('voiceError'), false);
+      setTimeout(() => setStatus(t('connected')), 3000);
+    }
+  };
+  voiceRecognition.onend = () => {
+    if (isListening) stopVoice();
+  };
+  try {
+    voiceRecognition.start();
+    isListening = true;
+    document.getElementById('voiceBtn').classList.add('listening');
+    document.getElementById('voiceBtn').textContent = '🔴';
+    setStatus(t('voiceHint'));
+  } catch(e) {
+    stopVoice();
+    setStatus('❌ ' + t('microphoneBlocked'), false);
+    setTimeout(() => setStatus(t('connected')), 5000);
+  }
 }
 
 function stopVoice() {
