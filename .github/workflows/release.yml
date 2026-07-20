@@ -1,35 +1,80 @@
 name: Release
 
 on:
-  push:
-    tags:
-      - 'v*'
+  pull_request_target:
+    types: [closed]
+    branches: [master]
 
 permissions:
   contents: write
 
 jobs:
   release:
+    if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: master
+          fetch-depth: 0
 
-      - name: Create release archive
+      - name: Determine bump type
+        id: bump
         run: |
-          VERSION="${GITHUB_REF_NAME#v}"
-          ARCHIVE="llm_smart_assistant_${VERSION}.zip"
-          zip -r "${ARCHIVE}" custom_components/llm_smart_assistant/ \
-            -x "*/__pycache__/*" "*.pyc" ".DS_Store"
-          echo "archive=${ARCHIVE}" >> $GITHUB_ENV
-          echo "version=${VERSION}" >> $GITHUB_ENV
+          BRANCH="${{ github.event.pull_request.head.ref }}"
+          echo "Merged branch: $BRANCH"
+
+          case "$BRANCH" in
+            feat/*)
+              echo "type=minor" >> "$GITHUB_OUTPUT"
+              echo "Bump: minor"
+              ;;
+            fix/*|chore/*|refactor/*|perf/*)
+              echo "type=patch" >> "$GITHUB_OUTPUT"
+              echo "Bump: patch"
+              ;;
+            *)
+              echo "type=none" >> "$GITHUB_OUTPUT"
+              echo "No version bump needed"
+              ;;
+          esac
+
+      - name: Bump version
+        id: version
+        if: steps.bump.outputs.type != 'none'
+        run: |
+          VERSION=$(python3 -c "
+import json
+d = json.load(open('custom_components/llm_smart_assistant/manifest.json'))
+print(d['version'])
+          ")
+          echo "Current version: $VERSION"
+
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$VERSION"
+          if [ "${{ steps.bump.outputs.type }}" = "minor" ]; then
+            NEW_VERSION="${MAJOR}.$((MINOR + 1)).0"
+          else
+            NEW_VERSION="${MAJOR}.${MINOR}.$((PATCH + 1))"
+          fi
+          echo "New version: $NEW_VERSION"
+          echo "version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
+
+          python3 -c "
+import json
+path = 'custom_components/llm_smart_assistant/manifest.json'
+d = json.load(open(path))
+d['version'] = '$NEW_VERSION'
+json.dump(d, open(path, 'w'), indent=2)
+print('Updated manifest.json to $NEW_VERSION')
+          "
 
       - name: Update CHANGELOG.md
+        if: steps.bump.outputs.type != 'none'
         run: |
-          VERSION="${GITHUB_REF_NAME#v}"
-          PREV_TAG=$(git tag --sort=-creatordate | head -2 | tail -1 || echo "")
+          VERSION="${{ steps.version.outputs.version }}"
+          PREV_TAG=$(git tag --sort=-creatordate | head -1 || echo "")
 
-          # Prepend new version to CHANGELOG.md
           HEADER="# Changelog"
           if [ -f CHANGELOG.md ] && [ "$(head -1 CHANGELOG.md)" = "$HEADER" ]; then
             TAIL=$(tail -n +2 CHANGELOG.md)
@@ -52,21 +97,32 @@ jobs:
             fi
           } > CHANGELOG.md
 
-      - name: Commit CHANGELOG.md to master
+      - name: Commit and tag
+        if: steps.bump.outputs.type != 'none'
         run: |
+          VERSION="${{ steps.version.outputs.version }}"
+
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          cp CHANGELOG.md /tmp/CHANGELOG.md
-          git fetch origin master
-          git checkout master
-          cp /tmp/CHANGELOG.md CHANGELOG.md
-          git add CHANGELOG.md
-          git commit -m "docs: update changelog for ${GITHUB_REF_NAME}" || echo "No changelog changes"
-          git push
+
+          git add custom_components/llm_smart_assistant/manifest.json CHANGELOG.md
+          git commit -m "chore: bump version to v${VERSION}"
+          git tag "v${VERSION}"
+          git push origin master --tags
+
+      - name: Build archive
+        if: steps.bump.outputs.type != 'none'
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          ARCHIVE="llm_smart_assistant_${VERSION}.zip"
+          zip -r "${ARCHIVE}" custom_components/llm_smart_assistant/ \
+            -x "*/__pycache__/*" "*.pyc" ".DS_Store"
+          echo "archive=${ARCHIVE}" >> "$GITHUB_ENV"
 
       - name: Generate release notes
+        if: steps.bump.outputs.type != 'none'
         run: |
-          VERSION="${GITHUB_REF_NAME#v}"
+          VERSION="${{ steps.version.outputs.version }}"
           PREV_TAG=$(git tag --sort=-creatordate | head -2 | tail -1 || echo "")
 
           {
@@ -88,9 +144,11 @@ jobs:
           } > RELEASE_NOTES.md
 
       - name: Create Release
+        if: steps.bump.outputs.type != 'none'
         uses: softprops/action-gh-release@v2
         with:
-          name: v${{ env.version }}
+          name: v${{ steps.version.outputs.version }}
+          tag_name: v${{ steps.version.outputs.version }}
           body_path: RELEASE_NOTES.md
           files: ${{ env.archive }}
           fail_on_unmatched_files: true

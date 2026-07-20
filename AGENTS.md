@@ -29,17 +29,67 @@ You are developing a Home Assistant custom integration called **LLM Smart Assist
    - `.pi/skills/ha-api/` — Home Assistant REST API calls
    - `.pi/skills/i18n-audit/` — i18n audit script
 
-### Git
-- **Do NOT commit unless the user explicitly says "提交" or "commit"**
-- Commit messages in English
-- Clean commit history, one logical change per commit
+### Branch Naming Convention
+
+| Prefix | Purpose | Version Bump |
+|--------|---------|--------------|
+| `feat/*` | New feature / enhancement | Minor (`1.2.3 → 1.3.0`) |
+| `fix/*` | Bug fix | Patch (`1.2.3 → 1.2.4`) |
+| `chore/*` | Maintenance, deps, config | Patch (`1.2.3 → 1.2.4`) |
+| `refactor/*` | Code refactor (no behavior change) | Patch (`1.2.3 → 1.2.4`) |
+| `docs/*` | Documentation only | **None** |
+| `style/*` | Formatting, whitespace | **None** |
+| `test/*` | Adding/fixing tests | **None** |
+| `perf/*` | Performance improvement | Patch (`1.2.3 → 1.2.4`) |
+
+### Git Workflow (GitHub Flow)
+
+```
+1. git checkout -b <prefix>/<description>    # Create branch from master
+2. (work, commit, test)
+3. git push origin <prefix>/<description>     # Push branch
+4. Create Pull Request on GitHub → merge to master
+```
+
+**Rules:**
+- Always branch from `master`
+- Branch name must start with a valid prefix (`feat/`, `fix/`, `chore/`, etc.)
+- Use lowercase kebab-case for branch names: `feat/add-tts-support`
+- Squash merge recommended to keep master history clean
+- **Do NOT commit directly to master** (except for trivial docs/config changes)
+- **Do NOT create git tags manually** — the pipeline does it automatically
+- **Do NOT delete existing tags** unless explicitly asked
+- Commit messages in English, one logical change per commit
 - Keep `.gitignore` minimal; force-add only what should be tracked (e.g., `.pi/skills/`)
+- **Do NOT commit unless the user explicitly says "提交" or "commit"**
 
-## Release Policy
+### Version Scheme (SemVer)
 
-**Do NOT create git tags or GitHub releases unless the user explicitly asks for it.**
-**Do NOT delete existing tags unless the user explicitly says "删了重建" or "delete and recreate".**
-Tags (`v*`) trigger the GitHub Actions release pipeline (`.github/workflows/release.yml`), which builds a zip and publishes a release. Only tag when the user says "release" or "打tag".
+Version is stored in `custom_components/llm_smart_assistant/manifest.json`.
+
+> **Format:** `MAJOR.MINOR.PATCH`
+
+| Change | Bump | Example |
+|--------|------|--------|
+| Breaking / major overhaul | MAJOR | Manual only |
+| New feature (`feat/*`) | MINOR | `1.2.3 → 1.3.0` |
+| Bug fix / chore / refactor | PATCH | `1.2.3 → 1.2.4` |
+| Docs / style / test | None | stays `1.2.3` |
+
+> **MAJOR bump** is never automatic — must be done manually and communicated clearly to users.
+
+## Release Pipeline
+
+Triggered automatically when a PR is **merged to `master`** (i.e., push to master).
+
+### What the pipeline does:
+1. Detects the merged branch name from the merge commit
+2. Determines version bump type from branch prefix
+3. Bumps version in `manifest.json`
+4. Commits the bump and creates a `vX.Y.Z` tag
+5. Builds `llm_smart_assistant_vX.Y.Z.zip` archive
+6. Updates `CHANGELOG.md` (prepends new version with commit list)
+7. Creates a GitHub Release with the archive attached
 
 ## Key Architecture
 
