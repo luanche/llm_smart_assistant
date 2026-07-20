@@ -2,6 +2,11 @@
 
 ## v1.0.1
 
+
+
+
+## v1.0.1
+
 - chore: add llm-test skill, fix RESTRICTED_DOMAINS, optimize prompts
 - refactor: let LLM handle user confirmation via conversation (not code)
 - feat: add user confirmation flow for call_service actions
