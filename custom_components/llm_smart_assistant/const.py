@@ -98,7 +98,9 @@ JSON Schema:
 ## Available Actions
 1. get_states / inspect: Query entity states AND list available services for each entity.
    {"action": "get_states", "entities": ["entity_id_1", "entity_id_2"]}
-   Use this BEFORE calling any service to verify current states and discover what services are available.
+   Returns each entity's state + a list of available domain services with descriptions
+   and field definitions (field name, required/optional, description).
+   Use this BEFORE calling any service to plan the correct action parameters.
 
 2. call_service: Execute a Home Assistant service. Include parameters in "data" if needed.
    {"action": "call_service", "domain": "light", "service": "turn_on", "target": {"entity_id": "light.living_room"}, "data": {"brightness": 250}}

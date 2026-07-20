@@ -901,7 +901,33 @@ class LLMSmartAssistantCoordinator:
                             services = o.get("services", [])
                             line = f"  - {label}: {val}"
                             if services:
-                                line += f"\n    Available services: {', '.join(services)}"
+                                svc_lines = []
+                                for svc in services:
+                                    if isinstance(svc, dict):
+                                        svc_name = svc.get("name", "?")
+                                        desc = svc.get("description", "")
+                                        fields = svc.get("fields", [])
+                                        if desc:
+                                            svc_str = f"      {svc_name}: {desc}"
+                                        else:
+                                            svc_str = f"      {svc_name}"
+                                        if fields:
+                                            field_strs = []
+                                            for f in fields[:5]:
+                                                fn = f.get("name", "")
+                                                fd = f.get("description", "")
+                                                req = "必填" if f.get("required") else "可选"
+                                                if fd:
+                                                    field_strs.append(f"{fn}({req}): {fd}")
+                                                else:
+                                                    field_strs.append(f"{fn}({req})")
+                                            if len(fields) > 5:
+                                                field_strs.append(f"...还有{len(fields)-5}个字段")
+                                            svc_str += " [" + "; ".join(field_strs) + "]"
+                                        svc_lines.append(svc_str)
+                                    else:
+                                        svc_lines.append(f"      {svc}")
+                                line += "\n    Available services:\n" + "\n".join(svc_lines)
                             step_feedback.append(line)
 
                     elif action == ACTION_CALL_SERVICE:

@@ -285,18 +285,46 @@ class ServicesExecutor:
 
         # Get all HA services grouped by domain (to show available services per entity)
         all_services = self.hass.services.async_services()
+        # Get service descriptions from HA (richer info including field descriptions)
+        all_service_descriptions = {}
+        try:
+            from homeassistant.helpers.service import async_get_all_descriptions
+            all_service_descriptions = async_get_all_descriptions(self.hass)
+        except Exception:
+            pass
 
         observed = []
         for entity_id in entities:
             domain = entity_id.split(".")[0] if "." in entity_id else ""
             # Look up services available for this entity's domain
             domain_services = all_services.get(domain, {})
+            # Get descriptions for this domain
+            domain_descriptions = all_service_descriptions.get(domain, {})
             # Filter out restricted services
             available_services = []
             for svc_name in domain_services:
                 full_service = f"{domain}.{svc_name}"
-                if full_service not in RESTRICTED_SERVICES:
-                    available_services.append(svc_name)
+                if full_service in RESTRICTED_SERVICES:
+                    continue
+                # Build service info with description and fields
+                svc_info = {"name": svc_name}
+                svc_desc = domain_descriptions.get(svc_name, {})
+                desc_text = svc_desc.get("description", "").strip()
+                if desc_text:
+                    svc_info["description"] = desc_text
+                fields = svc_desc.get("fields", {})
+                if fields:
+                    field_list = []
+                    for fname, finfo in fields.items():
+                        fdesc = finfo.get("description", "") or finfo.get("name", "")
+                        required = finfo.get("required", False)
+                        field_list.append({
+                            "name": fname,
+                            "description": str(fdesc)[:80] if fdesc else "",
+                            "required": required,
+                        })
+                    svc_info["fields"] = field_list
+                available_services.append(svc_info)
 
             try:
                 state_obj = self.hass.states.get(entity_id)
