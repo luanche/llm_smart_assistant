@@ -1,5 +1,14 @@
 # Changelog
 
+## v1.2.0
+
+- fix: remove onpointerleave from voice button (causes mobile touch issues)
+- fix: automation toggle now works both ways (disable/enable)
+- perf: replace polling with WebSocket for AI responses, add optimistic toggle
+- feat: UI redesign v3 - card polish, FAB, shadow DOM login fix
+- feat: configured access token, multi-instance panel fix, language-aware suggestions
+
+
 ## v1.1.2
 
 - chore: remove delete-branch step (GitHub auto-delete handles it)
