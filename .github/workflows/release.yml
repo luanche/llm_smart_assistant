@@ -1,6 +1,6 @@
 name: Release
 
-on:
+"on":
   pull_request_target:
     types: [closed]
     branches: [master]
@@ -26,29 +26,16 @@ jobs:
           echo "Merged branch: $BRANCH"
 
           case "$BRANCH" in
-            feat/*)
-              echo "type=minor" >> "$GITHUB_OUTPUT"
-              echo "Bump: minor"
-              ;;
-            fix/*|chore/*|refactor/*|perf/*)
-              echo "type=patch" >> "$GITHUB_OUTPUT"
-              echo "Bump: patch"
-              ;;
-            *)
-              echo "type=none" >> "$GITHUB_OUTPUT"
-              echo "No version bump needed"
-              ;;
+            feat/*)  echo "type=minor" >> "$GITHUB_OUTPUT" ;;
+            fix/*|chore/*|refactor/*|perf/*) echo "type=patch" >> "$GITHUB_OUTPUT" ;;
+            *)       echo "type=none" >> "$GITHUB_OUTPUT"  ;;
           esac
 
       - name: Bump version
         id: version
         if: steps.bump.outputs.type != 'none'
         run: |
-          VERSION=$(python3 -c "
-import json
-d = json.load(open('custom_components/llm_smart_assistant/manifest.json'))
-print(d['version'])
-          ")
+          VERSION=$(python3 -c "import json; print(json.load(open('custom_components/llm_smart_assistant/manifest.json'))['version'])")
           echo "Current version: $VERSION"
 
           IFS='.' read -r MAJOR MINOR PATCH <<< "$VERSION"
@@ -60,14 +47,7 @@ print(d['version'])
           echo "New version: $NEW_VERSION"
           echo "version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
 
-          python3 -c "
-import json
-path = 'custom_components/llm_smart_assistant/manifest.json'
-d = json.load(open(path))
-d['version'] = '$NEW_VERSION'
-json.dump(d, open(path, 'w'), indent=2)
-print('Updated manifest.json to $NEW_VERSION')
-          "
+          python3 -c "import json; p='custom_components/llm_smart_assistant/manifest.json'; d=json.load(open(p)); d['version']='$NEW_VERSION'; json.dump(d, open(p,'w'), indent=2)"
 
       - name: Update CHANGELOG.md
         if: steps.bump.outputs.type != 'none'
@@ -123,7 +103,7 @@ print('Updated manifest.json to $NEW_VERSION')
         if: steps.bump.outputs.type != 'none'
         run: |
           VERSION="${{ steps.version.outputs.version }}"
-          PREV_TAG=$(git tag --sort=-creatordate | head -2 | tail -1 || echo "")
+          PREV_TAG=$(git tag --sort=-creatordate | head -1 || echo "")
 
           {
             echo "## LLM Smart Assistant v${VERSION}"
