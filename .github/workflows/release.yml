@@ -14,12 +14,41 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Generate changelog
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          PREV_TAG=$(git tag --sort=-creatordate | head -2 | tail -1 || echo "")
+          
+          echo "# Changelog" > CHANGELOG.md
+          echo "" >> CHANGELOG.md
+          echo "## v${VERSION}" >> CHANGELOG.md
+          echo "" >> CHANGELOG.md
+          
+          if [ -n "$PREV_TAG" ]; then
+            git log "${PREV_TAG}..HEAD" --pretty=format:"- %s" --no-merges >> CHANGELOG.md
+          else
+            git log --pretty=format:"- %s" --no-merges $(git rev-list --max-parents=0 HEAD)..HEAD >> CHANGELOG.md
+          fi
+          
+          echo "" >> CHANGELOG.md
+          echo "" >> CHANGELOG.md
+          cat CHANGELOG.md
+
+      - name: Commit changelog
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add CHANGELOG.md
+          git commit -m "docs: update changelog for ${GITHUB_REF_NAME}" || echo "No changelog changes"
+          git push
 
       - name: Create release archive
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
           ARCHIVE="llm_smart_assistant_${VERSION}.zip"
-          # Zip from repo root with custom_components/ prefix for HACS compat
           zip -r "${ARCHIVE}" custom_components/llm_smart_assistant/ \
             -x "*/__pycache__/*" "*.pyc" ".DS_Store"
           echo "archive=${ARCHIVE}" >> $GITHUB_ENV
@@ -28,10 +57,15 @@ jobs:
       - name: Generate release notes
         run: |
           cat > RELEASE_NOTES.md << 'EOF'
-          ## LLM Smart Assistant ${{ env.version }}
+          ## LLM Smart Assistant v${{ env.version }}
+
+          ### Changes
+          EOF
+          cat CHANGELOG.md | grep "^- " >> RELEASE_NOTES.md
+          cat >> RELEASE_NOTES.md << 'EOF'
 
           ### Installation
-          Download the zip archive below and extract into your Home Assistant `custom_components/` directory, then restart HA.
+          Download the zip below and extract into your Home Assistant \`custom_components/\` directory, then restart HA.
 
           Or install via HACS by adding this repository as a custom integration.
           EOF
