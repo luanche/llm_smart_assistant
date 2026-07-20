@@ -1116,6 +1116,51 @@ function setStatus(text, ok) {
   el.style.color = ok !== false ? 'var(--text-tertiary)' : 'var(--danger)';
 }
 
+// Subscribe to HA entity state changes via WebSocket
+function subscribeEntity(entityId, onChange, onDone) {
+  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const wsUrl = protocol + '//' + window.location.host + '/api/websocket';
+  let ws, closed = false, subId = 0;
+
+  function close() {
+    closed = true;
+    if (ws) try { ws.close(); } catch(e) {}
+    ws = null;
+  }
+
+  if (!accessToken) {
+    if (onDone) onDone();
+    return close;
+  }
+
+  ws = new WebSocket(wsUrl);
+  ws.onmessage = (event) => {
+    if (closed) return;
+    try {
+      const msg = JSON.parse(event.data);
+      if (msg.type === 'auth_required') {
+        ws.send(JSON.stringify({ type: 'auth', access_token: accessToken }));
+      } else if (msg.type === 'auth_ok') {
+        subId = Date.now();
+        ws.send(JSON.stringify({ id: subId, type: 'subscribe_events', event_type: 'state_changed' }));
+      } else if (msg.type === 'result' && msg.id === subId) {
+        if (!msg.success) { close(); if (onDone) onDone(); }
+      } else if (msg.type === 'event' && msg.id === subId) {
+        const ev = msg.event;
+        if (ev && ev.data && ev.data.entity_id === entityId && ev.data.new_state) {
+          onChange(ev.data.new_state);
+        }
+      }
+    } catch(e) {}
+  };
+  ws.onerror = () => {};
+  ws.onclose = () => {
+    if (!closed && onDone) onDone();
+  };
+
+  return close;
+}
+
 // Voice input - hold to speak (press & hold to record, release to send)
 let _voiceText = '';
 
@@ -1315,19 +1360,45 @@ async function refreshAutomations() {
 }
 
 async function toggleAutomation(id, disable) {
-  setStatus(disable ? t('disabling') : t('enabling'));
+  // Optimistic UI: immediately toggle the switch
+  const cards = document.querySelectorAll('#autoContainer .auto-card');
+  let targetCard = null, targetToggle = null;
+  for (const card of cards) {
+    const toggle = card.querySelector('.auto-card-toggle');
+    if (toggle && toggle.getAttribute('onclick')?.includes(id)) {
+      targetCard = card;
+      targetToggle = toggle;
+      break;
+    }
+  }
+  if (targetToggle) {
+    if (disable) {
+      targetToggle.classList.remove('on');
+      targetCard?.classList.add('disabled');
+    } else {
+      targetToggle.classList.add('on');
+      targetCard?.classList.remove('disabled');
+    }
+  }
+
   try {
     const inst = document.getElementById('instanceSelect').value;
-    const result = await callAPI('POST', '/api/services/llm_smart_assistant/toggle_automation', {
+    await callAPI('POST', '/api/services/llm_smart_assistant/toggle_automation', {
       automation_id: id,
       disable: disable,
       entry_id: inst || ''
     });
-    // Wait briefly then refresh
-    await new Promise(r => setTimeout(r, 500));
-    await refreshAutomations();
-    setStatus(t('connected'));
   } catch(e) { 
+    // Revert on failure
+    if (targetToggle) {
+      if (disable) {
+        targetToggle.classList.add('on');
+        targetCard?.classList.remove('disabled');
+      } else {
+        targetToggle.classList.remove('on');
+        targetCard?.classList.add('disabled');
+      }
+    }
     setStatus(t('errorPrefix') + e.message, false);
     setTimeout(() => setStatus(t('connected')), 3000);
   }
@@ -1440,74 +1511,60 @@ async function sendMessage() {
   try {
     const inst = document.getElementById('instanceSelect').value;
     const body = inst ? { text, entry_id: inst } : { text };
-    await callAPI('POST', '/api/services/llm_smart_assistant/process_input', body);
-    await new Promise(r => setTimeout(r, 1000));
 
-    let attempts = 0, lastTts = '', done = false, totalActs = 0, finalRounds = 1;
+    // Wait a beat for any previous WS cleanup, then subscribe
+    await new Promise(r => setTimeout(r, 100));
 
-    while (attempts < 60 && !done) {
-      await new Promise(r => setTimeout(r, 600));
-      try {
-        const s = await callAPI('GET', '/api/states/sensor.llm_last_response');
-        if (s) {
-          const ip = s.attributes.in_progress !== false;
-          const round = s.attributes.round || 0;
-          const tts = s.state;
+    let lastTts = '', totalActs = 0, finalRounds = 1, gotResult = false;
 
-          if (ip && round > 0) {
-            setStatus(t('reasoningPrefix') + round + t('reasoningSuffix'));
+    const handleState = (state) => {
+      if (gotResult) return;
+      const ip = state.attributes.in_progress !== false;
+      const round = state.attributes.round || 0;
+      const tts = state.state;
+
+      if (ip && round > 0) setStatus(t('reasoningPrefix') + round + t('reasoningSuffix'));
+
+      if (tts && tts !== lastTts) {
+        lastTts = tts;
+        try {
+          const fr = state.attributes.full_response;
+          if (fr) {
+            const p = JSON.parse(fr);
+            lastDebugRaw = JSON.stringify(p, null, 2);
+            totalActs = (p.steps || []).filter(x => x.action === 'call_service').length;
           }
-
-          if (tts && tts !== lastTts) {
-            lastTts = tts;
-            try {
-              const fr = s.attributes.full_response;
-              if (fr) {
-                const p = JSON.parse(fr);
-                lastDebugRaw = JSON.stringify(p, null, 2);
-                totalActs = (p.steps || []).filter(x => x.action === 'call_service').length;
-              }
-            } catch(e) {}
-            hideLoad();
-            const existing = document.getElementById('progMsg');
-            if (existing) {
-              const tp = existing.querySelector('.msg-text');
-              if (tp) tp.textContent = tts;
-            } else {
-              hideLoad(); showLoad(); hideLoad();
-              addMsg('assistant', tts, lastDebugRaw);
-              const m = document.querySelector('.msg.assistant:last-child');
-              if (m) m.id = 'progMsg';
-            }
-          }
-
-          if (!ip) {
-            done = true;
-            finalRounds = round || 1;
-            try {
-              const fr = s.attributes.full_response;
-              if (fr) {
-                const p = JSON.parse(fr);
-                lastDebugRaw = JSON.stringify(p, null, 2);
-                totalActs = (p.steps || []).filter(x => x.action === 'call_service').length;
-              }
-            } catch(e) {}
-            if (!lastTts && tts) lastTts = tts;
-          }
+        } catch(e) {}
+        hideLoad();
+        const existing = document.getElementById('progMsg');
+        if (existing) {
+          const tp = existing.querySelector('.msg-text');
+          if (tp) tp.textContent = tts;
+        } else {
+          hideLoad(); showLoad(); hideLoad();
+          addMsg('assistant', tts, lastDebugRaw);
+          const m = document.querySelector('.msg.assistant:last-child');
+          if (m) m.id = 'progMsg';
         }
-      } catch(e) {}
-      attempts++;
-    }
+      }
 
-    hideLoad();
-    // Clear progressive marker so next conversation creates fresh bubbles
-    const doneProg = document.getElementById('progMsg');
-    if (doneProg) doneProg.id = '';
-    if (done) {
-      setStatus(finalRounds + ' ' + t('round') + ', ' + totalActs + ' ' + t('actions'));
-    } else {
-      setStatus(t('timeout'), false);
-    }
+      if (!ip) {
+        gotResult = true;
+        finalRounds = round || 1;
+        if (!lastTts && tts) lastTts = tts;
+        hideLoad();
+        const doneProg = document.getElementById('progMsg');
+        if (doneProg) doneProg.id = '';
+        setStatus(finalRounds + ' ' + t('round') + ', ' + totalActs + ' ' + t('actions'));
+      }
+    };
+
+    // Subscribe FIRST so we don't miss state changes
+    subscribeEntity('sensor.llm_last_response', handleState);
+
+    // Small delay to let WS connect, THEN call the API
+    await new Promise(r => setTimeout(r, 300));
+    await callAPI('POST', '/api/services/llm_smart_assistant/process_input', body);
   } catch(e) {
     hideLoad();
     setStatus(e.message, false);
