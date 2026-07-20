@@ -182,9 +182,6 @@ class LLMSmartAssistantCoordinator:
         # Last trigger time per entity (for debounce)
         self._last_trigger_time: dict[str, float] = {}
 
-        # Pending user confirmation (step with confirm:true waiting for user reply)
-        self._pending_confirmation: dict | None = None
-
         # Background tasks
         self._unload_tasks: list[asyncio.Task] = []
 
@@ -795,81 +792,6 @@ class LLMSmartAssistantCoordinator:
         max_iterations = MAX_REASONING_ITERATIONS
         timeout = REASONING_TIMEOUT
 
-        # ── Handle pending confirmation from previous round ──
-        if self._pending_confirmation:
-            pending = self._pending_confirmation
-            self._pending_confirmation = None
-            
-            # Check if user confirmed (yes/ok/确认/etc.) or cancelled
-            user_lower = user_text.strip().lower()
-            confirm_words = {"yes", "yeah", "yep", "sure", "ok", "okay", "go", "do it",
-                            "confirm", "proceed", "执行", "确认", "好的", "是", "可以",
-                            "对", "嗯", "确定", "同意"}
-            cancel_words = {"no", "nope", "nah", "cancel", "stop", "don't", "dont",
-                           "abort", "取消", "不", "不要", "算了", "停", "停止"}
-            
-            is_confirm = user_lower in confirm_words or any(
-                w in user_lower for w in confirm_words if len(w) > 2
-            )
-            is_cancel = user_lower in cancel_words or any(
-                w in user_lower for w in cancel_words if len(w) > 2
-            ) or user_lower.startswith("不")
-            
-            if is_confirm:
-                # Execute the pending steps
-                _LOGGER.info("User confirmed, executing pending steps")
-                if self.executor and pending.get("steps"):
-                    await self.executor.async_execute_steps(pending["steps"])
-                final_tts = pending.get("confirm_text", "好的，已执行。")
-                # Update sensor and history
-                self._add_to_history(LLMChatMessage(role="assistant", content=final_tts))
-                self.last_response = {
-                    "tts_text": final_tts,
-                    "steps": pending.get("steps", []),
-                    "iterations": 1,
-                    "rounds": [{"round": 1, "tts_text": "", "steps": pending.get("steps", [])}],
-                }
-                self.last_response_raw = json.dumps(self.last_response, ensure_ascii=False, indent=2)
-                self.in_progress = False
-                self.current_round = 0
-                self._async_notify_listeners()
-                if final_tts:
-                    await self._async_speak_tts(final_tts)
-                _LOGGER.info("Confirmation completed: executed pending steps")
-                return
-            elif is_cancel:
-                # User cancelled, just ack
-                _LOGGER.info("User cancelled, skipping pending steps")
-                final_tts = "好的，已取消。"
-                self._add_to_history(LLMChatMessage(role="assistant", content=final_tts))
-                self.last_response = {
-                    "tts_text": final_tts,
-                    "steps": [],
-                    "iterations": 1,
-                    "rounds": [],
-                }
-                self.last_response_raw = json.dumps(self.last_response, ensure_ascii=False, indent=2)
-                self.in_progress = False
-                self.current_round = 0
-                self._async_notify_listeners()
-                if final_tts:
-                    await self._async_speak_tts(final_tts)
-                _LOGGER.info("Confirmation cancelled")
-                return
-            else:
-                # User said something else - feed it to LLM as context for pending confirmation
-                # Treat the pending steps as context and proceed normally
-                _LOGGER.info(
-                    "Unclear confirmation response '%s', feeding to LLM with pending context",
-                    user_text[:50]
-                )
-                # Add context about pending confirmation
-                user_text = (
-                    f"[Previous question: {pending.get('question', '')}]\n"
-                    f"User response: {user_text}\n\n"
-                    f"Decide: should the pending action be executed or cancelled?"
-                )
-
         # Add user message to history
         self._add_to_history(LLMChatMessage(role="user", content=user_text))
 
@@ -953,33 +875,6 @@ class LLMSmartAssistantCoordinator:
                     "No steps returned, reasoning complete after %d rounds",
                     iteration
                 )
-                break
-
-            # ── Check if any step requires user confirmation ──
-            needs_confirm = any(
-                s.get("confirm", False) for s in steps
-            )
-            if needs_confirm:
-                _LOGGER.info(
-                    "Step(s) require user confirmation, pausing loop"
-                )
-                # Save pending steps
-                self._pending_confirmation = {
-                    "steps": steps,
-                    "question": tts_text or "确认要执行此操作吗？",
-                    "confirm_text": tts_text or "好的，已执行。",
-                }
-                # Use tts_text as the question to user
-                if tts_text:
-                    cumulative_tts.append(tts_text)
-                else:
-                    cumulative_tts.append("确认要执行此操作吗？")
-                all_steps_ever.extend(steps)
-                all_rounds.append({
-                    "round": iteration,
-                    "tts_text": tts_text or "(需要确认)",
-                    "steps": steps,
-                })
                 break
 
             all_steps_ever.extend(steps)

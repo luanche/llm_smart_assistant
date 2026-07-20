@@ -87,10 +87,6 @@ Time: {{ time }} {{ date }}  Max rounds: {{ max_iterations }}
 2. call_service — Execute a service
    {"action": "call_service", "domain": "climate", "service": "set_temperature",
     "target": {"entity_id": "climate.bedroom"}, "data": {"temperature": 26}}
-   For operations needing user confirmation, add "confirm": true:
-   {"action": "call_service", "domain": "switch", "service": "turn_off",
-    "target": {"entity_id": "switch.gate"}, "confirm": true}
-   → System will ask the user before executing.
 3. create_automation — Create a trigger-based automation
    {"action": "create_automation", "entity_id": "sensor.temp",
     "condition": ">30", "prompt": "turn on AC"}
@@ -108,6 +104,9 @@ Time: {{ time }} {{ date }}  Max rounds: {{ max_iterations }}
 4. Use ONLY entity_ids from the list above. Never invent any.
 5. Already in target state? Skip action, finish with steps: [].
 6. Service failed? Skip it, explain briefly in final tts_text.
+7. To ask the user a question (e.g. for confirmation), return the question in tts_text
+   and steps: []. The user will reply, and you will see their response in the next round
+   along with full conversation history to decide how to proceed.
 """
 
 # Hardcoded automation trigger prompt core (NOT user-modifiable)
