@@ -26,7 +26,11 @@
       "init": {
         "title": "LLM 智能助手设置",
         "description": "配置 API、提示词、输入传感器、TTS 播报、安全权限、历史记录和动态自动化。",
+        "data_description": {
+          "access_token": "AI Chat 面板使用的长效访问令牌。在 HA 个人资料中生成（头像 → 安全 → 长效访问令牌）。不设置则使用浏览器会话令牌。"
+        },
         "data": {
+          "access_token": "AI Chat 访问令牌",
           "api_base_url": "API 地址",
           "api_key": "API 密钥",
           "model_name": "模型名称",

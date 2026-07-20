@@ -1263,17 +1263,24 @@ function applyI18n() {
 
 // Init
 (async function init() {
-  // 1. Try auth_token from URL query parameter (passed by chat.js wrapper)
+  // 1. Use the configured access token (injected by ChatPanelView backend)
+  try {
+    if (window.CONFIGURED_ACCESS_TOKEN) {
+      accessToken = window.CONFIGURED_ACCESS_TOKEN;
+    }
+  } catch(e) {}
+
+  // 2. Try auth_token from URL query parameter (passed by chat.js wrapper)
   try {
     const params = new URLSearchParams(window.location.search);
     const urlToken = params.get('auth_token');
-    if (urlToken) {
+    if (!accessToken && urlToken) {
       accessToken = urlToken;
       window.history.replaceState({}, document.title, window.location.pathname);
     }
   } catch(e) {}
   
-  // 2. Try reading token from HA session storage (same-origin, shared with parent)
+  // 3. Try reading token from HA session storage (same-origin, shared with parent)
   if (!accessToken) {
     try {
       // HA stores tokens in localStorage under 'hassTokens'
@@ -1285,7 +1292,7 @@ function applyI18n() {
     } catch(e) {}
   }
   
-  // 3. Request token from parent via postMessage (sent by chat.js)
+  // 4. Request token from parent via postMessage (sent by chat.js)
   if (!accessToken) {
     try {
       window.parent.postMessage('__llm_auth_request__', '*');
@@ -1303,7 +1310,7 @@ function applyI18n() {
     } catch(e) {}
   }
   
-  // 4. Try token from HA websocket connection (when in main window)
+  // 5. Try token from HA websocket connection (when in main window)
   try {
     if (!accessToken) {
       const wsToken = window.hassConnection?.auth?.data?.access_token;
@@ -1311,7 +1318,7 @@ function applyI18n() {
     }
   } catch(e) {}
   
-  // 5. Try our own localStorage
+  // 6. Try our own localStorage
   try {
     if (!accessToken) {
       const stored = localStorage.getItem('llm_assistant_token');
@@ -1326,7 +1333,7 @@ function applyI18n() {
     return;
   }
   
-  // 6. Fallback: prompt for token
+  // 7. Fallback: prompt for token
   accessToken = window.prompt(t('tokenPromptText')) || '';
   if (accessToken) {
     try { localStorage.setItem('llm_assistant_token', accessToken); } catch(e) {}

@@ -14,6 +14,7 @@ from homeassistant.data_entry_flow import FlowResult
 from homeassistant.helpers import selector
 
 from .const import (
+    CONF_ACCESS_TOKEN,
     CONF_ALLOW_AUTOMATION,
     CONF_API_BASE_URL,
     CONF_API_KEY,
@@ -266,6 +267,9 @@ class LLMSmartAssistantOptionsFlow(config_entries.OptionsFlow):
                 _OptionalEntitySelector(selector.EntitySelectorConfig(multiple=False)),
 
                 # ── Security & Access ──
+                vol.Optional(CONF_ACCESS_TOKEN,
+                    default=cur.get(CONF_ACCESS_TOKEN, dat.get(CONF_ACCESS_TOKEN, ""))):
+                selector.TextSelector(selector.TextSelectorConfig(type="password")),
                 vol.Optional(CONF_DOMAINS_WHITELIST,
                     default=cur.get(CONF_DOMAINS_WHITELIST, ["light", "switch", "media_player", "input_boolean"])):
                 selector.SelectSelector(selector.SelectSelectorConfig(

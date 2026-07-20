@@ -20,6 +20,7 @@ from homeassistant.helpers.storage import Store
 from homeassistant.util import dt as dt_util
 
 from .const import (
+    CONF_ACCESS_TOKEN,
     ACTION_CALL_SERVICE,
     ACTION_CREATE_AUTOMATION,
     ACTION_GET_STATES,
@@ -304,6 +305,11 @@ class LLMSmartAssistantCoordinator:
         return self._options.get(CONF_TTS_CUSTOM_TEMPLATE, "")
 
     @property
+    def access_token(self) -> str:
+        """Long-lived access token for AI Chat panel API calls."""
+        return self._options.get(CONF_ACCESS_TOKEN) or self._data.get(CONF_ACCESS_TOKEN, "")
+
+    @property
     def domains_whitelist(self) -> list[str]:
         return self._options.get(CONF_DOMAINS_WHITELIST, ["light", "switch", "media_player", "sensor", "input_boolean"])
 
@@ -558,14 +564,19 @@ class LLMSmartAssistantCoordinator:
                     timeout=aiohttp.ClientTimeout(total=30),
                 ) as resp:
                     if resp.status != 200:
+                        _LOGGER.warning("LLM raw query failed with status %d", resp.status)
                         return None
                     data = await resp.json()
             choices = data.get("choices", [])
             if not choices:
+                _LOGGER.warning("LLM raw query returned no choices")
                 return None
             content = choices[0].get("message", {}).get("content", "")
-            return content.strip() or None
-        except Exception:
+            result = content.strip() or None
+            _LOGGER.debug("LLM raw query returned %d chars", len(content))
+            return result
+        except Exception as exc:
+            _LOGGER.warning("LLM raw query failed: %s", exc)
             return None
 
     async def _async_query_llm(
