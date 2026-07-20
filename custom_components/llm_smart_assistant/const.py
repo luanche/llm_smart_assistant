@@ -87,6 +87,10 @@ Time: {{ time }} {{ date }}  Max rounds: {{ max_iterations }}
 2. call_service — Execute a service
    {"action": "call_service", "domain": "climate", "service": "set_temperature",
     "target": {"entity_id": "climate.bedroom"}, "data": {"temperature": 26}}
+   For operations needing user confirmation, add "confirm": true:
+   {"action": "call_service", "domain": "switch", "service": "turn_off",
+    "target": {"entity_id": "switch.gate"}, "confirm": true}
+   → System will ask the user before executing.
 3. create_automation — Create a trigger-based automation
    {"action": "create_automation", "entity_id": "sensor.temp",
     "condition": ">30", "prompt": "turn on AC"}
