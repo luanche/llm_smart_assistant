@@ -133,9 +133,3 @@ jobs:
           files: ${{ env.archive }}
           fail_on_unmatched_files: true
 
-      - name: Delete merged branch
-        if: steps.bump.outputs.type != 'none'
-        run: |
-          BRANCH="${{ github.event.pull_request.head.ref }}"
-          echo "Deleting branch: $BRANCH"
-          git push origin --delete "$BRANCH" 2>/dev/null || echo "Branch already deleted or not deletable"
