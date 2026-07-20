@@ -19,17 +19,36 @@ playwright_edge_browser_navigate url="http://localhost:8123/path"
 # Check current page snapshot
 playwright_edge_browser_snapshot
 
-# Login pattern (HA login page uses shadow DOM)
-# 1. Type into fields
-playwright_edge_browser_type target="input[type=text]" text="username"
-playwright_edge_browser_type target="input[type=password]" text="password"
-# 2. Click submit via evaluate (buttons are in shadow DOM)
-playwright_edge_browser_evaluate function="() => { document.querySelector('button')?.click() }"
-
 # Wait for elements/page to load
 playwright_edge_browser_wait_for time=3
 playwright_edge_browser_wait_for text="Welcome"   # Wait for text to appear
 playwright_edge_browser_wait_for textGone="Loading" # Wait for text to disappear
+```
+
+### HA Login (Shadow DOM)
+
+HA's login form uses LitElement web components (`<ha-input>`, `<ha-button>`) with shadow DOM.
+Standard CSS selectors (`input[name=...]`) won't work. Use `page.getByRole()` instead.
+
+**Login via `run_code_unsafe` (recommended):**
+```javascript
+async (page) => {
+  // Navigate to root (redirects to /auth/authorize)
+  await page.goto('http://localhost:8123/');
+  await page.waitForTimeout(2000);
+  
+  // Fill fields by accessible role (works through shadow DOM)
+  await page.getByRole('textbox', { name: /username/i }).fill('agent');
+  await page.getByRole('textbox', { name: /password/i }).fill('password');
+  await page.getByRole('button', { name: /log in/i }).click();
+  
+  // Wait for redirect after login
+  await page.waitForTimeout(3000);
+  
+  // Navigate to target page
+  await page.goto('http://localhost:8123/target-page');
+  await page.waitForTimeout(2000);
+}
 ```
 
 ### Interaction
@@ -100,46 +119,61 @@ playwright_edge_browser_tabs action="close"
 ```
 
 ### Complex Operations (via run_code_unsafe)
-When you need to run multi-step operations or access shadow DOM, use `run_code_unsafe`:
+When you need to run multi-step operations, use `run_code_unsafe`:
 
 ```javascript
-// Login + navigate pattern
+// Login + navigate to LLM Chat (recommended pattern)
 async (page) => {
-  await page.goto('http://localhost:8123/auth/login');
-  await page.waitForTimeout(1000);
-  await page.evaluate(() => {
-    document.querySelector('input[name=username]').value = 'agent';
-    document.querySelector('input[name=password]').value = 'password';
-  });
-  await page.click('button[type=submit]');
+  await page.goto('http://localhost:8123/');
   await page.waitForTimeout(2000);
-  await page.goto('http://localhost:8123/target-page');
+  
+  // Use Playwright's built-in shadow DOM piercing via accessible roles
+  await page.getByRole('textbox', { name: /username/i }).fill('agent');
+  await page.getByRole('textbox', { name: /password/i }).fill('password');
+  await page.getByRole('button', { name: /log in/i }).click();
+  
+  await page.waitForTimeout(3000);
+  await page.goto('http://localhost:8123/llm-chat');
   await page.waitForTimeout(2000);
 }
 ```
 
 ```javascript
-// Check shadow DOM content
+// Check iframe content (LLM Chat panel)
+async (page) => {
+  const iframe = page.locator('iframe').contentFrame();
+  const text = await iframe.locator('#headerTitle').textContent();
+  return text;
+}
+```
+
+```javascript
+// Access shadow DOM directly (fallback when getByRole doesn't work)
 async (page) => {
   return await page.evaluate(() => {
-    const ha = document.querySelector('home-assistant');
-    const root = ha?.shadowRoot;
-    return root?.querySelector('...')?.textContent;
+    const input = document.querySelector('ha-input[name=username]');
+    return input?.shadowRoot?.querySelector('input')?.value;
   });
 }
 ```
 
 ## Patterns
 
-### Pattern: Login to HA and check config page
+### Pattern: Login to HA and check page
 ```bash
-1. playwright_edge_browser_navigate url="http://localhost:8123/auth/login"
-2. playwright_edge_browser_type target="input[type=text]" text="agent"
-3. playwright_edge_browser_type target="input[type=password]" text="password"
-4. playwright_edge_browser_click target="button:has-text('Log in')"
-5. playwright_edge_browser_wait_for time=2
-6. playwright_edge_browser_navigate url="http://localhost:8123/target-page"
-7. playwright_edge_browser_snapshot
+1. playwright_edge_browser_run_code_unsafe code='
+async (page) => {
+  await page.goto("http://localhost:8123/");
+  await page.waitForTimeout(2000);
+  await page.getByRole("textbox", { name: /username/i }).fill("agent");
+  await page.getByRole("textbox", { name: /password/i }).fill("password");
+  await page.getByRole("button", { name: /log in/i }).click();
+  await page.waitForTimeout(3000);
+  await page.goto("http://localhost:8123/target-page");
+  await page.waitForTimeout(2000);
+}'
+# Then take snapshot or screenshot
+2. playwright_edge_browser_snapshot
 ```
 
 ### Pattern: Debug API response
@@ -156,8 +190,12 @@ async (page) => {
 ```
 
 ### Common Errors & Fixes
-- `"target" does not match any elements` → Use snapshot ref or CSS selector from the page snapshot
-- **Shadow DOM not accessible** → Use `browser_run_code_unsafe` with `page.evaluate()`
-- **Auth redirect** → Need to log in first or use token-based auth
+- `"target" does not match any elements` → Use `page.getByRole()` or CSS selector. For shadow DOM elements (HA login), use `page.getByRole('textbox', { name: /label/i })` which pierces shadow boundaries.
+- **`ref=fXX` selectors not working** → The `ref` engine is not supported. Use CSS selectors or `getByRole` instead.
+- **Shadow DOM elements not found** → HA uses LitElement web components. Standard selectors may not work. Use:
+  - `page.getByRole('textbox', { name: /username/i })` for inputs
+  - `page.getByRole('button', { name: /log in/i })` for buttons
+  - `page.evaluate()` + `shadowRoot.querySelector()` as fallback
+- **Auth redirect loop** → Login using the pattern above, then navigate to target page
 - **Timeout** → Increase wait time or check if element exists
 - `Extra data: line 1 column 4` → Response is an array `[]` instead of object `{}` - parse differently

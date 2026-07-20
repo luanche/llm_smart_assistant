@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+import json
 import logging
 import pathlib
 from typing import Any
@@ -31,6 +32,8 @@ _LOGGER = logging.getLogger(__name__)
 
 # Module-level cache for suggestions (avoids class-variable scoping issues in dynamic views)
 _SUGGESTIONS_CACHE: dict[str, dict[str, Any]] = {}
+
+
 
 PLATFORMS: list[Platform] = [Platform.SENSOR]
 
@@ -88,11 +91,12 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     hass.data[DOMAIN].pop(entry.entry_id, None)
 
-    # Remove chat panel
-    try:
-        frontend.async_remove_panel(hass, "llm-chat")
-    except Exception:
-        pass
+    # Remove chat panel only when the last instance is removed
+    if not hass.data.get(DOMAIN):
+        try:
+            frontend.async_remove_panel(hass, "llm-chat")
+        except Exception:
+            pass
 
     return True
 
@@ -407,6 +411,15 @@ async def _async_register_chat_panel(
                     current_html = await hass.async_add_executor_job(
                         lambda: html_path.read_text(encoding="utf-8")
                     )
+                    # Inject configured access token (if any) into the HTML
+                    access_token = ""
+                    for coord in hass.data.get(DOMAIN, {}).values():
+                        if hasattr(coord, 'access_token') and coord.access_token:
+                            access_token = coord.access_token
+                            break
+                    if access_token:
+                        script = f'<script>window.CONFIGURED_ACCESS_TOKEN={json.dumps(access_token)};</script>'
+                        current_html = current_html.replace("</head>", script + "</head>")
                     return web.Response(
                         text=current_html,
                         content_type="text/html",
@@ -465,7 +478,7 @@ async def _async_register_chat_panel(
 
                         if not coordinator:
                             return web.json_response({
-                                "suggestions": ["Turn on a light", "What is the temperature?", "Turn off a device"],
+                                "suggestions": [],
                                 "hash": ""
                             })
 
@@ -497,9 +510,12 @@ async def _async_register_chat_panel(
 
                         try:
                             raw = await coordinator._async_query_llm_raw([{
+                                "role": "system",
+                                "content": f"You are a smart home assistant. Generate example commands in {lang_name}."
+                            }, {
                                 "role": "user",
                                 "content": prompt_text
-                            }])
+                            }], max_tokens=300)
                             if raw:
                                 lines = [s.strip() for s in raw.split("\n") if s.strip()]
                                 result = lines[:6]
@@ -515,7 +531,7 @@ async def _async_register_chat_panel(
                             pass
 
                         return web.json_response({
-                            "suggestions": cached.get("suggestions", ["Turn on a light", "What is the temperature?", "Turn off a device"]),
+                            "suggestions": cached.get("suggestions", []),
                             "hash": cache_key,
                         })
 
@@ -524,17 +540,19 @@ async def _async_register_chat_panel(
 
 
 
-                await panel_custom.async_register_panel(
-                    hass=hass,
-                    frontend_url_path="llm-chat",
-                    webcomponent_name="llm-chat-panel",
-                    sidebar_title="AI Chat",
-                    sidebar_icon="mdi:robot",
-                    module_url="/api/llm_smart_assistant/chat_js",
-                    require_admin=True,
-                    config={},
-                )
-                _LOGGER.info("AI Chat panel registered in sidebar at /llm-chat")
+                # Only register the sidebar panel once (on first entry)
+                if not hass.data.get(DOMAIN) or len(hass.data[DOMAIN]) <= 1:
+                    await panel_custom.async_register_panel(
+                        hass=hass,
+                        frontend_url_path="llm-chat",
+                        webcomponent_name="llm-chat-panel",
+                        sidebar_title="AI Chat",
+                        sidebar_icon="mdi:robot",
+                        module_url="/api/llm_smart_assistant/chat_js",
+                        require_admin=True,
+                        config={},
+                    )
+                    _LOGGER.info("AI Chat panel registered in sidebar at /llm-chat")
             except Exception as panel_err:
                 _LOGGER.warning(
                     "Sidebar panel registration failed (you can still open the chat directly): %s",
