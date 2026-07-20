@@ -1,5 +1,14 @@
 # Changelog
 
+## v1.1.0
+
+- feat: add workflow note to README
+- fix: correct YAML syntax in release pipeline (multiline Python, quoted on)
+- docs: remove duplicate blank entry in CHANGELOG.md
+- chore: implement GitFlow-style branching and auto-release pipeline
+- docs: update changelog for v1.0.1
+
+
 ## v1.0.1
 
 - chore: add llm-test skill, fix RESTRICTED_DOMAINS, optimize prompts

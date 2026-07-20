@@ -1,12 +1,14 @@
 {
   "domain": "llm_smart_assistant",
   "name": "LLM Smart Assistant",
-  "codeowners": ["@luanche"],
+  "codeowners": [
+    "@luanche"
+  ],
   "config_flow": true,
   "dependencies": [],
   "documentation": "https://github.com/luanche/llm_smart_assistant",
   "integration_type": "hub",
   "iot_class": "cloud_polling",
   "requirements": [],
-  "version": "1.0.0"
+  "version": "1.1.0"
 }
