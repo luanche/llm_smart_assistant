@@ -62,78 +62,94 @@
       line-height: 1.5;
     }
 
-    /* === HEADER (Fluid Island) === */
-    #headerOuter {
-      padding: 8px 12px 4px;
-      flex-shrink: 0;
+    /* === APP CONTAINER (full-width) === */
+    #appContainer {
+      width: 100%;
+      max-width: 100%;
+      height: 100dvh;
+      margin: 0 auto;
+      display: flex; flex-direction: column;
+      background: var(--bg);
+      padding-top: env(safe-area-inset-top, 0px);
+      padding-bottom: env(safe-area-inset-bottom, 0px);
     }
+
+    /* === COMPACT HEADER === */
     #header {
-      display: flex; align-items: center; gap: 6px;
-      padding: 8px 14px;
+      display: flex; align-items: center;
+      height: 52px; padding: 0 12px;
+      flex-shrink: 0;
+      border-bottom: 1px solid var(--border);
       background: var(--surface);
       backdrop-filter: blur(32px) saturate(1.6);
       -webkit-backdrop-filter: blur(32px) saturate(1.6);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-inner);
-      box-shadow: var(--shadow-sm);
-      transition: var(--transition);
     }
-    #header:hover { border-color: var(--border-hover); box-shadow: var(--shadow-md); }
     #headerTitle {
-      font-size: 15px; font-weight: 590;
-      letter-spacing: -0.01em;
+      font-size: 16px; font-weight: 700;
+      letter-spacing: -0.02em;
       color: var(--text-primary);
-      margin-right: auto;
+      min-width: 60px;
+    }
+    .pill-switch-wrap {
+      flex: 1;
+      display: flex;
+      justify-content: center;
+    }
+    .pill-switch {
+      display: flex;
+      background: var(--surface-alt);
+      border-radius: var(--radius-pill);
+      padding: 2px;
+      gap: 1px;
+    }
+    .pill-btn {
+      padding: 5px 14px;
+      border: none; border-radius: var(--radius-pill);
+      font-size: 12px; font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      background: transparent;
+      color: var(--text-secondary);
+      transition: var(--transition);
+      white-space: nowrap;
+    }
+    .pill-btn.active {
+      background: var(--accent);
+      color: #fff;
+    }
+    .pill-btn:not(.active):hover { color: var(--text-primary); }
+    .header-right {
+      display: flex; align-items: center; gap: 6px;
+      margin-left: auto;
     }
     .instance-select {
-      font-size: 12px; font-weight: 500;
-      padding: 4px 20px 4px 8px; border: 1px solid var(--border);
-      border-radius: 8px; background: var(--surface-alt);
+      font-size: 11px; font-weight: 500;
+      padding: 3px 18px 3px 6px; border: 1px solid var(--border);
+      border-radius: 6px; background: var(--surface-alt);
       color: var(--text-primary); display: none;
       cursor: pointer; outline: none;
       appearance: none;
       -webkit-appearance: none;
       background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%238e8e93' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
       background-repeat: no-repeat;
-      background-position: right 6px center;
-      transition: var(--transition);
+      background-position: right 5px center;
     }
     .instance-select:focus { border-color: var(--accent); }
-    #statusText {
-      font-size: 11px; font-weight: 500;
-      color: var(--text-tertiary);
-      letter-spacing: 0.01em;
-      white-space: nowrap;
-    }
     .debug-btn {
       background: none; border: none;
-      font-size: 14px; cursor: pointer;
-      opacity: 0.2; transition: var(--transition);
-      padding: 4px; border-radius: 6px;
+      font-size: 15px; cursor: pointer;
+      opacity: 0.25; transition: var(--transition);
+      padding: 6px; border-radius: 8px;
       line-height: 1;
+      min-width: 36px; min-height: 36px;
+      display: flex; align-items: center; justify-content: center;
     }
     .debug-btn:hover { opacity: 0.6; background: var(--accent-subtle); }
-
-    /* === TABS === */
-    #tabBar {
-      display: flex; gap: 2px;
-      padding: 0 12px 6px;
-      flex-shrink: 0;
+    #statusText {
+      font-size: 10px; font-weight: 500;
+      color: var(--text-tertiary);
+      display: none;
     }
-    .tab-btn {
-      flex: 1; padding: 7px 12px; text-align: center;
-      font-size: 13px; font-weight: 500;
-      background: transparent; border: none; cursor: pointer;
-      color: var(--text-secondary);
-      border-radius: 8px;
-      transition: var(--transition);
-      font-family: inherit;
-    }
-    .tab-btn.active {
-      color: var(--accent);
-      background: var(--accent-subtle);
-    }
-    .tab-btn:hover:not(.active) { background: var(--surface-alt); }
 
     /* === CHAT CONTAINER === */
     #chatTab, #autoTab { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
@@ -153,58 +169,125 @@
     #chatContainer::-webkit-scrollbar-track { background: transparent; }
     #chatContainer::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
 
-    /* === INPUT AREA (nested double-bezel) === */
-    #inputOuter {
-      padding: 4px 8px 10px;
+    /* === INPUT BAR (bottom toolbar) === */
+    #inputBar {
+      padding: 6px 10px;
+      padding-bottom: max(6px, env(safe-area-inset-bottom, 10px));
       flex-shrink: 0;
+      border-top: 1px solid var(--border);
+      background: var(--bg);
     }
-    #inputShell {
-      background: var(--surface);
-      backdrop-filter: blur(32px) saturate(1.6);
-      -webkit-backdrop-filter: blur(32px) saturate(1.6);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-inner);
-      padding: 4px;
-      box-shadow: var(--shadow-sm);
-      transition: var(--transition);
+    #inputRow {
+      display: flex; align-items: center; gap: 6px;
+      min-height: 44px;
     }
-    #inputShell:focus-within {
-      border-color: var(--accent);
-      box-shadow: var(--shadow-md), 0 0 0 3px var(--accent-glow);
-    }
-    #inputArea {
-      display: flex; align-items: flex-end; gap: 4px;
+    /* Mode toggle button (mic/keyboard) */
+    #modeToggle {
+      width: 44px; height: 44px;
+      border-radius: 50%;
+      border: none;
       background: var(--surface-alt);
-      border-radius: calc(var(--radius-inner) - 4px);
-      padding: 2px;
-    }
-    #voiceBtn, #sendBtn {
-      width: 36px; height: 36px; border-radius: 10px; border: none;
+      color: var(--text-secondary);
+      font-size: 18px;
+      cursor: pointer;
       display: flex; align-items: center; justify-content: center;
-      flex-shrink: 0; cursor: pointer; font-size: 16px;
+      flex-shrink: 0;
       transition: var(--transition);
     }
-    #voiceBtn {
-      background: transparent; color: var(--text-secondary);
+    #modeToggle:active { background: var(--accent-subtle); }
+    /* Text input capsule */
+    #textInputWrap {
+      flex: 1;
+      display: flex; align-items: center;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 9999px;
+      padding: 2px;
+      transition: var(--transition);
     }
-    #voiceBtn:hover { background: var(--accent-subtle); color: var(--accent); }
-    #voiceBtn.listening { background: var(--danger); color: #fff; animation: pulse-glow 1.5s ease-in-out infinite; }
-    @keyframes pulse-glow { 0%,100%{box-shadow:0 0 0 0 rgba(255,59,48,0.4);} 50%{box-shadow:0 0 0 8px rgba(255,59,48,0);} }
-    #sendBtn {
-      background: var(--accent); color: #fff;
+    #textInputWrap:focus-within {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px var(--accent-glow);
     }
-    #sendBtn:disabled { opacity: 0.3; cursor: not-allowed; }
-    #sendBtn:hover:not(:disabled) { background: var(--accent-hover); transform: scale(1.02); }
-    #sendBtn:active:not(:disabled) { transform: scale(0.96); }
     #inputField {
-      flex: 1; border: none; border-radius: 10px;
-      padding: 8px 10px; font-size: 15px;
-      background: transparent; color: var(--text-primary);
+      flex: 1;
+      border: none; background: transparent;
+      color: var(--text-primary);
+      font-size: 15px; font-family: inherit;
       outline: none; resize: none;
-      font-family: inherit; min-height: 36px; max-height: 100px;
+      min-height: 24px; max-height: 80px;
       line-height: 1.4;
+      padding: 8px 12px;
     }
     #inputField::placeholder { color: var(--text-tertiary); }
+    #sendBtn {
+      width: 36px; height: 36px;
+      border-radius: 50%;
+      border: none;
+      background: var(--accent); color: #fff;
+      font-size: 16px;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0; margin: 2px;
+      transition: var(--transition);
+    }
+    #sendBtn:disabled { opacity: 0.3; cursor: not-allowed; }
+    #sendBtn:hover:not(:disabled) { background: var(--accent-hover); }
+    #sendBtn:active:not(:disabled) { transform: scale(0.92); }
+    /* Voice mode: hold-to-speak button */
+    #voiceHoldBtn {
+      flex: 1;
+      height: 48px;
+      border-radius: 24px;
+      border: none;
+      background: var(--accent);
+      color: #fff;
+      font-size: 15px; font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      display: none;
+      align-items: center; justify-content: center;
+      gap: 8px;
+      transition: var(--transition);
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: manipulation;
+    }
+    #voiceHoldBtn:active {
+      background: var(--accent-hover);
+      transform: scale(0.98);
+    }
+    #voiceHoldBtn.listening {
+      background: var(--danger);
+      animation: pulse-glow 1.5s ease-in-out infinite;
+    }
+    @keyframes pulse-glow { 0%,100%{box-shadow:0 0 0 0 rgba(255,59,48,0.4);} 50%{box-shadow:0 0 0 12px rgba(255,59,48,0);} }
+    /* Suggestions horizontal scroll */
+    #suggestionOuter {
+      overflow-x: auto;
+      padding: 8px 12px 0;
+      flex-shrink: 0;
+      -webkit-overflow-scrolling: touch;
+    }
+    #suggestionOuter::-webkit-scrollbar { display: none; }
+    #suggestionButtons {
+      display: flex; gap: 8px;
+      white-space: nowrap;
+    }
+    .suggestion-btn {
+      padding: 7px 16px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-pill);
+      background: var(--surface);
+      color: var(--accent);
+      font-size: 12px; font-weight: 500;
+      font-family: inherit;
+      cursor: pointer;
+      flex-shrink: 0;
+      transition: var(--transition);
+      min-height: 36px;
+    }
+    .suggestion-btn:hover { background: var(--accent-subtle); border-color: var(--accent); }
 
     /* === MESSAGES === */
     .msg {
@@ -282,179 +365,328 @@
 
     /* === AUTOMATIONS TAB === */
     #autoContainer {
-      flex: 1; overflow-y: auto; padding: 8px;
+      flex: 1; overflow-y: auto;
+      padding: 12px 12px 80px;
     }
     .auto-card {
       background: var(--surface);
       border: 1px solid var(--border);
-      border-radius: var(--radius-inner);
-      padding: 12px 14px;
-      margin-bottom: 8px;
-      backdrop-filter: blur(16px);
+      border-radius: 16px;
+      padding: 16px;
+      margin-bottom: 12px;
       transition: var(--transition);
     }
-    .auto-card:hover { border-color: var(--border-hover); box-shadow: var(--shadow-sm); }
+    .auto-card:hover { border-color: var(--border-hover); }
     .auto-card.disabled { opacity: 0.45; }
-    .auto-card .entity { font-weight: 590; font-size: 13px; letter-spacing: -0.01em; }
-    .auto-card .detail { font-size: 12px; color: var(--text-secondary); margin: 3px 0; }
-    .auto-card .actions { display: flex; gap: 6px; margin-top: 8px; }
-    .auto-card .actions button {
-      padding: 5px 12px;
-      border-radius: 8px; border: 1px solid var(--border);
+    .auto-card-header {
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .auto-card-header-left {
+      display: flex; flex-direction: column; gap: 3px;
+    }
+    .auto-card-badge {
+      font-size: 10px; font-weight: 700;
+      color: var(--accent);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+    .auto-card-title {
+      font-size: 14px; font-weight: 600;
+      color: var(--text-primary);
+      display: flex; align-items: center; gap: 4px; flex-wrap: wrap;
+    }
+    .auto-card-title code {
+      font-size: 12px;
+      font-family: 'SF Mono', Menlo, 'Cascadia Code', monospace;
       background: var(--surface-alt);
-      cursor: pointer; font-size: 12px; font-weight: 500;
-      font-family: inherit; color: var(--text-primary);
+      border: 1px solid var(--border);
+      padding: 1px 6px;
+      border-radius: 4px;
+      color: var(--accent);
+    }
+    /* Toggle switch */
+    .auto-card-toggle {
+      width: 44px; height: 24px;
+      border-radius: 12px;
+      border: none;
+      cursor: pointer;
+      position: relative;
+      background: var(--border);
+      transition: var(--transition);
+      flex-shrink: 0;
+    }
+    .auto-card-toggle.on { background: var(--accent); }
+    .auto-card-toggle::after {
+      content: '';
+      position: absolute; top: 2px; left: 2px;
+      width: 20px; height: 20px;
+      border-radius: 50%;
+      background: #fff;
+      transition: var(--transition);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+    }
+    .auto-card-toggle.on::after { left: 22px; }
+    /* Action summary */
+    .auto-card-action {
+      font-size: 12px;
+      background: var(--surface-alt);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px 12px;
+      display: flex; align-items: center; gap: 6px;
+      margin: 8px 0;
+    }
+    .auto-card-action .alabel {
+      color: var(--text-tertiary);
+      flex-shrink: 0;
+    }
+    .auto-card-action .avalue {
+      color: var(--text-primary);
+      font-weight: 500;
+    }
+    /* Footer */
+    .auto-card-footer {
+      display: flex; justify-content: flex-end; gap: 8px;
+      padding-top: 12px;
+      border-top: 1px solid var(--border);
+    }
+    .auto-card-footer button {
+      padding: 8px 14px;
+      border-radius: 10px;
+      border: none;
+      font-size: 12px; font-weight: 500;
+      font-family: inherit;
+      cursor: pointer;
       transition: var(--transition);
     }
-    .auto-card .actions button:hover { background: var(--accent-subtle); border-color: var(--accent); }
-    .auto-card .actions .delete-btn { color: var(--danger); border-color: rgba(255,59,48,0.3); }
-    .auto-card .actions .delete-btn:hover { background: rgba(255,59,48,0.1); border-color: var(--danger); }
-    .auto-card .toggle-on { color: var(--success); }
-    .auto-card .toggle-off { color: var(--text-secondary); }
+    .auto-card-footer .edit-btn {
+      background: var(--surface-alt);
+      color: var(--text-primary);
+    }
+    .auto-card-footer .edit-btn:hover { background: var(--accent-subtle); }
+    .auto-card-footer .delete-btn {
+      background: rgba(255,59,48,0.08);
+      color: var(--danger);
+      border: 1px solid rgba(255,59,48,0.15);
+    }
+    .auto-card-footer .delete-btn:hover {
+      background: rgba(255,59,48,0.15);
+    }
 
-    /* === DEBUG MODAL === */
-    #debugModal {
+    /* === FAB === */
+    .fab {
+      position: fixed;
+      bottom: 28px;
+      right: max(20px, env(safe-area-inset-right, 20px));
+      width: 56px; height: 56px;
+      border-radius: 50%;
+      border: none;
+      background: var(--accent);
+      color: #fff;
+      font-size: 26px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 6px 20px var(--accent-glow);
+      transition: var(--transition);
+      z-index: 20;
+    }
+    .fab:hover { transform: scale(1.06); background: var(--accent-hover); }
+    .fab:active { transform: scale(0.94); }
+
+    /* === DEBUG BOTTOM SHEET === */
+    #debugSheet {
       display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
       background: rgba(0,0,0,0.5);
-      backdrop-filter: blur(8px);
-      -webkit-backdrop-filter: blur(8px);
       z-index: 1000;
-      align-items: center; justify-content: center; padding: 24px;
-      animation: modal-in 0.25s cubic-bezier(0.32, 0.72, 0, 1);
+      align-items: flex-end; justify-content: center;
     }
-    @keyframes modal-in { from { opacity: 0; } to { opacity: 1; } }
-    #debugModal.open { display: flex; }
-    #debugContent {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-outer);
-      padding: 20px; max-width: 92vw; max-height: 80vh; overflow: auto;
-      font-family: 'SF Mono', Menlo, monospace; font-size: 11px;
-      white-space: pre-wrap; position: relative;
-      color: var(--text-primary);
-      backdrop-filter: blur(32px);
-      box-shadow: var(--shadow-lg);
-      animation: content-in 0.3s cubic-bezier(0.32, 0.72, 0, 1);
-    }
-    @keyframes content-in { from { opacity: 0; transform: scale(0.95) translateY(10px); } to { opacity: 1; transform: scale(1) translateY(0); } }
-    #debugModalClose {
-      position: absolute; top: 8px; right: 10px;
-      background: none; border: none; font-size: 18px;
-      cursor: pointer; color: var(--text-secondary);
-      padding: 4px; border-radius: 6px;
-      transition: var(--transition);
-    }
-    #debugModalClose:hover { background: var(--accent-subtle); color: var(--text-primary); }
-    #debugContent::-webkit-scrollbar { width: 3px; }
-    #debugContent::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
-
-    /* === MODAL OVERLAY === */
-    .modal-overlay {
-      display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-      background: rgba(0,0,0,0.45);
-      backdrop-filter: blur(6px);
-      -webkit-backdrop-filter: blur(6px);
-      z-index: 2000;
-      align-items: center; justify-content: center; padding: 24px;
-      animation: modal-in 0.2s cubic-bezier(0.32, 0.72, 0, 1);
-    }
-    .modal-overlay.open { display: flex; }
-    .modal-card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-outer);
-      width: 100%; max-width: 400px;
-      backdrop-filter: blur(32px);
-      box-shadow: var(--shadow-lg);
-      animation: content-in 0.25s cubic-bezier(0.32, 0.72, 0, 1);
+    #debugSheet.open { display: flex; }
+    #debugSheet .sheet {
+      max-height: 85vh;
       overflow: hidden;
     }
-    .modal-header {
-      display: flex; align-items: center;
-      padding: 14px 16px 8px;
-      gap: 8px;
+    #debugSheetContent {
+      flex: 1; overflow-y: auto;
+      padding: 0 16px 16px;
+      font-family: 'SF Mono', Menlo, monospace; font-size: 11px;
+      color: var(--text-primary);
     }
-    .modal-title {
-      font-size: 15px; font-weight: 590;
+    #debugSheetContent pre {
+      background: var(--surface-alt);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px;
+      font-size: 10px;
+      overflow-x: auto;
+      white-space: pre-wrap;
+      word-break: break-all;
+      line-height: 1.5;
+    }
+    #debugSheetContent .debug-label {
+      font-size: 11px; font-weight: 600;
+      color: var(--accent);
+      margin-bottom: 4px; margin-top: 12px;
+    }
+    #debugSheetContent .debug-label:first-child { margin-top: 0; }
+    .debug-round-block {
+      background: var(--surface-alt);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px;
+      margin-bottom: 8px;
+    }
+    .debug-round-block .round-header {
+      font-weight: 600; font-size: 11px;
+      color: var(--accent);
+      margin-bottom: 4px;
+    }
+    .debug-round-block .round-step {
+      font-size: 10px; color: var(--text-secondary);
+      margin: 2px 0;
+    }
+    .debug-round-block .round-tts {
+      font-size: 10px; color: var(--text-tertiary);
+    }
+
+    /* === BOTTOM SHEET MODALS === */
+    .sheet-overlay {
+      display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.5);
+      z-index: 2000;
+      align-items: flex-end; justify-content: center;
+    }
+    .sheet-overlay.open { display: flex; }
+    .sheet {
+      width: 100%; max-width: 480px;
+      background: var(--surface);
+      backdrop-filter: blur(32px);
+      -webkit-backdrop-filter: blur(32px);
+      border-radius: 16px 16px 0 0;
+      padding: 0 0 env(safe-area-inset-bottom, 16px);
+      animation: sheet-up 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+      max-height: 85vh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+    @keyframes sheet-up {
+      from { transform: translateY(100%); }
+      to { transform: translateY(0); }
+    }
+    .sheet-handle {
+      width: 36px; height: 4px;
+      background: var(--text-tertiary);
+      border-radius: 2px;
+      margin: 8px auto;
+      flex-shrink: 0;
+    }
+    .sheet-header {
+      display: flex; align-items: center;
+      padding: 4px 16px 12px;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+    .sheet-title {
+      font-size: 16px; font-weight: 600;
       color: var(--text-primary);
       flex: 1;
     }
-    .modal-close {
-      background: none; border: none; font-size: 18px;
+    .sheet-close {
+      background: none; border: none; font-size: 20px;
       cursor: pointer; color: var(--text-secondary);
-      padding: 2px 6px; border-radius: 6px;
+      padding: 4px 8px; border-radius: 8px;
+      min-width: 44px; min-height: 44px;
       transition: var(--transition);
     }
-    .modal-close:hover { background: var(--accent-subtle); color: var(--text-primary); }
-    .modal-body { padding: 8px 16px 16px; }
-    .modal-input {
-      width: 100%; border: 1px solid var(--border);
-      border-radius: var(--radius-inner);
-      padding: 10px 12px; font-size: 14px;
+    .sheet-close:hover { background: var(--accent-subtle); }
+    .sheet-body {
+      padding: 0 16px 16px;
+      overflow-y: auto;
+      flex: 1;
+    }
+    .sheet-body label {
+      font-size: 12px; font-weight: 500;
+      color: var(--text-secondary);
+      margin-bottom: 4px; display: block;
+    }
+    .sheet-input {
+      width: 100%;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px 14px;
+      font-size: 15px;
       background: var(--surface-alt);
       color: var(--text-primary);
-      outline: none; resize: vertical;
-      font-family: inherit; line-height: 1.5;
+      outline: none;
+      font-family: inherit;
+      line-height: 1.5;
+      min-height: 44px;
       transition: var(--transition);
     }
-    .modal-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
-    .modal-footer {
-      display: flex; justify-content: flex-end; gap: 8px;
-      padding: 0 16px 14px;
+    .sheet-input:focus { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-glow); }
+    .sheet-footer {
+      display: flex; gap: 10px;
+      padding: 8px 16px 0;
+      flex-shrink: 0;
     }
-    .modal-btn {
-      padding: 8px 18px; border-radius: 10px;
-      border: none; font-size: 13px; font-weight: 500;
-      cursor: pointer; font-family: inherit;
+    .sheet-footer .sheet-btn {
+      flex: 1;
+      padding: 12px;
+      border-radius: 12px;
+      border: none;
+      font-size: 14px; font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      min-height: 44px;
       transition: var(--transition);
     }
-    .modal-btn-primary {
+    .sheet-btn.primary {
       background: var(--accent); color: #fff;
     }
-    .modal-btn-primary:hover { background: var(--accent-hover); transform: scale(1.02); }
-    .modal-btn-primary:active { transform: scale(0.97); }
-    .modal-btn-secondary {
+    .sheet-btn.primary:hover { background: var(--accent-hover); }
+    .sheet-btn.primary:active { transform: scale(0.97); }
+    .sheet-btn.secondary {
       background: var(--surface-alt); color: var(--text-primary);
       border: 1px solid var(--border);
     }
-    .modal-btn-secondary:hover { background: var(--accent-subtle); border-color: var(--accent); }
+    .sheet-btn.secondary:hover { background: var(--accent-subtle); }
+    .sheet-btn.danger {
+      background: var(--danger); color: #fff;
+    }
 
     /* === MOBILE === */
-    @media (max-width: 480px) {
-      body { font-size: 15px; }
-      #headerOuter { padding: 6px 8px 3px; }
-      #header { padding: 6px 10px; border-radius: 12px; }
+    @media (max-width: 640px) {
+      #header { padding: 0 10px; }
       #headerTitle { font-size: 14px; }
+      .pill-btn { padding: 4px 10px; font-size: 11px; }
       .msg { max-width: 92%; padding: 8px 12px; font-size: 15px; }
-      #inputOuter { padding: 3px 6px 8px; }
-      #inputField { font-size: 16px; min-height: 36px; padding: 6px 8px; }
-      #voiceBtn, #sendBtn { width: 34px; height: 34px; font-size: 15px; }
       #chatOuter { padding: 0 4px 3px; }
       #chatContainer { padding: 2px; gap: 6px; }
       #emptyState { padding: 24px 12px; margin-top: 20px; }
-      .suggestion-btn { font-size: 12px; padding: 6px 14px; }
-      .instance-select { font-size: 11px; padding: 3px 16px 3px 6px; max-width: 80px; }
-      #debugContent { max-width: 96vw; padding: 14px; font-size: 10px; }
+      #inputBar { padding: 6px 8px; padding-bottom: max(6px, env(safe-area-inset-bottom, 6px)); }
+      #inputField { font-size: 16px; }
       .auto-card { padding: 10px 12px; }
-      #tabBar { padding: 0 8px 4px; }
-      .tab-btn { font-size: 12px; padding: 6px 8px; }
     }
   </style>
 </head>
 <body>
 
-<div id="headerOuter">
-  <div id="header">
-    <span id="headerTitle" data-i18n="title"></span>
+<div id="appContainer">
+<div id="header">
+  <span id="headerTitle" data-i18n="title"></span>
+  <div class="pill-switch-wrap">
+    <div class="pill-switch">
+      <button class="pill-btn active" onclick="switchTab('chat')" data-i18n="chat"></button>
+      <button class="pill-btn" onclick="switchTab('auto')" data-i18n="automations"></button>
+    </div>
+  </div>
+  <div class="header-right">
     <select id="instanceSelect" class="instance-select" onchange="switchInstance()" title=""></select>
     <button id="debugBtn" class="debug-btn" title="${t('debugBtnTitle')}">🔧</button>
     <span id="statusText" class="status-text" data-i18n="connected"></span>
   </div>
-</div>
-
-<div id="tabBar">
-  <button class="tab-btn active" onclick="switchTab('chat')" data-i18n="chat"></button>
-  <button class="tab-btn" onclick="switchTab('auto')" data-i18n="automations"></button>
 </div>
 
 <div id="chatTab">
@@ -462,105 +694,117 @@
     <div id="chatContainer">
       <div id="emptyState">
         <p id="emptyText" data-i18n="empty"></p>
-        <div style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center">
-          <div id="suggestionButtons" style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center"></div>
-        </div>
       </div>
     </div>
   </div>
-  <div id="inputOuter">
-    <div id="inputShell">
-      <div id="inputArea">
-        <button id="voiceBtn" onclick="toggleVoice()" title="${t('voiceInputTitle')}">🎤</button>
-        <textarea id="inputField" rows="1" data-i18n="placeholderMsg" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMessage()}"></textarea>
-        <button id="sendBtn" onclick="sendMessage()" title="${t('sendTitle')}">↑</button>
+  <div id="suggestionOuter"><div id="suggestionButtons"></div></div>
+  <div id="inputBar">
+    <div id="inputRow">
+      <button id="modeToggle" onclick="toggleInputMode()" title="${t('voiceInputTitle')}">🎤</button>
+      <div id="textInputWrap">
+        <textarea id="inputField" rows="1" data-i18n="placeholderMsg" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMessage()}" oninput="updateSendBtn()"></textarea>
+        <button id="sendBtn" onclick="sendMessage()" disabled>↑</button>
       </div>
+      <button id="voiceHoldBtn" onpointerdown="startVoice()" onpointerup="releaseVoice()" onpointerleave="releaseVoice()">🎤 <span id="voiceHoldText"></span></button>
     </div>
   </div>
 </div>
 
 <div id="autoTab">
-  <div style="display:flex;gap:6px;padding:8px 8px 0;flex-shrink:0;">
-    <button class="modal-btn modal-btn-primary" onclick="showAddModal()" style="flex:1;padding:8px;font-size:13px;" data-i18n="addAuto"></button>
+  <div id="autoContainer" style="flex:1;overflow-y:auto;padding:12px 12px 80px;">
+    <p style="color:var(--text-secondary);text-align:center;padding:60px 20px;font-size:14px;" data-i18n="autoLoading"></p>
   </div>
-  <div id="autoContainer" style="flex:1;overflow-y:auto;padding:8px;">
-    <p style="color:var(--text-secondary);text-align:center;padding:40px 20px;font-size:14px;" data-i18n="autoLoading"></p>
-  </div>
+  <!-- FAB for add automation -->
+  <button id="fabAdd" onclick="showAddSheet()" class="fab" data-i18n="addAuto"></button>
+</div>
 </div>
 
-<!-- Add automation modal -->
-<div id="addModal" class="modal-overlay" onclick="if(event.target===this)cancelAdd()">
-  <div class="modal-card" style="max-width:420px;">
-    <div class="modal-header">
-      <span class="modal-title" id="addModalTitle"></span>
-      <button class="modal-close" onclick="cancelAdd()">✕</button>
+<!-- Add automation bottom sheet -->
+<div id="addSheet" class="sheet-overlay" onclick="if(event.target===this)cancelAdd()">
+  <div class="sheet" onclick="event.stopPropagation()">
+    <div class="sheet-handle"></div>
+    <div class="sheet-header">
+      <span class="sheet-title" id="addSheetTitle" data-i18n="addAutoTitle"></span>
+      <button class="sheet-close" onclick="cancelAdd()">✕</button>
     </div>
-    <div class="modal-body" style="display:flex;flex-direction:column;gap:10px;">
-      <div>
-        <label style="font-size:12px;font-weight:500;color:var(--text-secondary);margin-bottom:4px;display:block;" data-i18n="labelEntityId"></label>
-        <input id="addEntityInput" class="modal-input" rows="1" data-i18n="placeholderEntity" style="resize:none;">
+    <div class="sheet-body">
+      <div style="margin-bottom:12px;">
+        <label data-i18n="labelEntityId"></label>
+        <input id="addEntityInput" class="sheet-input" data-i18n="placeholderEntity">
+      </div>
+      <div style="margin-bottom:12px;">
+        <label data-i18n="labelCondition"></label>
+        <input id="addConditionInput" class="sheet-input" data-i18n="placeholderCondition">
       </div>
       <div>
-      <label style="font-size:12px;font-weight:500;color:var(--text-secondary);margin-bottom:4px;display:block;" data-i18n="labelCondition"></label>
-        <input id="addConditionInput" class="modal-input" rows="1" data-i18n="placeholderCondition" style="resize:none;">
-      </div>
-      <div>
-      <label style="font-size:12px;font-weight:500;color:var(--text-secondary);margin-bottom:4px;display:block;" data-i18n="labelAction"></label>
-        <textarea id="addPromptInput" class="modal-input" rows="2" data-i18n="placeholderAction"></textarea>
+        <label data-i18n="labelAction"></label>
+        <textarea id="addPromptInput" class="sheet-input" rows="2" data-i18n="placeholderAction" style="resize:none;"></textarea>
       </div>
     </div>
-    <div class="modal-footer">
-      <button class="modal-btn modal-btn-secondary" onclick="cancelAdd()">Cancel</button>
-      <button class="modal-btn modal-btn-primary" onclick="confirmAdd()">Add</button>
-    </div>
-  </div>
-</div>
-
-<!-- Confirm modal -->
-<div id="confirmModal" class="modal-overlay" onclick="if(event.target===this)cancelConfirm()">
-  <div class="modal-card" style="max-width:320px;">
-    <div class="modal-body" style="padding:20px 16px 8px;">
-      <p id="confirmText" style="font-size:14px;line-height:1.5;text-align:center;color:var(--text-primary);margin-bottom:16px;"></p>
-    </div>
-    <div class="modal-footer">
-      <button class="modal-btn modal-btn-secondary" onclick="cancelConfirm()">Cancel</button>
-      <button class="modal-btn modal-btn-primary" style="background:var(--danger);" onclick="confirmDelete()">Delete</button>
+    <div class="sheet-footer">
+      <button class="sheet-btn secondary" onclick="cancelAdd()" data-i18n="cancel"></button>
+      <button class="sheet-btn primary" onclick="confirmAdd()" data-i18n="add"></button>
     </div>
   </div>
 </div>
 
-<!-- Edit prompt modal -->
-<div id="editModal" class="modal-overlay" onclick="if(event.target===this)cancelEdit()">
-  <div class="modal-card">
-    <div class="modal-header">
-      <span class="modal-title" id="editModalTitle"></span>
-      <button class="modal-close" onclick="cancelEdit()">✕</button>
+<!-- Confirm bottom sheet -->
+<div id="confirmSheet" class="sheet-overlay" onclick="if(event.target===this)cancelConfirm()">
+  <div class="sheet" onclick="event.stopPropagation()">
+    <div class="sheet-handle"></div>
+    <div class="sheet-header">
+      <span class="sheet-title"></span>
+      <button class="sheet-close" onclick="cancelConfirm()">✕</button>
     </div>
-    <div class="modal-body" style="display:flex;flex-direction:column;gap:10px;">
-      <div>
-        <label style="font-size:12px;font-weight:500;color:var(--text-secondary);margin-bottom:4px;display:block;" data-i18n="labelEntityId"></label>
-        <input id="editEntityInput" class="modal-input" rows="1" data-i18n="placeholderEntity" style="resize:none;">
-      </div>
-      <div>
-        <label style="font-size:12px;font-weight:500;color:var(--text-secondary);margin-bottom:4px;display:block;" data-i18n="labelCondition"></label>
-        <input id="editConditionInput" class="modal-input" rows="1" data-i18n="placeholderCondition" style="resize:none;">
-      </div>
-      <div>
-      <label style="font-size:12px;font-weight:500;color:var(--text-secondary);margin-bottom:4px;display:block;" data-i18n="labelAction"></label>
-        <textarea id="editInput" class="modal-input" rows="2" placeholder="" style="resize:none;"></textarea>
-      </div>
+    <div class="sheet-body">
+      <p id="confirmText" style="font-size:15px;line-height:1.5;text-align:center;color:var(--text-primary);margin:8px 0;"></p>
     </div>
-    <div class="modal-footer">
-      <button class="modal-btn modal-btn-secondary" onclick="cancelEdit()"></button>
-      <button class="modal-btn modal-btn-primary" onclick="confirmEdit()"></button>
+    <div class="sheet-footer">
+      <button class="sheet-btn secondary" onclick="cancelConfirm()" data-i18n="cancel"></button>
+      <button class="sheet-btn danger" onclick="confirmDelete()" data-i18n="deleteConfirmBtn"></button>
     </div>
   </div>
 </div>
 
-<div id="debugModal" class="modal-overlay" onclick="if(event.target===this)this.classList.remove('open')">
-  <div id="debugContent">
-    <button id="debugModalClose" onclick="document.getElementById('debugModal').classList.remove('open')">✕</button>
-    <span data-i18n="noDebugData"></span>
+<!-- Edit automation bottom sheet -->
+<div id="editSheet" class="sheet-overlay" onclick="if(event.target===this)cancelEdit()">
+  <div class="sheet" onclick="event.stopPropagation()">
+    <div class="sheet-handle"></div>
+    <div class="sheet-header">
+      <span class="sheet-title" id="editSheetTitle" data-i18n="editPrompt"></span>
+      <button class="sheet-close" onclick="cancelEdit()">✕</button>
+    </div>
+    <div class="sheet-body">
+      <div style="margin-bottom:12px;">
+        <label data-i18n="labelEntityId"></label>
+        <input id="editEntityInput" class="sheet-input" data-i18n="placeholderEntity">
+      </div>
+      <div style="margin-bottom:12px;">
+        <label data-i18n="labelCondition"></label>
+        <input id="editConditionInput" class="sheet-input" data-i18n="placeholderCondition">
+      </div>
+      <div>
+        <label data-i18n="labelAction"></label>
+        <textarea id="editInput" class="sheet-input" rows="2" data-i18n="editPromptPlaceholder" style="resize:none;"></textarea>
+      </div>
+    </div>
+    <div class="sheet-footer">
+      <button class="sheet-btn secondary" onclick="cancelEdit()" data-i18n="cancel"></button>
+      <button class="sheet-btn primary" onclick="confirmEdit()" data-i18n="save"></button>
+    </div>
+  </div>
+</div>
+
+<div id="debugSheet" class="sheet-overlay" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="sheet" onclick="event.stopPropagation()">
+    <div class="sheet-handle"></div>
+    <div class="sheet-header">
+      <span class="sheet-title">Debug</span>
+      <button class="sheet-close" onclick="document.getElementById('debugSheet').classList.remove('open')">✕</button>
+    </div>
+    <div id="debugSheetContent">
+      <span data-i18n="noDebugData"></span>
+    </div>
   </div>
 </div>
 
@@ -588,6 +832,7 @@ const LANGUAGES = {
     noResponse: '(no response)',
     autoLoading: 'Loading automations...',
     noAuto: 'No automations yet. Ask AI to create one!',
+    holdToSpeak: 'Tap to speak',
     voiceHint: 'Listening...',
     voiceNotSupported: 'Voice input not supported in this browser',
     microphoneBlocked: 'Microphone blocked — use HTTPS or type your message',
@@ -645,6 +890,7 @@ const LANGUAGES = {
     noResponse: '（无回复）',
     autoLoading: '加载自动化...',
     noAuto: '还没有动态自动化。让 AI 创建一个吧！',
+    holdToSpeak: '点击说话',
     voiceHint: '正在聆听...',
     voiceNotSupported: '此浏览器不支持语音输入',
     microphoneBlocked: '麦克风被阻止 — 请使用 HTTPS 或直接输入文字',
@@ -712,43 +958,24 @@ const isZh = langRoot === 'zh';
 
 document.title = t('title');
 applyI18n();
-// Set modal button text
-const cancelBtn = document.querySelector('.modal-btn-secondary');
-const saveBtn = document.querySelector('.modal-btn-primary');
-// Set all modal button texts
-document.querySelectorAll('.modal-btn-secondary').forEach(b => b.textContent = t('cancel'));
-// Edit modal save
-const editSave = document.querySelector('#editModal .modal-btn-primary');
-if (editSave) editSave.textContent = t('save');
-// Add modal add
-const addBtn_ = document.querySelector('#addModal .modal-btn-primary');
-if (addBtn_) addBtn_.textContent = t('add');
-// Confirm modal delete
-const delBtn = document.querySelector('#confirmModal .modal-btn-primary');
-if (delBtn) delBtn.textContent = t('deleteConfirmBtn');
 document.getElementById('headerTitle').textContent = t('title');
 document.getElementById('emptyText').textContent = t('empty');
-document.getElementById('tabBar').querySelectorAll('.tab-btn')[0].textContent = t('chat');
-document.getElementById('tabBar').querySelectorAll('.tab-btn')[1].textContent = t('automations');
+document.querySelectorAll('.pill-btn')[0].textContent = t('chat');
+document.querySelectorAll('.pill-btn')[1].textContent = t('automations');
+document.getElementById('fabAdd').textContent = '+';
 
 // Load dynamic suggestions from API
 async function loadSuggestions() {
   const container = document.getElementById('suggestionButtons');
   if (!container) return;
-
-  // Fallback suggestions if API fails
-  const fallback = ['Turn on a light', 'What is the temperature?', 'Turn off a device'];
   
   try {
-    // Check localStorage cache
-    const cached = localStorage.getItem('llm_suggestions');
     const inst = document.getElementById('instanceSelect');
     const entryId = inst ? inst.value : '';
     
     const resp = await callAPI('GET', '/api/llm_smart_assistant/suggestions?entry_id=' + encodeURIComponent(entryId));
     
     if (resp && resp.suggestions && resp.suggestions.length > 0) {
-      // Cache in localStorage with hash
       localStorage.setItem('llm_suggestions', JSON.stringify({
         hash: resp.hash || '',
         suggestions: resp.suggestions
@@ -766,9 +993,6 @@ async function loadSuggestions() {
       }
     } catch(_) {}
   }
-  
-  // Fallback
-  renderSuggestions(fallback);
 }
 
 function renderSuggestions(suggestions) {
@@ -797,12 +1021,43 @@ function fmt() {
   return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
+// Input mode: 'text' or 'voice'
+let inputMode = 'text';
+
+function toggleInputMode() {
+  inputMode = inputMode === 'text' ? 'voice' : 'text';
+  const modeBtn = document.getElementById('modeToggle');
+  const textWrap = document.getElementById('textInputWrap');
+  const voiceBtn = document.getElementById('voiceHoldBtn');
+  const voiceText = document.getElementById('voiceHoldText');
+  if (inputMode === 'voice') {
+    modeBtn.textContent = '⌨️';
+    textWrap.style.display = 'none';
+    voiceBtn.style.display = 'flex';
+    voiceBtn.className = '';
+    voiceBtn.style.display = 'flex';
+    voiceText.textContent = t('holdToSpeak');
+  } else {
+    modeBtn.textContent = '🎤';
+    textWrap.style.display = 'flex';
+    voiceBtn.style.display = 'none';
+    stopVoice();
+  }
+}
+
+function updateSendBtn() {
+  const input = document.getElementById('inputField');
+  const btn = document.getElementById('sendBtn');
+  btn.disabled = !input.value.trim();
+}
+
 function switchTab(tab) {
-  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-  const btns = document.querySelectorAll('.tab-btn');
+  document.querySelectorAll('.pill-btn').forEach(b => b.classList.remove('active'));
+  const btns = document.querySelectorAll('.pill-btn');
   btns[tab === 'chat' ? 0 : 1].classList.add('active');
   document.getElementById('chatTab').style.display = tab === 'chat' ? 'flex' : 'none';
   document.getElementById('autoTab').style.display = tab === 'auto' ? 'flex' : 'none';
+  document.getElementById('fabAdd').style.display = tab === 'auto' ? 'flex' : 'none';
   if (tab === 'auto') refreshAutomations();
 }
 
@@ -861,39 +1116,53 @@ function setStatus(text, ok) {
   el.style.color = ok !== false ? 'var(--text-tertiary)' : 'var(--danger)';
 }
 
-// Voice input
-function toggleVoice() {
-  if (isListening) { stopVoice(); return; }
+// Voice input - hold to speak (press & hold to record, release to send)
+let _voiceText = '';
+
+function startVoice() {
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SpeechRecognition) { alert(t('voiceNotSupported')); return; }
+  stopVoice();
+  _voiceText = '';
   voiceRecognition = new SpeechRecognition();
   voiceRecognition.lang = lang;
   voiceRecognition.continuous = false;
-  voiceRecognition.interimResults = false;
+  voiceRecognition.interimResults = true;
   voiceRecognition.onresult = (e) => {
     const text = e.results[0][0].transcript;
-    document.getElementById('inputField').value = text;
-    stopVoice();
-    sendMessage();
+    if (text) {
+      _voiceText = text;
+      document.getElementById('voiceHoldText').textContent = text;
+    }
   };
   voiceRecognition.onerror = (e) => {
     stopVoice();
     if (e.error === 'not-allowed') {
       setStatus('❌ ' + t('microphoneBlocked'), false);
-      setTimeout(() => setStatus(t('connected')), 5000);
-    } else {
+    } else if (e.error !== 'no-speech') {
       setStatus(t('voiceError'), false);
-      setTimeout(() => setStatus(t('connected')), 3000);
     }
+    setTimeout(() => setStatus(t('connected')), 3000);
   };
   voiceRecognition.onend = () => {
-    if (isListening) stopVoice();
+    // Recognition ended (either by stop() or auto-completion)
+    if (isListening) {
+      isListening = false;
+      document.getElementById('voiceHoldBtn').classList.remove('listening');
+      document.getElementById('voiceHoldText').textContent = t('holdToSpeak');
+      setStatus(t('connected'));
+      if (_voiceText) {
+        document.getElementById('inputField').value = _voiceText;
+        sendMessage();
+      }
+    }
+    voiceRecognition = null;
   };
   try {
     voiceRecognition.start();
     isListening = true;
-    document.getElementById('voiceBtn').classList.add('listening');
-    document.getElementById('voiceBtn').textContent = '🔴';
+    document.getElementById('voiceHoldBtn').classList.add('listening');
+    document.getElementById('voiceHoldText').textContent = t('voiceHint');
     setStatus(t('voiceHint'));
   } catch(e) {
     stopVoice();
@@ -902,33 +1171,38 @@ function toggleVoice() {
   }
 }
 
+function releaseVoice() {
+  // User released the button - stop recognition (onend will send the result)
+  if (voiceRecognition && isListening) {
+    voiceRecognition.stop();
+  }
+}
+
 function stopVoice() {
   if (voiceRecognition) {
-    try { voiceRecognition.stop(); } catch(e) {}
+    try { voiceRecognition.abort(); } catch(e) {}
     voiceRecognition = null;
   }
+  _voiceText = '';
   isListening = false;
-  document.getElementById('voiceBtn').classList.remove('listening');
-  document.getElementById('voiceBtn').textContent = '🎤';
+  document.getElementById('voiceHoldBtn').classList.remove('listening');
+  document.getElementById('voiceHoldText').textContent = t('holdToSpeak');
   setStatus(t('connected'));
 }
 
 // Debug
 document.getElementById('debugBtn').addEventListener('click', async () => {
-  const modal = document.getElementById('debugModal');
-  const content = document.getElementById('debugContent');
+  const sheet = document.getElementById('debugSheet');
+  const content = document.getElementById('debugSheetContent');
   
-  let html = '<button id="debugModalClose" onclick="document.getElementById(\'debugModal\').classList.remove(\'open\')">✕</button>';
+  let html = '';
   
   // Fetch prompt from debug raw sensor
   try {
     const ds = await callAPI('GET', '/api/states/sensor.llm_debug_raw');
     if (ds && ds.attributes && ds.attributes.prompt) {
-      html += '<div style="margin-bottom:12px">';
-      html += '<div style="font-weight:600;font-size:12px;margin-bottom:4px;color:var(--accent)">Prompt</div>';
-      html += '<pre style="max-height:200px;overflow-y:auto;font-size:10px;padding:8px;background:var(--surface-alt);border-radius:8px;border:1px solid var(--border);white-space:pre-wrap;word-break:break-all">';
-      html += escapeHtml(ds.attributes.prompt);
-      html += '</pre></div>';
+      html += '<div class="debug-label">Prompt</div>';
+      html += '<pre>' + escapeHtml(ds.attributes.prompt) + '</pre>';
     }
   } catch(e) {}
   
@@ -938,34 +1212,32 @@ document.getElementById('debugBtn').addEventListener('click', async () => {
       const rounds = parsed.rounds;
       
       if (rounds && rounds.length > 0) {
-        html += '<div class="debug-rounds">';
+        html += '<div class="debug-label">' + t('debugRound') + ' Rounds</div>';
         rounds.forEach((r, i) => {
           const stepCount = (r.steps || []).length;
           const ttsDisplay = r.tts_text || '' + t('debugSilent') + '';
-          html += '<div style="margin-bottom:12px;padding:8px 10px;background:var(--surface-alt);border-radius:8px;border:1px solid var(--border)">';
-          html += '<div style="font-weight:600;font-size:12px;margin-bottom:4px;color:var(--accent)">' + t('debugRound') + ' ' + r.round + '</div>';
-          html += '<div style="font-size:11px;color:var(--text-secondary)">' + t('debugSteps') + ' ' + (stepCount > 0 ? JSON.stringify(r.steps, null, 2) : '[]') + '</div>';
-          html += '<div style="font-size:11px;color:var(--text-tertiary);margin-top:2px">' + t('debugTts') + ' "' + ttsDisplay + '"' + (i < rounds.length - 1 ? ' ' + t('debugSilent') + '' : '') + '</div>';
+          html += '<div class="debug-round-block">';
+          html += '<div class="round-header">' + t('debugRound') + ' ' + r.round + '</div>';
+          html += '<div class="round-step">' + t('debugSteps') + ' ' + escapeHtml(JSON.stringify(r.steps, null, 2)) + '</div>';
+          html += '<div class="round-tts">' + t('debugTts') + ' "' + escapeHtml(ttsDisplay) + '"' + (i < rounds.length - 1 ? ' ' + t('debugSilent') : '') + '</div>';
           html += '</div>';
         });
-        html += '</div>';
       } else {
-        html += '<pre style="max-height:300px;overflow-y:auto;font-size:10px">' + JSON.stringify(parsed, null, 2) + '</pre>';
+        html += '<div class="debug-label">Raw</div>';
+        html += '<pre>' + escapeHtml(JSON.stringify(parsed, null, 2)) + '</pre>';
       }
     } catch(e) {
-      html += '<pre style="max-height:300px;overflow-y:auto;font-size:10px">' + lastDebugRaw + '</pre>';
+      html += '<div class="debug-label">Raw</div>';
+      html += '<pre>' + escapeHtml(lastDebugRaw) + '</pre>';
     }
   } else {
     html += '<span>' + t('noDebugData') + '</span>';
   }
   content.innerHTML = html;
-  modal.classList.add('open');
-});
-document.getElementById('debugModalClose').addEventListener('click', () => {
-  document.getElementById('debugModal').classList.remove('open');
+  sheet.classList.add('open');
 });
 document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape') document.getElementById('debugModal').classList.remove('open');
+  if (e.key === 'Escape') document.getElementById('debugSheet').classList.remove('open');
 });
 
 // Instance discovery
@@ -1018,16 +1290,21 @@ async function refreshAutomations() {
       const entityEsc = (a.entity_id || '').replace(/'/g, "\\'");
       const condEsc = (a.condition || '').replace(/'/g, "\\'");
       const descEsc = (a.description || '').replace(/'/g, "\\'");
+      const actionSummary = a.description || a.prompt || t('noActionSpecified');
       card.innerHTML = `
-        <div class="entity">${a.entity_id} ${a.condition}</div>
-        <div class="detail">${a.description || ''}</div>
-        <div class="detail" style="font-size:11px;color:var(--text-tertiary)">${t('actionLabel')} ${a.prompt || t('noActionSpecified')}</div>
-        <div class="actions">
-          <button class="${isDisabled ? 'toggle-on' : 'toggle-off'}" onclick="toggleAutomation('${id}', ${!isDisabled})">
-            ${isDisabled ? t('enable') : t('disable')}
-          </button>
-          <button onclick="showEditModal('${id}', '${entityEsc}', '${condEsc}', '${promptEsc}')">${t('edit')}</button>
-          <button class="delete-btn" onclick="showDeleteConfirm('${id}')">${t('delete')}</button>
+        <div class="auto-card">
+          <div class="auto-card-header">
+            <div class="auto-card-header-left">
+              <div class="auto-card-badge">AUTOMATION</div>
+              <div class="auto-card-title">When <code>${escapeHtml(a.entity_id)}</code> <span>${escapeHtml(a.condition)}</span></div>
+            </div>
+            <button class="auto-card-toggle ${isDisabled ? '' : 'on'}" onclick="toggleAutomation('${id}', ${!isDisabled})"></button>
+          </div>
+          <div class="auto-card-action"><span class="alabel">Action:</span><span class="avalue">${escapeHtml(actionSummary)}</span></div>
+          <div class="auto-card-footer">
+            <button class="edit-btn" onclick="showEditSheet('${id}', '${entityEsc}', '${condEsc}', '${promptEsc}')">${t('edit')}</button>
+            <button class="delete-btn" onclick="showDeleteConfirm('${id}')">${t('delete')}</button>
+          </div>
         </div>
       `;
       container.appendChild(card);
@@ -1056,53 +1333,21 @@ async function toggleAutomation(id, disable) {
   }
 }
 
-function showEditModal(id, entity, condition, prompt) {
-  document.getElementById('editEntityInput').value = entity || '';
-  document.getElementById('editEntityInput').placeholder = t('placeholderEntity') || 'sensor.living_room_temperature';
-  document.getElementById('editConditionInput').value = condition || '';
-  document.getElementById('editConditionInput').placeholder = t('placeholderCondition') || '>30';
-  document.getElementById('editInput').value = prompt || '';
-  document.getElementById('editInput').placeholder = t('editPromptPlaceholder') || 'Describe what action to take...';
-  document.getElementById('editModalTitle').textContent = t('editPrompt');
-  document.getElementById('editModal').dataset.automationId = id;
-  document.getElementById('editModal').classList.add('open');
-  setTimeout(() => document.getElementById('editEntityInput').focus(), 100);
-}
-
-async function confirmEdit() {
-  const modal = document.getElementById('editModal');
-  const id = modal.dataset.automationId;
-  const newEntity = document.getElementById('editEntityInput').value.trim();
-  const newCondition = document.getElementById('editConditionInput').value.trim();
-  const newPrompt = document.getElementById('editInput').value.trim();
-  modal.classList.remove('open');
-  if (!newEntity && !newCondition && !newPrompt) return;
-  const body = { automation_id: id };
-  if (newEntity) body.entity_id = newEntity;
-  if (newCondition) body.condition = newCondition;
-  if (newPrompt) body.prompt = newPrompt;
-  try {
-    await callAPI('POST', '/api/services/llm_smart_assistant/update_automation', body);
-    refreshAutomations();
-  } catch(e) { alert(t('errorPrefix') + e.message); }
-}
-
-// Add automation modal
-function showAddModal() {
+// Add automation bottom sheet
+function showAddSheet() {
   document.getElementById('addEntityInput').value = '';
   document.getElementById('addConditionInput').value = '';
   document.getElementById('addPromptInput').value = '';
-  document.getElementById('addModalTitle').textContent = t('addAutoTitle');
-  document.getElementById('addModal').classList.add('open');
+  document.getElementById('addSheet').classList.add('open');
   setTimeout(() => document.getElementById('addEntityInput').focus(), 100);
 }
 
 async function confirmAdd() {
-  const modal = document.getElementById('addModal');
+  const sheet = document.getElementById('addSheet');
   const entity = document.getElementById('addEntityInput').value.trim();
   const cond = document.getElementById('addConditionInput').value.trim();
   const prompt = document.getElementById('addPromptInput').value.trim();
-  modal.classList.remove('open');
+  sheet.classList.remove('open');
   if (!entity || !cond) return;
   try {
     await callAPI('POST', '/api/services/llm_smart_assistant/create_automation', {
@@ -1116,23 +1361,50 @@ async function confirmAdd() {
 }
 
 function cancelAdd() {
-  document.getElementById('addModal').classList.remove('open');
+  document.getElementById('addSheet').classList.remove('open');
+}
+
+function showEditSheet(id, entity, condition, prompt) {
+  document.getElementById('editEntityInput').value = entity || '';
+  document.getElementById('editConditionInput').value = condition || '';
+  document.getElementById('editInput').value = prompt || '';
+  document.getElementById('editSheet').dataset.automationId = id;
+  document.getElementById('editSheet').classList.add('open');
+  setTimeout(() => document.getElementById('editEntityInput').focus(), 100);
+}
+
+async function confirmEdit() {
+  const sheet = document.getElementById('editSheet');
+  const id = sheet.dataset.automationId;
+  const newEntity = document.getElementById('editEntityInput').value.trim();
+  const newCondition = document.getElementById('editConditionInput').value.trim();
+  const newPrompt = document.getElementById('editInput').value.trim();
+  sheet.classList.remove('open');
+  if (!newEntity && !newCondition && !newPrompt) return;
+  const body = { automation_id: id };
+  if (newEntity) body.entity_id = newEntity;
+  if (newCondition) body.condition = newCondition;
+  if (newPrompt) body.prompt = newPrompt;
+  try {
+    await callAPI('POST', '/api/services/llm_smart_assistant/update_automation', body);
+    refreshAutomations();
+  } catch(e) { alert(t('errorPrefix') + e.message); }
 }
 
 function cancelEdit() {
-  document.getElementById('editModal').classList.remove('open');
+  document.getElementById('editSheet').classList.remove('open');
 }
 
 function showDeleteConfirm(id) {
-  document.getElementById('confirmModal').dataset.automationId = id;
+  document.getElementById('confirmSheet').dataset.automationId = id;
   document.getElementById('confirmText').textContent = t('deleteConfirm');
-  document.getElementById('confirmModal').classList.add('open');
+  document.getElementById('confirmSheet').classList.add('open');
 }
 
 async function confirmDelete() {
-  const modal = document.getElementById('confirmModal');
-  const id = modal.dataset.automationId;
-  modal.classList.remove('open');
+  const sheet = document.getElementById('confirmSheet');
+  const id = sheet.dataset.automationId;
+  sheet.classList.remove('open');
   try {
     await callAPI('POST', '/api/services/llm_smart_assistant/remove_automation', { automation_id: id });
     refreshAutomations();
@@ -1140,7 +1412,7 @@ async function confirmDelete() {
 }
 
 function cancelConfirm() {
-  document.getElementById('confirmModal').classList.remove('open');
+  document.getElementById('confirmSheet').classList.remove('open');
 }
 
 function suggest(text) {
