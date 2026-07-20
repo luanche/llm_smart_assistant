@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.1.2
+
+- chore: remove delete-branch step (GitHub auto-delete handles it)
+- chore: auto-delete merged branch in release pipeline
+- chore: fix icons.json format (use default key)
+
+
 ## v1.1.1
 
 - chore: fix hassfest validation issues
