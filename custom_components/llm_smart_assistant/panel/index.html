@@ -1331,26 +1331,25 @@ async function refreshAutomations() {
       const isDisabled = a.disabled === true || disabledIds.includes(id);
       const card = document.createElement('div');
       card.className = 'auto-card' + (isDisabled ? ' disabled' : '');
+      card.dataset.aid = id;
       const promptEsc = (a.prompt || '').replace(/'/g, "\\'");
       const entityEsc = (a.entity_id || '').replace(/'/g, "\\'");
       const condEsc = (a.condition || '').replace(/'/g, "\\'");
       const descEsc = (a.description || '').replace(/'/g, "\\'");
       const actionSummary = a.description || a.prompt || t('noActionSpecified');
       card.innerHTML = `
-        <div class="auto-card">
           <div class="auto-card-header">
             <div class="auto-card-header-left">
               <div class="auto-card-badge">AUTOMATION</div>
               <div class="auto-card-title">When <code>${escapeHtml(a.entity_id)}</code> <span>${escapeHtml(a.condition)}</span></div>
             </div>
-            <button class="auto-card-toggle ${isDisabled ? '' : 'on'}" onclick="toggleAutomation('${id}', ${!isDisabled})"></button>
+            <button class="auto-card-toggle ${isDisabled ? '' : 'on'}" onclick="toggleAutomation('${id}')"></button>
           </div>
           <div class="auto-card-action"><span class="alabel">Action:</span><span class="avalue">${escapeHtml(actionSummary)}</span></div>
           <div class="auto-card-footer">
             <button class="edit-btn" onclick="showEditSheet('${id}', '${entityEsc}', '${condEsc}', '${promptEsc}')">${t('edit')}</button>
             <button class="delete-btn" onclick="showDeleteConfirm('${id}')">${t('delete')}</button>
           </div>
-        </div>
       `;
       container.appendChild(card);
     });
@@ -1359,26 +1358,24 @@ async function refreshAutomations() {
   }
 }
 
-async function toggleAutomation(id, disable) {
-  // Optimistic UI: immediately toggle the switch
-  const cards = document.querySelectorAll('#autoContainer .auto-card');
+async function toggleAutomation(id) {
+  // Find the card by ID stored in data attribute
   let targetCard = null, targetToggle = null;
-  for (const card of cards) {
-    const toggle = card.querySelector('.auto-card-toggle');
-    if (toggle && toggle.getAttribute('onclick')?.includes(id)) {
+  for (const card of document.querySelectorAll('#autoContainer .auto-card')) {
+    if (card.dataset.aid === id) {
       targetCard = card;
-      targetToggle = toggle;
+      targetToggle = card.querySelector('.auto-card-toggle');
       break;
     }
   }
+  // Determine current state from visual, compute desired action
+  const currentlyDisabled = targetCard?.classList.contains('disabled');
+  const disable = !currentlyDisabled; // flip
+  
+  // Optimistic UI
   if (targetToggle) {
-    if (disable) {
-      targetToggle.classList.remove('on');
-      targetCard?.classList.add('disabled');
-    } else {
-      targetToggle.classList.add('on');
-      targetCard?.classList.remove('disabled');
-    }
+    targetToggle.classList.toggle('on');
+    targetCard?.classList.toggle('disabled');
   }
 
   try {
@@ -1391,13 +1388,8 @@ async function toggleAutomation(id, disable) {
   } catch(e) { 
     // Revert on failure
     if (targetToggle) {
-      if (disable) {
-        targetToggle.classList.add('on');
-        targetCard?.classList.remove('disabled');
-      } else {
-        targetToggle.classList.remove('on');
-        targetCard?.classList.add('disabled');
-      }
+      targetToggle.classList.toggle('on');
+      targetCard?.classList.toggle('disabled');
     }
     setStatus(t('errorPrefix') + e.message, false);
     setTimeout(() => setStatus(t('connected')), 3000);
