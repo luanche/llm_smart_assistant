@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.1.1
+
+- chore: fix hassfest validation issues
+- chore: add LICENSE, fix validate workflow (missing checkout)
+- chore: prepare for HACS default repository
+
+
 ## v1.1.0
 
 - feat: add workflow note to README

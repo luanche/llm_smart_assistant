@@ -5,11 +5,13 @@
     "@luanche"
   ],
   "config_flow": true,
-  "dependencies": ["http"],
+  "dependencies": [
+    "http"
+  ],
   "documentation": "https://github.com/luanche/llm_smart_assistant",
   "integration_type": "hub",
   "iot_class": "cloud_polling",
   "issue_tracker": "https://github.com/luanche/llm_smart_assistant/issues",
   "requirements": [],
-  "version": "1.1.0"
+  "version": "1.1.1"
 }
