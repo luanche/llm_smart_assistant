@@ -27,6 +27,8 @@ COMPONENT_DIR = PROJECT_ROOT / "custom_components" / "llm_smart_assistant"
 
 # Strings that are OK to be hardcoded (not user-facing) in index.html
 ALLOWED_HARDCODED = {
+    # Browser API error codes / internal values
+    "not-allowed",
     "Bearer ", "GET", "POST", "Authorization", "Content-Type",
     "application/json",
     "flex", "none", "fixed", "blur", "padding", "cover",
@@ -241,8 +243,29 @@ def check_index_html(path: Path) -> tuple[int, set, str]:
         ok("All i18n keys defined")
 
     # 1b. Hardcoded user-facing strings
-    # Collect all t(keyName) call spans to exclude them
+    # Collect spans to exclude:
+    #   - t(keyName) calls (they use translation keys, not hardcoded text)
+    #   - The LANGUAGES object definition (translation values, not hardcoded)
     t_call_spans = [(m.start(), m.end()) for m in re.finditer(r"(?<![.\w])t\('[A-Za-z][A-Za-z /,.!?-]*'\)", html)]
+    
+    # Find LANGUAGES object block boundaries
+    lang_block_start = html.find('const LANGUAGES = {')
+    lang_exclude_spans = []
+    if lang_block_start >= 0:
+        # Find the matching closing '};' by tracking brace depth
+        depth = 0
+        i = lang_block_start + len('const LANGUAGES = {')
+        brace_started = False
+        for i in range(lang_block_start, len(html)):
+            ch = html[i]
+            if ch == '{':
+                depth += 1
+            elif ch == '}':
+                depth -= 1
+                if depth == 0:
+                    # Found the matching closing brace - the '};' after it
+                    lang_exclude_spans.append((lang_block_start, i + 1))
+                    break
     
     hardcoded = set()
     for m in re.finditer(r"'([A-Za-z][A-Za-z /,.\?!-]+)'", html):
@@ -255,6 +278,10 @@ def check_index_html(path: Path) -> tuple[int, set, str]:
         # Skip if inside a t('xxx') call
         in_t_call = any(start < m.start() < end for start, end in t_call_spans)
         if in_t_call:
+            continue
+        # Skip if inside the LANGUAGES object definition (translation values)
+        in_lang_block = any(start < m.start() < end for start, end in lang_exclude_spans)
+        if in_lang_block:
             continue
         if len(text) < 4 or text.startswith("http") or text.startswith("/api"):
             continue
