@@ -1,8 +1,11 @@
 {
   "entity": {
     "sensor": {
-      "_": {
+      "llm_last_response": {
         "icon": "mdi:robot-happy"
+      },
+      "llm_debug_raw": {
+        "icon": "mdi:code-json"
       }
     }
   }

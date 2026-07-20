@@ -25,6 +25,8 @@ from .const import DOMAIN, CONF_TEMPERATURE, CONF_MAX_TOKENS, CONF_API_BASE_URL,
 from .coordinator import LLMSmartAssistantCoordinator
 from .services import ServicesExecutor
 
+CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
+
 _LOGGER = logging.getLogger(__name__)
 
 # Module-level cache for suggestions (avoids class-variable scoping issues in dynamic views)

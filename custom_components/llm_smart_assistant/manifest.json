@@ -3,7 +3,7 @@
   "name": "LLM Smart Assistant",
   "codeowners": ["@luanche"],
   "config_flow": true,
-  "dependencies": [],
+  "dependencies": ["http"],
   "documentation": "https://github.com/luanche/llm_smart_assistant",
   "integration_type": "hub",
   "iot_class": "cloud_polling",
