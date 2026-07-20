@@ -176,3 +176,4 @@ custom_components/llm_smart_assistant/
 ## 📄 许可证
 
 MIT
+- 开发流程：分支 → PR → merge 后自动发布
