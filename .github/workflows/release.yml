@@ -14,36 +14,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Generate changelog
-        run: |
-          VERSION="${GITHUB_REF_NAME#v}"
-          PREV_TAG=$(git tag --sort=-creatordate | head -2 | tail -1 || echo "")
-          
-          echo "# Changelog" > CHANGELOG.md
-          echo "" >> CHANGELOG.md
-          echo "## v${VERSION}" >> CHANGELOG.md
-          echo "" >> CHANGELOG.md
-          
-          if [ -n "$PREV_TAG" ]; then
-            git log "${PREV_TAG}..HEAD" --pretty=format:"- %s" --no-merges >> CHANGELOG.md
-          else
-            git log --pretty=format:"- %s" --no-merges $(git rev-list --max-parents=0 HEAD)..HEAD >> CHANGELOG.md
-          fi
-          
-          echo "" >> CHANGELOG.md
-          echo "" >> CHANGELOG.md
-          cat CHANGELOG.md
-
-      - name: Commit changelog
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add CHANGELOG.md
-          git commit -m "docs: update changelog for ${GITHUB_REF_NAME}" || echo "No changelog changes"
-          git push
 
       - name: Create release archive
         run: |
@@ -56,19 +26,28 @@ jobs:
 
       - name: Generate release notes
         run: |
-          cat > RELEASE_NOTES.md << 'EOF'
-          ## LLM Smart Assistant v${{ env.version }}
+          VERSION="${GITHUB_REF_NAME#v}"
+          PREV_TAG=$(git tag --sort=-creatordate | head -2 | tail -1 || echo "")
 
-          ### Changes
-          EOF
-          cat CHANGELOG.md | grep "^- " >> RELEASE_NOTES.md
-          cat >> RELEASE_NOTES.md << 'EOF'
+          {
+            echo "## LLM Smart Assistant v${VERSION}"
+            echo ""
+            echo "### Changes"
+            echo ""
+            if [ -n "$PREV_TAG" ]; then
+              git log "${PREV_TAG}..HEAD" --pretty=format:"- %s" --no-merges
+            else
+              git log --pretty=format:"- %s" --no-merges "$(git rev-list --max-parents=0 HEAD)..HEAD"
+            fi
+            echo ""
+            echo ""
+            echo "### Installation"
+            echo "Download the zip below and extract into your Home Assistant \`custom_components/\` directory, then restart HA."
+            echo ""
+            echo "Or install via HACS by adding this repository as a custom integration."
+          } > RELEASE_NOTES.md
 
-          ### Installation
-          Download the zip below and extract into your Home Assistant \`custom_components/\` directory, then restart HA.
-
-          Or install via HACS by adding this repository as a custom integration.
-          EOF
+          cat RELEASE_NOTES.md
 
       - name: Create Release
         uses: softprops/action-gh-release@v2

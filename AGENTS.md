@@ -30,6 +30,7 @@ You are developing a Home Assistant custom integration called **LLM Smart Assist
    - `.pi/skills/i18n-audit/` — i18n audit script
 
 ### Git
+- **Do NOT commit unless the user explicitly says "提交" or "commit"**
 - Commit messages in English
 - Clean commit history, one logical change per commit
 - Keep `.gitignore` minimal; force-add only what should be tracked (e.g., `.pi/skills/`)
@@ -37,6 +38,7 @@ You are developing a Home Assistant custom integration called **LLM Smart Assist
 ## Release Policy
 
 **Do NOT create git tags or GitHub releases unless the user explicitly asks for it.**
+**Do NOT delete existing tags unless the user explicitly says "删了重建" or "delete and recreate".**
 Tags (`v*`) trigger the GitHub Actions release pipeline (`.github/workflows/release.yml`), which builds a zip and publishes a release. Only tag when the user says "release" or "打tag".
 
 ## Key Architecture
