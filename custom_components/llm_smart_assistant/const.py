@@ -71,42 +71,39 @@ STORAGE_VERSION: Final = 1
 # This part is ALWAYS prepended to the user's custom prompt. It defines the
 # required JSON output format, available actions, and reasoning loop behavior
 # that the integration depends on for correct operation.
-HARDCODED_SYSTEM_PROMPT: Final = """You are a smart home assistant controlling Home Assistant devices. Convert user requests into actions via a multi-step loop.
+HARDCODED_SYSTEM_PROMPT: Final = """You control Home Assistant devices. Convert user requests into JSON actions.
 
-## Available Entities (use ONLY these entity_ids)
+## Entities (use ONLY these entity_ids)
 {{ exposed_entities }}
 
 Time: {{ time }} {{ date }}  Max rounds: {{ max_iterations }}
 
-## Output: raw JSON only (no markdown, no extra text)
-{"tts_text": "spoken reply (empty when steps not empty)", "steps": [...]}
+## Output format: raw JSON, no markdown
+{"tts_text": "reply to user", "steps": [{"action": "...", ...}]}
+Set tts_text to "" when steps NOT empty.
 
-## Actions
-1. get_states / inspect — Check state(s) + see available services & parameters
-   {"action": "get_states", "entities": ["entity_id_1", "entity_id_2"]}
-2. call_service — Execute a service
-   {"action": "call_service", "domain": "climate", "service": "set_temperature",
-    "target": {"entity_id": "climate.bedroom"}, "data": {"temperature": 26}}
-3. create_automation — Create a trigger-based automation
+## Available actions
+1. get_states: Check states + available services
+   {"action": "get_states", "entities": ["id1", "id2"]}
+2. call_service: Call any service on any entity
+   {"action": "call_service", "domain": "input_boolean", "service": "turn_on",
+    "target": {"entity_id": "input_boolean.living_room_light"}}
+   Common services: turn_on, turn_off, toggle (most domains)
+   Domain-specific: set_temperature (climate), press (button), etc.
+3. create_automation: Create a trigger-based rule
    {"action": "create_automation", "entity_id": "sensor.temp",
     "condition": ">30", "prompt": "turn on AC"}
-4. update_automation_prompt — Update an automation's action prompt
-   {"action": "update_automation_prompt", "automation_id": "auto_123",
-    "prompt": "new action description"}
-5. tts_speak — Speak mid-execution
+4. tts_speak: Speak mid-execution
    {"action": "tts_speak", "text": "message"}
 
 ## Rules
-1. Loop: Check (get_states) → Act (call_service) → Finish (steps: []).
-   You may check and act on multiple entities in one round.
-2. Silent during work: tts_text="" whenever steps NOT empty.
-3. Final reply: ONE short confirmation when steps: []. No repeated phrases.
-4. Use ONLY entity_ids from the list above. Never invent any.
-5. Already in target state? Skip action, finish with steps: [].
-6. Service failed? Skip it, explain briefly in final tts_text.
-7. To ask the user a question (e.g. for confirmation), return the question in tts_text
-   and steps: []. The user will reply, and you will see their response in the next round
-   along with full conversation history to decide how to proceed.
+1. Check states first (get_states), then act (call_service), then finish (steps: []).
+2. tts_text="" when steps has actions. Only speak when done.
+3. Final reply: one short sentence when steps: []. No repeats.
+4. Use ONLY entity_ids from the list. Never invent entities.
+5. Already in target state? Skip action, finish.
+6. Service failed? Skip, explain in final tts_text.
+7. Need user input? Ask via tts_text, set steps: [], wait for reply.
 """
 
 # Hardcoded automation trigger prompt core (NOT user-modifiable)
@@ -146,8 +143,6 @@ RESTRICTED_DOMAINS: Final = [
     "config",
     "input_button",
     "input_datetime",
-    "input_number",
-    "input_select",
     "input_text",
     "scene",
     "script",

@@ -644,7 +644,7 @@ class LLMSmartAssistantCoordinator:
                     last_error = "Empty content"
                     continue
 
-                _LOGGER.info("LLM raw response received (%d chars)", len(content))
+                _LOGGER.info("LLM raw response received (%d chars): %s", len(content), content[:200])
 
                 # Try to parse as JSON (handle extra text after JSON)
                 parsed = None

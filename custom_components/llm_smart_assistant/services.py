@@ -289,7 +289,7 @@ class ServicesExecutor:
         all_service_descriptions = {}
         try:
             from homeassistant.helpers.service import async_get_all_descriptions
-            all_service_descriptions = async_get_all_descriptions(self.hass)
+            all_service_descriptions = await async_get_all_descriptions(self.hass)
         except Exception:
             pass
 

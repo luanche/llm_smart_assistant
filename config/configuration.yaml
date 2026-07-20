@@ -3,17 +3,8 @@
 # Load the default set of integrations
 default_config:
 
-input_number:
-  test_temperature:
-    name: "Test Temperature"
-    initial: 26.5
-    min: -10
-    max: 50
-    step: 0.5
-    unit_of_measurement: "°C"
-    mode: slider
+# ── Virtual test devices for LLM control ──
 
-# Virtual devices for testing LLM control
 input_boolean:
   living_room_light:
     name: "客厅灯"
@@ -21,20 +12,142 @@ input_boolean:
   bed_room_light:
     name: "卧室灯"
     icon: mdi:lightbulb
+  kitchen_light:
+    name: "厨房灯"
+    icon: mdi:lightbulb
+  study_light:
+    name: "书房灯"
+    icon: mdi:lightbulb
+  porch_light:
+    name: "门廊灯"
+    icon: mdi:lightbulb
   tv:
     name: "电视"
     icon: mdi:television
   air_conditioner:
-    name: "空调"
+    name: "客厅空调"
     icon: mdi:air-conditioner
+  bed_room_ac:
+    name: "卧室空调"
+    icon: mdi:air-conditioner
+  water_heater:
+    name: "热水器"
+    icon: mdi:water-heater
+  garage_door:
+    name: "车库门"
+    icon: mdi:garage
+  front_door_lock:
+    name: "大门锁"
+    icon: mdi:lock
+  alarm_system:
+    name: "安防系统"
+    icon: mdi:shield-home
+  robot_vacuum:
+    name: "扫地机器人"
+    icon: mdi:robot-vacuum
 
-# Test sensors
+input_number:
+  test_temperature:
+    name: "客厅温度"
+    initial: 26.5
+    min: -10
+    max: 50
+    step: 0.5
+    unit_of_measurement: "°C"
+    mode: slider
+  target_temperature:
+    name: "空调目标温度"
+    initial: 24
+    min: 16
+    max: 30
+    step: 0.5
+    unit_of_measurement: "°C"
+    mode: slider
+  fan_speed:
+    name: "风扇转速"
+    initial: 50
+    min: 0
+    max: 100
+    step: 5
+    unit_of_measurement: "%"
+    mode: slider
+  volume_level:
+    name: "音量"
+    initial: 30
+    min: 0
+    max: 100
+    step: 5
+    unit_of_measurement: "%"
+    mode: slider
+  outdoor_temp:
+    name: "室外温度模拟"
+    initial: 32
+    min: -10
+    max: 50
+    step: 1
+    unit_of_measurement: "°C"
+    mode: slider
+  curtain_position:
+    name: "窗帘开度"
+    initial: 100
+    min: 0
+    max: 100
+    step: 10
+    unit_of_measurement: "%"
+    mode: slider
+
+input_select:
+  hvac_mode:
+    name: "空调模式"
+    options:
+      - "off"
+      - "cool"
+      - "heat"
+      - "dry"
+      - "fan_only"
+    initial: "cool"
+    icon: mdi:thermostat
+  fan_mode:
+    name: "风扇档位"
+    options:
+      - "auto"
+      - "low"
+      - "medium"
+      - "high"
+    initial: "auto"
+    icon: mdi:fan
+  ac_swing:
+    name: "空调摆风"
+    options:
+      - "off"
+      - "vertical"
+      - "horizontal"
+      - "both"
+    initial: "off"
+    icon: mdi:fan-chevron-down
+
+# Virtual sensors
 template:
   - sensor:
+      - name: "室外温度"
+        unique_id: outdoor_temperature
+        unit_of_measurement: "°C"
+        state: "{{ states('input_number.outdoor_temp') }}"
+        device_class: temperature
+      - name: "室内湿度"
+        unique_id: indoor_humidity
+        unit_of_measurement: "%"
+        state: "{{ [45, 50, 55, 60, 65] | random }}"
+        device_class: humidity
+      - name: "窗帘位置"
+        unique_id: curtain_position
+        unit_of_measurement: "%"
+        state: "{{ states('input_number.curtain_position') }}"
+        icon: mdi:blinds
       - name: "Test Voice Input"
         unique_id: test_voice_input
         state: ""
-      - name: "Living Room Temperature"
+      - name: "客厅温度"
         unique_id: living_room_temperature
         unit_of_measurement: "°C"
         state: "{{ states('input_number.test_temperature') | float | round(1) }}"
@@ -43,5 +156,5 @@ template:
 # Enable logging
 logger:
   logs:
-    custom_components.llm_smart_assistant: info
-    custom_components.llm_smart_assistant.coordinator: info
+    custom_components.llm_smart_assistant: debug
+    custom_components.llm_smart_assistant.coordinator: debug
