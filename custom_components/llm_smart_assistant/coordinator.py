@@ -23,6 +23,7 @@ from .const import (
     ACTION_CALL_SERVICE,
     ACTION_CREATE_AUTOMATION,
     ACTION_GET_STATES,
+    ACTION_INSPECT,
     ACTION_TTS_SPEAK,
     ACTION_UPDATE_AUTOMATION_PROMPT,
     MAX_REASONING_ITERATIONS,
@@ -887,8 +888,8 @@ class LLMSmartAssistantCoordinator:
                     success = result.get("success", False)
                     step_result_data = result.get("result", {})
 
-                    if action == ACTION_GET_STATES:
-                        # get_states: feed back observed states
+                    if action in (ACTION_GET_STATES, ACTION_INSPECT):
+                        # get_states: feed back observed states + available services
                         obs = step_result_data.get("observed", [])
                         for o in obs:
                             ent_id = o.get("entity_id", "?")
@@ -897,7 +898,11 @@ class LLMSmartAssistantCoordinator:
                             unit = o.get("attributes", {}).get("unit_of_measurement", "")
                             label = f"{friendly} ({ent_id})" if friendly else ent_id
                             val = f"{ent_state} {unit}" if unit else str(ent_state)
-                            step_feedback.append(f"  - {label}: {val}")
+                            services = o.get("services", [])
+                            line = f"  - {label}: {val}"
+                            if services:
+                                line += f"\n    Available services: {', '.join(services)}"
+                            step_feedback.append(line)
 
                     elif action == ACTION_CALL_SERVICE:
                         # call_service: feed back execution result

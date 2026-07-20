@@ -15,6 +15,7 @@ from .const import (
     ACTION_CALL_SERVICE,
     ACTION_CREATE_AUTOMATION,
     ACTION_GET_STATES,
+    ACTION_INSPECT,
     ACTION_TTS_SPEAK,
     ACTION_UPDATE_AUTOMATION_PROMPT,
     RESTRICTED_DOMAINS,
@@ -68,7 +69,7 @@ class ServicesExecutor:
         if not action:
             for known in [ACTION_CALL_SERVICE, ACTION_CREATE_AUTOMATION,
                           ACTION_UPDATE_AUTOMATION_PROMPT, ACTION_TTS_SPEAK,
-                          ACTION_GET_STATES]:
+                          ACTION_GET_STATES, ACTION_INSPECT]:
                 if known in step:
                     action = known
                     # If step value is a dict, merge it (support {action: {...}})
@@ -85,7 +86,7 @@ class ServicesExecutor:
             return self._handle_update_automation_prompt(step)
         elif action == ACTION_TTS_SPEAK:
             return await self._async_tts_speak(step)
-        elif action == ACTION_GET_STATES:
+        elif action in (ACTION_GET_STATES, ACTION_INSPECT):
             return await self._async_get_states(step)
         else:
             _LOGGER.warning("Unknown action type: %s", action)
@@ -282,8 +283,21 @@ class ServicesExecutor:
         # Enforce whitelist (same as call_service)
         self._validate_get_states(entities)
 
+        # Get all HA services grouped by domain (to show available services per entity)
+        all_services = self.hass.services.async_services()
+
         observed = []
         for entity_id in entities:
+            domain = entity_id.split(".")[0] if "." in entity_id else ""
+            # Look up services available for this entity's domain
+            domain_services = all_services.get(domain, {})
+            # Filter out restricted services
+            available_services = []
+            for svc_name in domain_services:
+                full_service = f"{domain}.{svc_name}"
+                if full_service not in RESTRICTED_SERVICES:
+                    available_services.append(svc_name)
+
             try:
                 state_obj = self.hass.states.get(entity_id)
                 if state_obj:
@@ -294,18 +308,21 @@ class ServicesExecutor:
                             k: v for k, v in state_obj.attributes.items()
                             if k in ("friendly_name", "unit_of_measurement", "icon", "device_class")
                         },
+                        "services": available_services,
                     })
                 else:
                     observed.append({
                         "entity_id": entity_id,
                         "state": None,
                         "error": "Entity not found",
+                        "services": available_services,
                     })
             except Exception as exc:
                 observed.append({
                     "entity_id": entity_id,
                     "state": None,
                     "error": str(exc),
+                    "services": available_services,
                 })
 
         _LOGGER.debug("Observed states: %s", observed)

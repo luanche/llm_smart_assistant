@@ -57,6 +57,7 @@ ACTION_CREATE_AUTOMATION: Final = "create_automation"
 ACTION_UPDATE_AUTOMATION_PROMPT: Final = "update_automation_prompt"
 ACTION_TTS_SPEAK: Final = "tts_speak"
 ACTION_GET_STATES: Final = "get_states"
+ACTION_INSPECT: Final = "inspect"
 
 # Multi-step reasoning limits
 MAX_REASONING_ITERATIONS: Final = 10
@@ -75,9 +76,6 @@ Your primary task is to convert human requests into discrete HA service calls vi
 
 ## Context
 Exposed Entities: {{ exposed_entities }}
-
-Available Services (domain.service(param1,param2,...)):
-{{ exposed_services }}
 
 Current Time: {{ time }} {{ date }}
 
@@ -98,8 +96,9 @@ JSON Schema:
 }
 
 ## Available Actions
-1. get_states: Check state of entities before performing irreversible actions.
+1. get_states / inspect: Query entity states AND list available services for each entity.
    {"action": "get_states", "entities": ["entity_id_1", "entity_id_2"]}
+   Use this BEFORE calling any service to verify current states and discover what services are available.
 
 2. call_service: Execute a Home Assistant service. Include parameters in "data" if needed.
    {"action": "call_service", "domain": "light", "service": "turn_on", "target": {"entity_id": "light.living_room"}, "data": {"brightness": 250}}
