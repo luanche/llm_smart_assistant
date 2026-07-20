@@ -92,6 +92,7 @@ t('title')  // → 'AI Chat' 或 'AI 聊天'
 ```
 
 **添加新语言：**
+
 1. 在 `LANGUAGES` 对象中添加包含所有键的条目。
 2. `applyI18n()` 自动根据浏览器语言加载。
 3. 回退链: 完整语言 → 语言根 → `en`。
@@ -107,16 +108,16 @@ iframe 通过多个回退通道获取 HA 认证令牌：
 
 ### 关键函数 (index.html)
 
-| 函数 | 用途 |
-|------|------|
-| `t(key)` | 翻译键值 |
-| `applyI18n()` | 应用到所有 data-i18n 元素 |
-| `callAPI(method, path, body)` | 带认证的 HA REST API 封装 |
-| `sendMessage()` | 发送输入、轮询传感器、渐进显示 |
-| `refreshAutomations()` | 获取并渲染自动化卡片 |
-| `toggleAutomation()` | 启用/禁用自动化 |
-| `showEditModal()` | 打开编辑弹窗（3 个字段） |
-| `showAddModal()` | 打开添加自动化弹窗 |
+| 函数                          | 用途                           |
+| ----------------------------- | ------------------------------ |
+| `t(key)`                      | 翻译键值                       |
+| `applyI18n()`                 | 应用到所有 data-i18n 元素      |
+| `callAPI(method, path, body)` | 带认证的 HA REST API 封装      |
+| `sendMessage()`               | 发送输入、轮询传感器、渐进显示 |
+| `refreshAutomations()`        | 获取并渲染自动化卡片           |
+| `toggleAutomation()`          | 启用/禁用自动化                |
+| `showEditModal()`             | 打开编辑弹窗（3 个字段）       |
+| `showAddModal()`              | 打开添加自动化弹窗             |
 
 ---
 
@@ -136,6 +137,7 @@ python3 .pi/skills/i18n-audit/check.py --diff
 ```
 
 检查内容：
+
 - `panel/index.html` — i18n 键覆盖、硬编码字符串
 - `LANGUAGES.en` ↔ `LANGUAGES.zh` — 键完整性
 - `t('key')` 调用 — 所有引用的键都有效
@@ -184,12 +186,12 @@ python3 .pi/skills/i18n-audit/check.py --diff
 
 ## 🎯 关键设计决策
 
-| 决策 | 理由 |
-|------|------|
-| `process_input` 全局注册 | 多实例注册同一服务，通过 entry_id 路由 |
-| `toggle_automation` 全局注册 | 同理——需要 entry_id 找到正确的协调器 |
-| 面板文件每次请求读取 | 支持 HTML/JS 热重载而无需重启 HA |
-| `data-i18n` 属性模式 | 添加新字符串只需一个 HTML 属性 + 一个 LANGUAGES 条目 |
-| 数量和时间的双重限制 | 同时应用两个约束以实现更精确的历史控制 |
-| LLM 格式使用 entity_id/condition/prompt | 简单、对 LLM 友好的结构 |
-| 禁用移除监听器 | 不同于标记检查，这能真正停止事件触发 |
+| 决策                                    | 理由                                                 |
+| --------------------------------------- | ---------------------------------------------------- |
+| `process_input` 全局注册                | 多实例注册同一服务，通过 entry_id 路由               |
+| `toggle_automation` 全局注册            | 同理——需要 entry_id 找到正确的协调器                 |
+| 面板文件每次请求读取                    | 支持 HTML/JS 热重载而无需重启 HA                     |
+| `data-i18n` 属性模式                    | 添加新字符串只需一个 HTML 属性 + 一个 LANGUAGES 条目 |
+| 数量和时间的双重限制                    | 同时应用两个约束以实现更精确的历史控制               |
+| LLM 格式使用 entity_id/condition/prompt | 简单、对 LLM 友好的结构                              |
+| 禁用移除监听器                          | 不同于标记检查，这能真正停止事件触发                 |

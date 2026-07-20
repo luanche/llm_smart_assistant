@@ -2,7 +2,7 @@
 
 [![HACS Custom Integration](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://github.com/hacs/integration)
 
-> [中文](README.md)
+> [中文](../README.md)
 
 A powerful Home Assistant custom integration that bridges OpenAI-compatible LLMs with your smart home, enabling natural language control, dynamic automations, TTS voice output, and a built-in AI Chat UI.
 
@@ -10,18 +10,18 @@ A powerful Home Assistant custom integration that bridges OpenAI-compatible LLMs
 
 ## 📖 Features
 
-| Feature | Description |
-|---------|-------------|
+| Feature                        | Description                                                   |
+| ------------------------------ | ------------------------------------------------------------- |
 | 🤖 **Multi-Model LLM Support** | OpenAI, DeepSeek, Kimi, Gemini, and any OpenAI-compatible API |
-| 💬 **Built-in AI Chat Panel** | Full-featured chat interface with multi-round reasoning |
-| 🎤 **Voice Input** | SpeechRecognition + text sensor monitoring |
-| 🗣️ **TTS Output** | Standard TTS, Xiaomi MIoT, and custom templates |
-| ⚡ **Dynamic Automations** | Create/Edit/Disable automations via natural language |
-| 🔄 **Multi-Step Reasoning** | LLM checks states, acts, observes, and iterates |
-| 🔒 **Security** | Domain + entity whitelist, restricted operations |
-| 📝 **Conversation History** | Count + time-window dual truncation |
-| 🌐 **Multi-Language** | English & Chinese UI, expandable |
-| 🏗️ **Multi-Instance** | Multiple independent LLM instances |
+| 💬 **Built-in AI Chat Panel**  | Full-featured chat interface with multi-round reasoning       |
+| 🎤 **Voice Input**             | SpeechRecognition + text sensor monitoring                    |
+| 🗣️ **TTS Output**              | Standard TTS, Xiaomi MIoT, and custom templates               |
+| ⚡ **Dynamic Automations**     | Create/Edit/Disable automations via natural language          |
+| 🔄 **Multi-Step Reasoning**    | LLM checks states, acts, observes, and iterates               |
+| 🔒 **Security**                | Domain + entity whitelist, restricted operations              |
+| 📝 **Conversation History**    | Count + time-window dual truncation                           |
+| 🌐 **Multi-Language**          | English & Chinese UI, expandable                              |
+| 🏗️ **Multi-Instance**          | Multiple independent LLM instances                            |
 
 ---
 
@@ -58,13 +58,13 @@ All settings are configured in a single-page form accessible via **Settings → 
 
 ### API Settings
 
-| Field | Description |
-|-------|-------------|
-| API Base URL | Your LLM provider's API endpoint |
-| API Key | Authentication key |
-| Model | Model name (e.g., `gpt-4o-mini`, `deepseek-chat`) |
-| Temperature | Response creativity (0.0–2.0) |
-| Max Tokens | Maximum response length |
+| Field        | Description                                       |
+| ------------ | ------------------------------------------------- |
+| API Base URL | Your LLM provider's API endpoint                  |
+| API Key      | Authentication key                                |
+| Model        | Model name (e.g., `gpt-4o-mini`, `deepseek-chat`) |
+| Temperature  | Response creativity (0.0–2.0)                     |
+| Max Tokens   | Maximum response length                           |
 
 ### Prompts
 
@@ -80,14 +80,14 @@ All settings are configured in a single-page form accessible via **Settings → 
 
 ### TTS (Text-to-Speech)
 
-| Field | Description |
-|-------|-------------|
-| TTS Entity | Media player to speak through (EntitySelector) |
-| TTS Mode | `Standard` (media_player), `Xiaomi MIoT`, or `Custom Template` |
-| Custom Template | Jinja2 template for custom TTS service calls |
-| Speak Volume | Volume level (0.0–1.0) to set before speaking |
-| Mute After | Enable mute/DND after TTS to prevent speaker echo |
-| Mute Entity | Separate media_player entity for volume/mute control (optional) |
+| Field           | Description                                                     |
+| --------------- | --------------------------------------------------------------- |
+| TTS Entity      | Media player to speak through (EntitySelector)                  |
+| TTS Mode        | `Standard` (media_player), `Xiaomi MIoT`, or `Custom Template`  |
+| Custom Template | Jinja2 template for custom TTS service calls                    |
+| Speak Volume    | Volume level (0.0–1.0) to set before speaking                   |
+| Mute After      | Enable mute/DND after TTS to prevent speaker echo               |
+| Mute Entity     | Separate media_player entity for volume/mute control (optional) |
 
 ### Voice Input
 
@@ -97,6 +97,7 @@ The coordinator monitors state changes and automatically processes new input.
 ### History
 
 Both constraints apply simultaneously:
+
 - **Max Turns** — Keep last N conversation turns.
 - **Time Window** — Keep messages within N minutes.
 
@@ -118,14 +119,14 @@ The built-in web UI provides:
 
 ## 🔧 Service Calls
 
-| Service | Description |
-|---------|-------------|
-| `process_input` | Send text to the LLM for processing |
-| `create_automation` | Create a dynamic automation |
+| Service             | Description                                       |
+| ------------------- | ------------------------------------------------- |
+| `process_input`     | Send text to the LLM for processing               |
+| `create_automation` | Create a dynamic automation                       |
 | `update_automation` | Edit an automation's entity, condition, or action |
-| `toggle_automation` | Enable or disable an automation |
-| `remove_automation` | Delete an automation |
-| `get_automations` | List all automations |
+| `toggle_automation` | Enable or disable an automation                   |
+| `remove_automation` | Delete an automation                              |
+| `get_automations`   | List all automations                              |
 
 ---
 

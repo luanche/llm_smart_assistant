@@ -92,6 +92,7 @@ t('title')  // → 'AI Chat' or 'AI 聊天'
 ```
 
 **Adding a new language:**
+
 1. Add an entry to the `LANGUAGES` object with all keys.
 2. `applyI18n()` automatically picks it up based on `navigator.language`.
 3. Fallback chain: full language → language root → `en`.
@@ -107,16 +108,16 @@ The iframe gets the HA auth token through multiple fallback channels:
 
 ### Key Functions in index.html
 
-| Function | Purpose |
-|----------|---------|
-| `t(key)` | Translate a key to the active language |
-| `applyI18n()` | Apply translations to all `[data-i18n]` elements |
-| `callAPI(method, path, body)` | HA REST API wrapper with auth header |
-| `sendMessage()` | Send user input, poll sensor, display response progressively |
-| `refreshAutomations()` | Fetch and render automation cards |
-| `toggleAutomation()` | Enable/disable an automation |
-| `showEditModal()` | Open edit modal with 3 fields (entity, condition, action) |
-| `showAddModal()` | Open add automation modal |
+| Function                      | Purpose                                                      |
+| ----------------------------- | ------------------------------------------------------------ |
+| `t(key)`                      | Translate a key to the active language                       |
+| `applyI18n()`                 | Apply translations to all `[data-i18n]` elements             |
+| `callAPI(method, path, body)` | HA REST API wrapper with auth header                         |
+| `sendMessage()`               | Send user input, poll sensor, display response progressively |
+| `refreshAutomations()`        | Fetch and render automation cards                            |
+| `toggleAutomation()`          | Enable/disable an automation                                 |
+| `showEditModal()`             | Open edit modal with 3 fields (entity, condition, action)    |
+| `showAddModal()`              | Open add automation modal                                    |
 
 ---
 
@@ -136,6 +137,7 @@ python3 .pi/skills/i18n-audit/check.py --diff
 ```
 
 Checks:
+
 - `panel/index.html` — i18n key coverage, hardcoded strings
 - `LANGUAGES.en` ↔ `LANGUAGES.zh` — key completeness
 - `t('key')` calls — all reference valid keys
@@ -183,12 +185,12 @@ Other services (`create_automation`, `remove_automation`, `get_automations`, `up
 
 ## 🎯 Key Design Decisions
 
-| Decision | Rationale |
-|----------|-----------|
-| `process_input` is global | Multiple instances register the same service; use `entry_id` param to route |
-| `toggle_automation` is global | Same reason — needs `entry_id` to find the right coordinator |
-| Panel files read on each request | Allows hot-reloading HTML/JS without HA restart |
-| `data-i18n` attribute pattern | Adding a new string only requires one HTML attribute + one LANGUAGES entry |
-| Both count AND time history | Applies both constraints simultaneously for more precise history control |
-| LLM format uses `entity_id`/`condition`/`prompt` | Simple, LLM-friendly structure for `create_automation` |
-| Disable removes listener | Unlike a flag check, this actually stops the event system from firing |
+| Decision                                         | Rationale                                                                   |
+| ------------------------------------------------ | --------------------------------------------------------------------------- |
+| `process_input` is global                        | Multiple instances register the same service; use `entry_id` param to route |
+| `toggle_automation` is global                    | Same reason — needs `entry_id` to find the right coordinator                |
+| Panel files read on each request                 | Allows hot-reloading HTML/JS without HA restart                             |
+| `data-i18n` attribute pattern                    | Adding a new string only requires one HTML attribute + one LANGUAGES entry  |
+| Both count AND time history                      | Applies both constraints simultaneously for more precise history control    |
+| LLM format uses `entity_id`/`condition`/`prompt` | Simple, LLM-friendly structure for `create_automation`                      |
+| Disable removes listener                         | Unlike a flag check, this actually stops the event system from firing       |
