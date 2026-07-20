@@ -24,6 +24,46 @@ jobs:
           echo "archive=${ARCHIVE}" >> $GITHUB_ENV
           echo "version=${VERSION}" >> $GITHUB_ENV
 
+      - name: Update CHANGELOG.md
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          PREV_TAG=$(git tag --sort=-creatordate | head -2 | tail -1 || echo "")
+
+          # Prepend new version to CHANGELOG.md
+          HEADER="# Changelog"
+          if [ -f CHANGELOG.md ] && [ "$(head -1 CHANGELOG.md)" = "$HEADER" ]; then
+            TAIL=$(tail -n +2 CHANGELOG.md)
+          fi
+
+          {
+            echo "$HEADER"
+            echo ""
+            echo "## v${VERSION}"
+            echo ""
+            if [ -n "$PREV_TAG" ]; then
+              git log "${PREV_TAG}..HEAD" --pretty=format:"- %s" --no-merges
+            else
+              git log --pretty=format:"- %s" --no-merges "$(git rev-list --max-parents=0 HEAD)..HEAD"
+            fi
+            echo ""
+            echo ""
+            if [ -n "$TAIL" ]; then
+              echo "$TAIL"
+            fi
+          } > CHANGELOG.md
+
+      - name: Commit CHANGELOG.md to master
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          cp CHANGELOG.md /tmp/CHANGELOG.md
+          git fetch origin master
+          git checkout master
+          cp /tmp/CHANGELOG.md CHANGELOG.md
+          git add CHANGELOG.md
+          git commit -m "docs: update changelog for ${GITHUB_REF_NAME}" || echo "No changelog changes"
+          git push
+
       - name: Generate release notes
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
@@ -46,8 +86,6 @@ jobs:
             echo ""
             echo "Or install via HACS by adding this repository as a custom integration."
           } > RELEASE_NOTES.md
-
-          cat RELEASE_NOTES.md
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
