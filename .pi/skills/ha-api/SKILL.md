@@ -12,22 +12,26 @@ description: |
 ## Authentication
 
 Use a **long-lived access token** (HA → Profile → Security → Long-lived access tokens).
-Local credentials live in the gitignored `.user/` directory at the project root:
+Local credentials live in the gitignored `.user/credentials.json` at the project root
+(created by `dev-setup/setup_env.py`, field `ha_token`):
 
 ```bash
-# One-time: save your long-lived token (or let dev-setup create it)
-mkdir -p .user && echo "YOUR_LONG_LIVED_TOKEN" > .user/hass_token && chmod 600 .user/hass_token
-
-# Every session: load it (from the project root)
-TOKEN=$(cat .user/hass_token)
+# Load the token (from the project root)
+TOKEN=$(python3 -c "import json;print(json.load(open('.user/credentials.json'))['ha_token'])")
 
 # Verify it works
 curl -s http://localhost:8123/api/ -H "Authorization: Bearer $TOKEN"
 # → {"message": "API running."}
 ```
 
-`.user/credentials.json` additionally stores the HA login and LLM API
-credentials, and is read/written by `dev-setup/setup_env.py`.
+If the file doesn't exist yet, create it manually (mode 600):
+
+```bash
+mkdir -p .user && cat > .user/credentials.json << 'EOF'
+{"ha_url": "http://localhost:8123", "ha_token": "YOUR_LONG_LIVED_TOKEN"}
+EOF
+chmod 600 .user/credentials.json
+```
 
 Alternative: exchange a refresh token for a short-lived access token via
 `POST /auth/token` (grant_type=refresh_token) — only needed when no long-lived

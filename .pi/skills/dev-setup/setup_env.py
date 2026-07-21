@@ -5,11 +5,13 @@ Automates the full new-environment checklist:
   1. (optional) Start HA via docker compose
   2. Wait for HA to become ready
   3. Complete onboarding (create admin user) if needed
-  4. Create a long-lived access token → .user/hass_token
+  4. Create a long-lived access token → .user/credentials.json
   5. Create the debug dashboard (/llm-devices)
   6. Add the LLM Smart Assistant integration (if LLM creds given)
 
 Any missing info is asked interactively (or passed via CLI args).
+Credentials are read from / saved to `.user/credentials.json` (gitignored),
+including the HA long-lived token (`ha_token`).
 
 Usage:
     python3 .pi/skills/dev-setup/setup_env.py [options]
@@ -44,7 +46,6 @@ import websockets
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 USER_DIR = PROJECT_ROOT / ".user"
-TOKEN_FILE = USER_DIR / "hass_token"
 CREDENTIALS_FILE = USER_DIR / "credentials.json"
 CLIENT_ID_SUFFIX = "/"
 DASHBOARD_SCRIPT = PROJECT_ROOT / ".pi/skills/llm-test/setup_dashboard.py"
@@ -126,7 +127,12 @@ def step_wait_ready(ha_url, timeout=120):
 def step_onboarding(ha_url, args):
     """Complete onboarding if needed. Returns an access token or None."""
     print("\n── 3. Onboarding")
-    steps = requests.get(f"{ha_url}/api/onboarding", timeout=10).json()
+    r = requests.get(f"{ha_url}/api/onboarding", timeout=10)
+    if r.status_code == 404:
+        # HA removes the onboarding API once onboarding is complete
+        skip("already completed (endpoint removed)")
+        return None
+    steps = r.json()
     user_done = any(s["step"] == "user" and s["done"] for s in steps)
     if user_done:
         skip("already completed")
@@ -167,14 +173,14 @@ def step_onboarding(ha_url, args):
     return token
 
 
-def step_token(ha_url, onboarding_token, args):
-    """Ensure a valid long-lived token exists in TOKEN_FILE. Returns the token."""
+def step_token(ha_url, onboarding_token, args, creds):
+    """Ensure a valid long-lived token exists in credentials. Returns the token."""
     print("\n── 4. Long-lived access token")
-    if TOKEN_FILE.exists():
-        token = TOKEN_FILE.read_text().strip()
+    token = creds.get("ha_token", "")
+    if token:
         r = requests.get(f"{ha_url}/api/", headers={"Authorization": f"Bearer {token}"}, timeout=5)
         if r.status_code == 200:
-            ok(f"existing token valid ({TOKEN_FILE})")
+            ok("existing token valid (.user/credentials.json)")
             return token
         info("cached token invalid, creating a new one")
 
@@ -215,10 +221,9 @@ def step_token(ha_url, onboarding_token, args):
         token = base_token
         ok("using provided token")
 
-    USER_DIR.mkdir(exist_ok=True)
-    TOKEN_FILE.write_text(token + "\n")
-    TOKEN_FILE.chmod(0o600)
-    ok(f"token cached to {TOKEN_FILE}")
+    creds["ha_token"] = token
+    save_credentials(creds)
+    ok("token saved to .user/credentials.json")
     return token
 
 
@@ -276,7 +281,7 @@ def step_integration(ha_url, token, args, creds):
             "llm_model": model,
         })
         save_credentials(creds)
-        ok(f"credentials saved to {CREDENTIALS_FILE}")
+        ok("credentials saved to .user/credentials.json")
         info("Note: input_number/input_select are NOT in the default domain whitelist.")
         info("Adjust domains via Settings → Devices & Services → LLM Smart Assistant → Configure.")
     else:
@@ -309,7 +314,7 @@ def main():
     step_docker(args.start_docker)
     step_wait_ready(ha_url)
     onboarding_token = step_onboarding(ha_url, args)
-    token = step_token(ha_url, onboarding_token, args)
+    token = step_token(ha_url, onboarding_token, args, creds)
     step_dashboard()
     step_integration(ha_url, token, args, creds)
 

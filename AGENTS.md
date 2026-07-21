@@ -26,9 +26,9 @@ Manual equivalent:
 
 1. `docker compose up -d`
 2. Complete HA onboarding (create `agent` account)
-3. Create a long-lived access token (Profile → Security) → save to `.user/hass_token`
+3. Create a long-lived access token (Profile → Security) → save as `ha_token` in `.user/credentials.json`
 
-> **Local credentials** live in `.user/` (gitignored): `hass_token` + `credentials.json`. Never commit them.
+> **Local credentials** live in `.user/credentials.json` (gitignored, mode 600). Never commit it.
 4. Create the debug dashboard: `python3 .pi/skills/llm-test/setup_dashboard.py` → available at `/llm-devices`
 5. Add the LLM Smart Assistant integration (Settings → Devices & Services)
 
