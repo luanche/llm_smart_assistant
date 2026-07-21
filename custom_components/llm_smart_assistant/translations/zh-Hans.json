@@ -15,6 +15,7 @@
     "error": {
       "cannot_connect": "无法连接到 API。请检查 URL 后重试。",
       "invalid_auth": "API 密钥无效。请检查后重试。",
+      "invalid_model": "在此 API 上找不到该模型。请检查模型名称。",
       "unknown": "发生未知错误。请重试。"
     },
     "abort": {
