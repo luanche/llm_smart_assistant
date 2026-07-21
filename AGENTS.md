@@ -40,7 +40,7 @@ Manual equivalent:
 
 ### Code Changes
 1. Understand the codebase before making changes
-2. **Think ahead**: Check `TASKS.md` (task roadmap) before designing a change. Implementations should make future tasks easier — or at least never conflict with them (e.g., prefer per-instance structures early if multi-instance work is planned). If a roadmap item affects your design, mention it to the user. When a task is completed, update `TASKS.md` with the implementation summary.
+2. **Think ahead**: Check `docs/dev/TASKS.md` (task roadmap) before designing a change. Implementations should make future tasks easier — or at least never conflict with them (e.g., prefer per-instance structures early if multi-instance work is planned). If a roadmap item affects your design, mention it to the user. When a task is completed, update `docs/dev/TASKS.md` with the implementation summary.
 3. Run `python3 .pi/skills/i18n-audit/check.py` after any localization changes
 4. Test via browser at `http://localhost:8123/llm-chat` (AI Chat panel)
 5. Use available skills:
