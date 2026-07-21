@@ -20,6 +20,14 @@ docker compose restart
 docker compose down
 ```
 
+### 调试 Dashboard
+
+新环境初始化时运行一次（幂等），创建 `/llm-devices` 调试面板（虚拟设备状态 + LLM 调试传感器）：
+
+```bash
+python3 .pi/skills/llm-test/setup_dashboard.py
+```
+
 ---
 
 ## 📁 代码结构
