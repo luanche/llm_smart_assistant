@@ -5,7 +5,7 @@ Automates the full new-environment checklist:
   1. (optional) Start HA via docker compose
   2. Wait for HA to become ready
   3. Complete onboarding (create admin user) if needed
-  4. Create a long-lived access token → /tmp/hass_token.txt
+  4. Create a long-lived access token → .user/hass_token
   5. Create the debug dashboard (/llm-devices)
   6. Add the LLM Smart Assistant integration (if LLM creds given)
 
@@ -43,10 +43,27 @@ import requests
 import websockets
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
-TOKEN_FILE = Path("/tmp/hass_token.txt")
+USER_DIR = PROJECT_ROOT / ".user"
+TOKEN_FILE = USER_DIR / "hass_token"
+CREDENTIALS_FILE = USER_DIR / "credentials.json"
 CLIENT_ID_SUFFIX = "/"
 DASHBOARD_SCRIPT = PROJECT_ROOT / ".pi/skills/llm-test/setup_dashboard.py"
 DOMAIN = "llm_smart_assistant"
+
+
+def load_credentials() -> dict:
+    """Load saved credentials from .user/credentials.json (if any)."""
+    try:
+        return json.loads(CREDENTIALS_FILE.read_text())
+    except (FileNotFoundError, json.JSONDecodeError):
+        return {}
+
+
+def save_credentials(creds: dict) -> None:
+    """Persist credentials to .user/credentials.json (gitignored, mode 600)."""
+    USER_DIR.mkdir(exist_ok=True)
+    CREDENTIALS_FILE.write_text(json.dumps(creds, indent=2, ensure_ascii=False) + "\n")
+    CREDENTIALS_FILE.chmod(0o600)
 
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
@@ -198,7 +215,9 @@ def step_token(ha_url, onboarding_token, args):
         token = base_token
         ok("using provided token")
 
+    USER_DIR.mkdir(exist_ok=True)
     TOKEN_FILE.write_text(token + "\n")
+    TOKEN_FILE.chmod(0o600)
     ok(f"token cached to {TOKEN_FILE}")
     return token
 
@@ -211,7 +230,7 @@ def step_dashboard():
         fail(f"Dashboard setup failed: {r.stderr}")
 
 
-def step_integration(ha_url, token, args):
+def step_integration(ha_url, token, args, creds):
     print("\n── 6. LLM Smart Assistant integration")
     if args.skip_integration:
         skip("--skip-integration")
@@ -224,10 +243,11 @@ def step_integration(ha_url, token, args):
         skip("integration already configured")
         return
 
-    base_url = ask("LLM API Base URL", args.llm_base_url,
+    base_url = ask("LLM API Base URL", args.llm_base_url or creds.get("llm_base_url"),
                    default="https://api.deepseek.com/v1")
-    api_key = ask("LLM API Key", args.llm_api_key, secret=True)
-    model = ask("LLM Model", args.llm_model, default="deepseek-chat")
+    api_key = ask("LLM API Key", args.llm_api_key or creds.get("llm_api_key"), secret=True)
+    model = ask("LLM Model", args.llm_model or creds.get("llm_model"),
+                default="deepseek-chat")
     if not api_key:
         fail("LLM API Key is required (or use --skip-integration)")
 
@@ -244,10 +264,19 @@ def step_integration(ha_url, token, args):
                           "api_base_url": base_url.rstrip("/"),
                           "api_key": api_key,
                           "model_name": model,
-                      }, timeout=30)
+                      }, timeout=120)
     result = r.json()
     if result.get("type") == "create_entry":
         ok(f"integration added (model: {model})")
+        # Persist the working credentials for next time
+        creds.update({
+            "ha_url": ha_url,
+            "llm_base_url": base_url.rstrip("/"),
+            "llm_api_key": api_key,
+            "llm_model": model,
+        })
+        save_credentials(creds)
+        ok(f"credentials saved to {CREDENTIALS_FILE}")
         info("Note: input_number/input_select are NOT in the default domain whitelist.")
         info("Adjust domains via Settings → Devices & Services → LLM Smart Assistant → Configure.")
     else:
@@ -268,7 +297,13 @@ def main():
     p.add_argument("--llm-model")
     p.add_argument("--skip-integration", action="store_true")
     args = p.parse_args()
-    ha_url = args.ha_url.rstrip("/")
+
+    # Saved credentials fill in anything not passed via CLI args
+    creds = load_credentials()
+    ha_url = (args.ha_url if args.ha_url != "http://localhost:8123"
+              else creds.get("ha_url", args.ha_url)).rstrip("/")
+    args.ha_user = args.ha_user or creds.get("ha_username")
+    args.ha_password = args.ha_password or creds.get("ha_password")
 
     print("🚀 LLM Smart Assistant — dev environment setup")
     step_docker(args.start_docker)
@@ -276,7 +311,7 @@ def main():
     onboarding_token = step_onboarding(ha_url, args)
     token = step_token(ha_url, onboarding_token, args)
     step_dashboard()
-    step_integration(ha_url, token, args)
+    step_integration(ha_url, token, args, creds)
 
     print("\n🎉 Done!")
     print(f"   HA:        {ha_url}")

@@ -11,7 +11,7 @@ description: |
 
 - Dev HA: `http://localhost:8123`（Docker）
 - 凭证: `agent` / `password`
-- Token 位置: `/tmp/hass_token.txt`
+- Token 位置: `.user/hass_token`（相对项目根目录，gitignored）
 - 日志: `config/home-assistant.log`（相对项目根目录）
 - 存储: `config/.storage/llm_smart_assistant.storage`（相对项目根目录）
 - 配置: `configuration.yaml` 中的虚拟设备
@@ -19,12 +19,9 @@ description: |
 ## 初始化
 
 ```bash
-# 获取 token（长期令牌，从 HA 个人资料 → 安全 → 长期访问令牌创建，缓存到 /tmp/hass_token.txt）
+# 获取 token（长期令牌，存放在 .user/hass_token，由 dev-setup 创建）
 # 详见 ha-api skill 的 Authentication 章节
-if [ ! -s /tmp/hass_token.txt ]; then
-  echo "请先将长期访问令牌写入 /tmp/hass_token.txt" >&2; exit 1
-fi
-TOKEN=$(cat /tmp/hass_token.txt)
+TOKEN=$(cat .user/hass_token)
 
 # 清空对话历史（每次测试前建议清理）
 python3 << 'PYEOF'

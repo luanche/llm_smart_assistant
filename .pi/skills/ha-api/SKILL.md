@@ -12,19 +12,22 @@ description: |
 ## Authentication
 
 Use a **long-lived access token** (HA → Profile → Security → Long-lived access tokens).
-Never commit tokens to the repo; cache it locally:
+Local credentials live in the gitignored `.user/` directory at the project root:
 
 ```bash
-# One-time: save your long-lived token
-echo "YOUR_LONG_LIVED_TOKEN" > /tmp/hass_token.txt
+# One-time: save your long-lived token (or let dev-setup create it)
+mkdir -p .user && echo "YOUR_LONG_LIVED_TOKEN" > .user/hass_token && chmod 600 .user/hass_token
 
-# Every session: load it
-TOKEN=$(cat /tmp/hass_token.txt)
+# Every session: load it (from the project root)
+TOKEN=$(cat .user/hass_token)
 
 # Verify it works
 curl -s http://localhost:8123/api/ -H "Authorization: Bearer $TOKEN"
 # → {"message": "API running."}
 ```
+
+`.user/credentials.json` additionally stores the HA login and LLM API
+credentials, and is read/written by `dev-setup/setup_env.py`.
 
 Alternative: exchange a refresh token for a short-lived access token via
 `POST /auth/token` (grant_type=refresh_token) — only needed when no long-lived

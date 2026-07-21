@@ -8,18 +8,20 @@ again simply overwrites the dashboard config.
 Usage:
     python3 .pi/skills/llm-test/setup_dashboard.py
 
-Requires a long-lived token in /tmp/hass_token.txt
-(see .pi/skills/ha-api/SKILL.md — Authentication).
+Requires a long-lived token in .user/hass_token (relative to project root,
+created by .pi/skills/dev-setup/setup_env.py — see .pi/skills/ha-api/SKILL.md).
 """
 
 import asyncio
 import json
 import sys
+from pathlib import Path
 
 import websockets
 
+PROJECT_ROOT = Path(__file__).resolve().parents[3]
 HA_URL = "ws://localhost:8123/api/websocket"
-TOKEN_FILE = "/tmp/hass_token.txt"
+TOKEN_FILE = PROJECT_ROOT / ".user" / "hass_token"
 DASHBOARD_URL_PATH = "llm-devices"
 
 DASHBOARD_CONFIG = {
