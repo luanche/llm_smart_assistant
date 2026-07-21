@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from typing import Any
 
@@ -70,27 +71,56 @@ async def validate_api_connection(
     api_key: str,
     model_name: str,
 ) -> dict[str, str] | None:
-    """Validate the LLM API connection."""
+    """Validate the LLM API connection.
+
+    Probe 1: GET /models (OpenAI standard). Some providers (e.g. Databricks
+    serving endpoints) do not expose /models and return 403/404 — in that
+    case fall back to probe 2: a minimal POST /chat/completions.
+    """
     headers = {
         "Authorization": f"Bearer {api_key}",
         "Content-Type": "application/json",
     }
-    url = f"{api_base_url.rstrip('/')}/models"
+    base = api_base_url.rstrip("/")
+    # Probe 2 needs a generous timeout: serverless endpoints (e.g. Databricks)
+    # can take 60s+ to cold-start the model.
+    probe_timeout = aiohttp.ClientTimeout(total=15)
+    chat_timeout = aiohttp.ClientTimeout(total=90)
     try:
         async with aiohttp.ClientSession() as session:
+            # Probe 1: GET /models
             async with session.get(
-                url, headers=headers, timeout=aiohttp.ClientTimeout(total=10)
+                f"{base}/models", headers=headers, timeout=probe_timeout
+            ) as resp:
+                if resp.status == 401:
+                    return {"base": "invalid_auth"}
+                if resp.status == 200:
+                    return None
+                if resp.status not in (403, 404):
+                    return {"base": "cannot_connect"}
+                # 403/404: provider doesn't expose /models — try probe 2
+
+            # Probe 2: minimal chat completion
+            payload = {
+                "model": model_name,
+                "messages": [{"role": "user", "content": "hi"}],
+                "max_tokens": 1,
+            }
+            async with session.post(
+                f"{base}/chat/completions", headers=headers, json=payload,
+                timeout=chat_timeout,
             ) as resp:
                 if resp.status == 401:
                     return {"base": "invalid_auth"}
                 if resp.status == 404:
-                    return None
+                    return {"base": "invalid_model"}
                 if resp.status != 200:
                     return {"base": "cannot_connect"}
                 return None
-    except aiohttp.ClientError:
+    except (aiohttp.ClientError, asyncio.TimeoutError):
         return {"base": "cannot_connect"}
     except Exception:
+        _LOGGER.exception("API validation failed with unexpected error")
         return {"base": "unknown"}
 
 
