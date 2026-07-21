@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.2.1
+
+- fix: config flow validation fallback for providers without /models
+- docs: add dev-setup skill, debug dashboard script, long-lived token auth
+- docs: add missing service definitions to services.yaml
+- docs: sync documentation with v1.2.0 code, add maintenance rules
+
+
 ## v1.2.0
 
 - fix: remove onpointerleave from voice button (causes mobile touch issues)
