@@ -1,5 +1,15 @@
 # Changelog
 
+## v1.2.2
+
+- docs: move dev docs to docs/dev/
+- docs: add TASKS.md roadmap, think-ahead rule
+- fix: skip restored input states on startup; per-instance storage
+- docs: strengthen git workflow rules
+- docs: consolidate credentials into .user/credentials.json
+- docs: store local dev credentials in gitignored .user/ directory
+
+
 ## v1.2.1
 
 - fix: config flow validation fallback for providers without /models
