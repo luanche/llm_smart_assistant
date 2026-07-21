@@ -42,8 +42,8 @@
 - [ ] **Suggestions in English** (when HA language = en): Verify response contains English text
 
 ### 5D: UI i18n (data-i18n + LANGUAGES)
-- ✅ **53 keys in both en and zh** (confirmed by audit)
-- [ ] **All 53 keys render**: No missing `{{key}}` placeholders visible in DOM
+- ✅ **56 keys in both en and zh** (confirmed by audit)
+- [ ] **All 56 keys render**: No missing `{{key}}` placeholders visible in DOM
 - [ ] **No hardcoded English strings**: Only `data-i18n` annotated text shows
 
 ### 5E: Translation File Completeness
@@ -90,27 +90,3 @@
 
 ## Phase 10: Cleanup
 37. ✅ Config entry deleted successfully
-
----
-
-## Issues Found & Fixed
-
-### Fixed
-| Issue | Fix | Commit |
-|-------|-----|--------|
-| TTS entity EntitySelector rejects empty value | Created `_OptionalEntitySelector` subclass | `075d3e1` |
-| Suggestions caching not working | Moved `_cache` from class-level to module-level `_SUGGESTIONS_CACHE` | `075d3e1` |
-| `xiaomi_miot.play_text` service doesn't exist | Changed to `xiaomi_miot.intelligent_speaker` with `text`, `execute`, `silent` params | `1de78e6` |
-| Speaker muted (volume 0) prevents hearing | Diagnosed, unmuted, set volume to 50% | (direct) |
-| `media_player.volume_set` not effective | Switched to DND switch (`no_disturb`) for mute control | `0fa65da` |
-| LLM JSON parse failure → "Sorry" error | Retry on JSON parse failure; return fallback instead of None on exhaustion | `d90b7b9` |
-| `max_tokens=2048` causes JSON truncation | Increased default to 4096 | `b7ab3e8` |
-| LLM empty content returns None immediately | Changed to retry | `b7ab3e8` |
-| Xiaomi sensor phantom updates (same text) | Enhanced duplicate detection with noise filtering | `3413329` |
-| Prompts use uppercase `JSON` (DeepSeek requirement) | Changed to lowercase `json` + `(json format example above)` | `64aa883` |
-| `tts_mute_entity_id` was TextSelector | Changed to `_OptionalEntitySelector` | `46f088a` |
-
-### Open Issues
-- **HA REST API doesn't return service response bodies**: Services with `supports_response` only return via WebSocket. Use WebSocket or check storage directly.
-- **UI button not clickable via Playwright**: HA UI uses LitElement with Shadow DOM.
-- **Multi-language tests (5A-5D)**: Not yet executed.

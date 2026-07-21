@@ -48,6 +48,18 @@ ALLOWED_HARDCODED = {
     "headerTitle", "inputField", "instanceSelect", "loadingIndicator",
     "progMsg", "sendBtn", "statusText",
     "tabBar", "voiceBtn",
+    # Element IDs (v1.2.0 sheet-based UI)
+    "addSheet", "addSheetTitle", "auth", "confirmSheet", "debugSheet",
+    "debugSheetContent", "editSheet", "fabAdd", "modeToggle",
+    "textInputWrap", "voice", "voiceHoldBtn", "voiceHoldText",
+    # CSS classes / state values
+    "disabled",
+    # WebSocket protocol message types
+    "event", "result",
+    # SpeechRecognition error codes
+    "no-speech",
+    # Fonts
+    "Cascadia Code",
     "auto", "chat", "message", "onclick",
     "Enter", "Escape",
     "SF Pro Text", "SF Pro Display", "SF Mono", "Microsoft YaHei", "PingFang SC",

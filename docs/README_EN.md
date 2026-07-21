@@ -122,6 +122,7 @@ The built-in web UI provides:
 | Service             | Description                                       |
 | ------------------- | ------------------------------------------------- |
 | `process_input`     | Send text to the LLM for processing               |
+| `chat`              | Send a message and get the LLM response synchronously (used by the chat panel) |
 | `create_automation` | Create a dynamic automation                       |
 | `update_automation` | Edit an automation's entity, condition, or action |
 | `toggle_automation` | Enable or disable an automation                   |

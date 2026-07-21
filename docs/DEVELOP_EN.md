@@ -29,7 +29,7 @@ custom_components/llm_smart_assistant/
 ├── __init__.py           # Entry point, services, panel registration
 ├── manifest.json         # Dependencies and version
 ├── const.py              # Constants, default prompts
-├── config_flow.py        # Single-page ConfigFlow + OptionsFlow (24+ fields)
+├── config_flow.py        # ConfigFlow (initial 4 fields) + single-page OptionsFlow (24 fields)
 ├── coordinator.py        # Core: LLM API, ReAct loop, automations
 ├── services.py           # Step executor with whitelist interceptor
 ├── sensor.py             # LLMLastResponseSensor + LLMDebugRawSensor
@@ -101,10 +101,11 @@ t('title')  // → 'AI Chat' or 'AI 聊天'
 
 The iframe gets the HA auth token through multiple fallback channels:
 
-1. `chat.js` passes it via URL query parameter (`?auth_token=...`)
-2. Reads from `localStorage['hassTokens']` (same-origin, shared with parent)
-3. PostMessage handshake with parent window
-4. Falls back to a manual prompt
+1. Backend-injected configured token (`window.CONFIGURED_ACCESS_TOKEN`, from the `access_token` config option)
+2. `chat.js` passes it via URL query parameter (`?auth_token=...`)
+3. Reads from `localStorage['hassTokens']` (same-origin, shared with parent)
+4. PostMessage handshake with parent window
+5. Falls back to a manual prompt
 
 ### Key Functions in index.html
 
@@ -113,7 +114,8 @@ The iframe gets the HA auth token through multiple fallback channels:
 | `t(key)`                      | Translate a key to the active language                       |
 | `applyI18n()`                 | Apply translations to all `[data-i18n]` elements             |
 | `callAPI(method, path, body)` | HA REST API wrapper with auth header                         |
-| `sendMessage()`               | Send user input, poll sensor, display response progressively |
+| `sendMessage()`               | Send user input, subscribe to the response sensor via WebSocket, display progressively |
+| `subscribeEntity()`           | Subscribe to entity state changes via the HA WebSocket API                             |
 | `refreshAutomations()`        | Fetch and render automation cards                            |
 | `toggleAutomation()`          | Enable/disable an automation                                 |
 | `showEditModal()`             | Open edit modal with 3 fields (entity, condition, action)    |
@@ -179,7 +181,7 @@ Entity state change
 ### Service Registration
 
 `process_input` and `toggle_automation` are registered **globally** (once, on first setup).
-Other services (`create_automation`, `remove_automation`, `get_automations`, `update_automation`) are registered **per-instance**.
+Other services (`create_automation`, `remove_automation`, `get_automations`, `update_automation`, `chat`) are registered **per-instance**. The `chat` service is used by the chat panel backend and returns the LLM response synchronously.
 
 ---
 
@@ -192,5 +194,6 @@ Other services (`create_automation`, `remove_automation`, `get_automations`, `up
 | Panel files read on each request                 | Allows hot-reloading HTML/JS without HA restart                             |
 | `data-i18n` attribute pattern                    | Adding a new string only requires one HTML attribute + one LANGUAGES entry  |
 | Both count AND time history                      | Applies both constraints simultaneously for more precise history control    |
+| WebSocket subscription instead of polling        | Pushes progressive LLM replies in real time; lower latency, fewer requests  |
 | LLM format uses `entity_id`/`condition`/`prompt` | Simple, LLM-friendly structure for `create_automation`                      |
 | Disable removes listener                         | Unlike a flag check, this actually stops the event system from firing       |

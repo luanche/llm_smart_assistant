@@ -11,6 +11,12 @@ process_input:
       example: "Turn on the living room lights"
       selector:
         text:
+    entry_id:
+      name: Config Entry ID
+      description: "Target a specific LLM instance. Leave empty to process on all instances."
+      required: false
+      selector:
+        text:
 
 create_automation:
   name: Create Automation
@@ -61,6 +67,72 @@ remove_automation:
 get_automations:
   name: Get Automations
   description: "List all currently registered dynamic automations."
+
+update_automation:
+  name: Update Automation
+  description: "Update an existing dynamic automation. The state listener is re-registered when entity_id or condition changes."
+  fields:
+    automation_id:
+      name: Automation ID
+      description: "The ID of the automation to update."
+      required: true
+      example: "a1b2c3d4-..."
+      selector:
+        text:
+    entity_id:
+      name: Entity ID
+      description: "New trigger entity. Re-registers the state-change listener."
+      required: false
+      example: "sensor.temperature"
+      selector:
+        entity:
+          domain: sensor
+    condition:
+      name: Condition
+      description: "New trigger condition (e.g., '>30', '==on', '<5')."
+      required: false
+      example: ">30"
+      selector:
+        text:
+    prompt:
+      name: Automation Prompt
+      description: "New prompt template used for LLM context when the automation triggers."
+      required: false
+      selector:
+        text:
+          multiline: true
+    description:
+      name: Description
+      description: "New human-readable description of this automation."
+      required: false
+      example: "Turn on AC when temperature exceeds 30 degrees"
+      selector:
+        text:
+
+toggle_automation:
+  name: Toggle Automation
+  description: "Enable or disable a dynamic automation. Disabling removes its state-change listener; enabling re-registers it."
+  fields:
+    automation_id:
+      name: Automation ID
+      description: "The ID of the automation to toggle."
+      required: true
+      example: "a1b2c3d4-..."
+      selector:
+        text:
+    disable:
+      name: Disable
+      description: "Set to true to disable the automation, false to enable it."
+      required: false
+      default: true
+      selector:
+        boolean:
+    entry_id:
+      name: Config Entry ID
+      description: "Target a specific LLM instance. Leave empty to search all instances."
+      required: false
+      selector:
+        text:
 
 chat:
   name: Chat

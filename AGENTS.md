@@ -18,7 +18,7 @@ You are developing a Home Assistant custom integration called **LLM Smart Assist
 
 ### Read First
 - **`README.md`** — User-facing docs (installation, configuration, features)
-- **`DEVELOP.md`** — Developer guide (architecture, hot-reload, i18n audit, design decisions)
+- **`docs/DEVELOP.md`** / **`docs/DEVELOP_EN.md`** — Developer guide (architecture, hot-reload, i18n audit, design decisions)
 
 ### Code Changes
 1. Understand the codebase before making changes
@@ -28,6 +28,13 @@ You are developing a Home Assistant custom integration called **LLM Smart Assist
    - `.pi/skills/browser-mcp/` — Playwright browser automation for UI testing
    - `.pi/skills/ha-api/` — Home Assistant REST API calls
    - `.pi/skills/i18n-audit/` — i18n audit script
+   - `.pi/skills/llm-test/` — Test/debug workflow with virtual devices
+
+### Documentation Maintenance
+
+- **Keep docs in sync**: When development/debugging reveals that any doc (`README.md`, `docs/DEVELOP*.md`, `TEST_FLOW.md`, skill `SKILL.md` files, or this file) is outdated or contradicts the code, update it in the same change.
+- **NEVER edit `CHANGELOG.md`** — it is generated automatically by the release pipeline.
+- **Keep skills healthy**: If a skill's instructions are wrong, stale, or awkward to use (bad paths, outdated commands, missing patterns), update/optimize the corresponding `SKILL.md`.
 
 ### Branch Naming Convention
 
