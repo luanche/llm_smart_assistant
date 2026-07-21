@@ -52,6 +52,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         hass=hass,
         config_entry_data=dict(entry.data),
         config_entry_options=dict(entry.options),
+        entry_id=entry.entry_id,
     )
 
     # Create the services executor and link it to the coordinator

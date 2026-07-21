@@ -157,10 +157,12 @@ class LLMSmartAssistantCoordinator:
         hass: HomeAssistant,
         config_entry_data: dict[str, Any],
         config_entry_options: dict[str, Any],
+        entry_id: str = "",
     ) -> None:
         self.hass = hass
         self._data = dict(config_entry_data)
         self._options = dict(config_entry_options)
+        self._entry_id = entry_id
 
         # Conversation history
         self._history: list[LLMChatMessage] = []
@@ -173,9 +175,16 @@ class LLMSmartAssistantCoordinator:
         self._automation_listeners: dict[str, callable] = {}
         self._disabled_automations_set: set = set()
 
-        # Storage for persistence
+        # Storage for persistence — per-instance key so multiple config
+        # entries never clobber each other's automations/history/state.
+        # Data from the legacy shared key is migrated on first load.
         self._store = Store(
-            hass, STORAGE_VERSION, STORAGE_KEY
+            hass,
+            STORAGE_VERSION,
+            f"{STORAGE_KEY}_{entry_id}" if entry_id else STORAGE_KEY,
+        )
+        self._legacy_store = (
+            Store(hass, STORAGE_VERSION, STORAGE_KEY) if entry_id else None
         )
 
         # Last processed state per entity (for duplicate detection)
@@ -432,11 +441,27 @@ class LLMSmartAssistantCoordinator:
 
         entity_id = event.data.get("entity_id", "")
         new_state: State | None = event.data.get("new_state")
+        old_state: State | None = event.data.get("old_state")
 
         if new_state is None:
             return
 
         state_text = str(new_state.state).strip()
+
+        # Skip state restoration at startup/reload: when an entity is
+        # (re)registered with its previous value, old_state is None.
+        # Record the text so a subsequent identical phantom update is
+        # still caught by duplicate detection, but do NOT process it —
+        # otherwise the last voice command would re-execute on every
+        # HA restart.
+        if old_state is None:
+            _LOGGER.debug(
+                "Ignoring restored state for %s (entity just loaded): '%s'",
+                entity_id, state_text,
+            )
+            if state_text and state_text not in ("unavailable", "unknown", "none"):
+                self._last_states[entity_id] = state_text
+            return
 
         # Skip empty/unavailable states
         if not state_text or state_text in ("", "unavailable", "unknown", "none"):
@@ -455,6 +480,7 @@ class LLMSmartAssistantCoordinator:
                 return
 
         self._last_states[entity_id] = state_text
+        self._schedule_storage_save()
 
         # Process the input asynchronously
         task = self.hass.async_create_task(
@@ -1468,6 +1494,14 @@ class LLMSmartAssistantCoordinator:
     async def _async_load_storage(self) -> None:
         """Load persisted data (dynamic automations) from .storage."""
         stored = await self._store.async_load()
+        if stored is None and self._legacy_store is not None:
+            # First load with per-instance key: migrate legacy shared storage
+            legacy = await self._legacy_store.async_load()
+            if legacy:
+                _LOGGER.info(
+                    "Migrating storage from legacy shared key to per-instance key"
+                )
+                stored = legacy
         if stored is None:
             return
 
@@ -1494,6 +1528,9 @@ class LLMSmartAssistantCoordinator:
         if history_data:
             _LOGGER.info("Restored %d conversation history messages", len(history_data))
 
+        # Restore last input states (for duplicate/phantom detection across restarts)
+        self._last_states.update(stored.get("last_input_states", {}))
+
     async def _async_save_storage(self) -> None:
         """Save dynamic automations and conversation history to .storage."""
         history_data = [msg.to_dict() for msg in self._history[-50:]]
@@ -1502,6 +1539,7 @@ class LLMSmartAssistantCoordinator:
                 auto.to_dict() for auto in self._automations.values()
             ],
             "history": history_data,
+            "last_input_states": dict(self._last_states),
         }
         _LOGGER.info("Saving storage: %d automations, %d history messages",
                      len(data["automations"]), len(history_data))
