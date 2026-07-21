@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.2.4
+
+- fix: allow input_text entities in input_entities selector
+
+
 ## v1.2.3
 
 - fix: compute PREV_TAG before tagging in release pipeline
