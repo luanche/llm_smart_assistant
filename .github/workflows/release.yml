@@ -49,11 +49,15 @@ jobs:
 
           python3 -c "import json; p='custom_components/llm_smart_assistant/manifest.json'; d=json.load(open(p)); d['version']='$NEW_VERSION'; json.dump(d, open(p,'w'), indent=2)"
 
+          # Pre-compute previous tag BEFORE tagging (used by changelog & release notes)
+          PREV_TAG=$(git tag --sort=-creatordate | head -1 || echo "")
+          echo "prev_tag=$PREV_TAG" >> "$GITHUB_OUTPUT"
+
       - name: Update CHANGELOG.md
         if: steps.bump.outputs.type != 'none'
         run: |
           VERSION="${{ steps.version.outputs.version }}"
-          PREV_TAG=$(git tag --sort=-creatordate | head -1 || echo "")
+          PREV_TAG="${{ steps.version.outputs.prev_tag }}"
 
           HEADER="# Changelog"
           if [ -f CHANGELOG.md ] && [ "$(head -1 CHANGELOG.md)" = "$HEADER" ]; then
@@ -103,7 +107,7 @@ jobs:
         if: steps.bump.outputs.type != 'none'
         run: |
           VERSION="${{ steps.version.outputs.version }}"
-          PREV_TAG=$(git tag --sort=-creatordate | head -1 || echo "")
+          PREV_TAG="${{ steps.version.outputs.prev_tag }}"
 
           {
             echo "## LLM Smart Assistant v${VERSION}"
