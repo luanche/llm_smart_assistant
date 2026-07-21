@@ -11,13 +11,24 @@ description: |
 
 ## Authentication
 
+Use a **long-lived access token** (HA → Profile → Security → Long-lived access tokens).
+Never commit tokens to the repo; cache it locally:
+
 ```bash
-# Get access token from refresh token
-TOKEN=$(curl -s -X POST http://localhost:8123/auth/token \
-  -H "Content-Type: application/x-www-form-urlencoded" \
-  -d "grant_type=refresh_token&refresh_token=cedac0499e157a5187569f632a9884efdb95cab37a0834dca32a9c98ff1544ae7932542867c2e2c689138aa1024864867e427d282674b07969c1cec6cfffd91a&client_id=http://localhost:8123/" \
-  | python3 -c "import sys,json;print(json.load(sys.stdin)['access_token'])")
+# One-time: save your long-lived token
+echo "YOUR_LONG_LIVED_TOKEN" > /tmp/hass_token.txt
+
+# Every session: load it
+TOKEN=$(cat /tmp/hass_token.txt)
+
+# Verify it works
+curl -s http://localhost:8123/api/ -H "Authorization: Bearer $TOKEN"
+# → {"message": "API running."}
 ```
+
+Alternative: exchange a refresh token for a short-lived access token via
+`POST /auth/token` (grant_type=refresh_token) — only needed when no long-lived
+token exists.
 
 ## State & Entity Queries
 

@@ -19,12 +19,10 @@ description: |
 ## 初始化
 
 ```bash
-# 获取 token（使用 ha-api skill 中的 refresh_token 流程，缓存到 /tmp/hass_token.txt）
+# 获取 token（长期令牌，从 HA 个人资料 → 安全 → 长期访问令牌创建，缓存到 /tmp/hass_token.txt）
+# 详见 ha-api skill 的 Authentication 章节
 if [ ! -s /tmp/hass_token.txt ]; then
-  curl -s -X POST http://localhost:8123/auth/token \
-    -H "Content-Type: application/x-www-form-urlencoded" \
-    -d "grant_type=refresh_token&refresh_token=<见 ha-api skill>&client_id=http://localhost:8123/" \
-    | python3 -c "import sys,json;print(json.load(sys.stdin)['access_token'])" > /tmp/hass_token.txt
+  echo "请先将长期访问令牌写入 /tmp/hass_token.txt" >&2; exit 1
 fi
 TOKEN=$(cat /tmp/hass_token.txt)
 
@@ -137,54 +135,17 @@ curl -s -X POST "http://localhost:8123/api/services/input_select/select_option" 
 | 🎮 其他 | 电视、热水器、扫地机、窗帘、音量 |
 | 🧪 调试 | 语音输入（显示最后输入）、LLM 回复、LLM 调试数据 |
 
-### 更新 Dashboard
+### 创建 / 更新 Dashboard
+
+新 dev 环境初始化时**必须**运行（幂等，可重复执行）：
 
 ```bash
-# 通过 WebSocket API 更新
-# 见下方示例脚本
+pip install websockets   # 如未安装
+python3 .pi/skills/llm-test/setup_dashboard.py
 ```
 
-<details>
-<summary>完整更新脚本</summary>
-
-```python
-import asyncio, json, websockets
-
-TOKEN = open("/tmp/hass_token.txt").read().strip()
-
-async def update_dashboard():
-    async with websockets.connect("ws://localhost:8123/api/websocket") as ws:
-        await ws.recv()
-        await ws.send(json.dumps({"type": "auth", "access_token": TOKEN}))
-        await ws.recv()
-        
-        config = {
-            "title": "智能设备",
-            "views": [{
-                "title": "智能设备",
-                "icon": "mdi:devices",
-                "cards": [
-                    {"type": "entities", "title": "💡 灯光", "show_header_toggle": True,
-                     "entities": ["input_boolean.living_room_light", ...]},
-                    # ... 更多卡片
-                    {"type": "entities", "title": "🧪 调试", "entities": [
-                        {"entity": "sensor.test_voice_input", "name": "语音输入"},
-                        {"entity": "sensor.llm_last_response", "name": "LLM 回复"},
-                        {"entity": "sensor.llm_debug_raw", "name": "调试数据"},
-                    ]},
-                ]
-            }]
-        }
-        
-        await ws.send(json.dumps({
-            "id": 1, "type": "lovelace/config/save",
-            "url_path": "llm-devices", "config": config
-        }))
-        await ws.recv()
-
-asyncio.run(update_dashboard())
-```
-</details>
+脚本通过 WebSocket API 创建 `/llm-devices` 面板并写入完整布局。
+修改布局请直接编辑 `setup_dashboard.py` 中的 `DASHBOARD_CONFIG` 后重跑。
 
 ---
 

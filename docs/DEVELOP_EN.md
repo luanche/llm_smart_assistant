@@ -20,6 +20,14 @@ docker compose restart
 docker compose down
 ```
 
+### Debug Dashboard
+
+Run once when setting up a new environment (idempotent) to create the `/llm-devices` debug dashboard (virtual device states + LLM debug sensors):
+
+```bash
+python3 .pi/skills/llm-test/setup_dashboard.py
+```
+
 ---
 
 ## 📁 Code Structure

@@ -14,6 +14,22 @@ You are developing a Home Assistant custom integration called **LLM Smart Assist
 - Panel files (`panel/index.html`, `panel/chat.js`) are read fresh on every request — no restart needed for HTML/JS changes
 - HA at `http://localhost:8123`, credentials: `agent` / `password`
 
+### New Environment Setup Checklist
+
+Use the **`dev-setup` skill** — it automates all of the below and asks for missing credentials:
+
+```bash
+python3 .pi/skills/dev-setup/setup_env.py
+```
+
+Manual equivalent:
+
+1. `docker compose up -d`
+2. Complete HA onboarding (create `agent` account)
+3. Create a long-lived access token (Profile → Security) → save to `/tmp/hass_token.txt`
+4. Create the debug dashboard: `python3 .pi/skills/llm-test/setup_dashboard.py` → available at `/llm-devices`
+5. Add the LLM Smart Assistant integration (Settings → Devices & Services)
+
 ## Workflow
 
 ### Read First
@@ -25,6 +41,7 @@ You are developing a Home Assistant custom integration called **LLM Smart Assist
 2. Run `python3 .pi/skills/i18n-audit/check.py` after any localization changes
 3. Test via browser at `http://localhost:8123/llm-chat` (AI Chat panel)
 4. Use available skills:
+   - `.pi/skills/dev-setup/` — New dev environment bootstrap (onboarding, token, dashboard, integration)
    - `.pi/skills/browser-mcp/` — Playwright browser automation for UI testing
    - `.pi/skills/ha-api/` — Home Assistant REST API calls
    - `.pi/skills/i18n-audit/` — i18n audit script
