@@ -267,7 +267,7 @@ class LLMSmartAssistantOptionsFlow(config_entries.OptionsFlow):
                 # ── Input Sensors ──
                 vol.Optional(CONF_INPUT_ENTITIES,
                     default=cur.get(CONF_INPUT_ENTITIES, [])):
-                selector.EntitySelector(selector.EntitySelectorConfig(domain=["sensor"], multiple=True)),
+                selector.EntitySelector(selector.EntitySelectorConfig(domain=["sensor", "input_text"], multiple=True)),
                 vol.Optional(CONF_IGNORE_DUPLICATE,
                     default=cur.get(CONF_IGNORE_DUPLICATE, DEFAULT_IGNORE_DUPLICATE)):
                 selector.BooleanSelector(),
