@@ -26,7 +26,9 @@ Manual equivalent:
 
 1. `docker compose up -d`
 2. Complete HA onboarding (create `agent` account)
-3. Create a long-lived access token (Profile → Security) → save to `/tmp/hass_token.txt`
+3. Create a long-lived access token (Profile → Security) → save as `ha_token` in `.user/credentials.json`
+
+> **Local credentials** live in `.user/credentials.json` (gitignored, mode 600). Never commit it.
 4. Create the debug dashboard: `python3 .pi/skills/llm-test/setup_dashboard.py` → available at `/llm-devices`
 5. Add the LLM Smart Assistant integration (Settings → Devices & Services)
 
@@ -69,14 +71,17 @@ Manual equivalent:
 ### Git Workflow (GitHub Flow)
 
 ```
-1. git checkout -b <prefix>/<description>    # Create branch from master
-2. (work, commit, test)
-3. git push origin <prefix>/<description>     # Push branch
-4. Create Pull Request on GitHub → merge to master
+0. git fetch origin                           # Ensure master is up to date
+   git log origin/master --oneline -5         # Check if previous branches/PRs are merged
+1. git checkout -b <prefix>/<description> origin/master   # Branch from LATEST master
+2. (work, test)
+3. Ask user for approval → commit             # NEVER commit without approval
+4. Ask user for approval → push               # NEVER push without approval
+5. Create Pull Request on GitHub → merge to master
 ```
 
 **Rules:**
-- Always branch from `master`
+- **Before creating a branch**: `git fetch origin`, confirm local `master` matches `origin/master`, and check whether your previous branches have already been merged. Always branch from the **latest** `origin/master`.
 - Branch name must start with a valid prefix (`feat/`, `fix/`, `chore/`, etc.)
 - Use lowercase kebab-case for branch names: `feat/add-tts-support`
 - Squash merge recommended to keep master history clean
@@ -86,6 +91,8 @@ Manual equivalent:
 - Commit messages in English, one logical change per commit
 - Keep `.gitignore` minimal; force-add only what should be tracked (e.g., `.pi/skills/`)
 - **Do NOT commit unless the user explicitly says "提交" or "commit"**
+- **Do NOT push unless the user explicitly says "推送" or "push"** — committing locally does NOT imply permission to push
+- **Do NOT rewrite published history** (rebase/amend/force-push) without explicit user approval
 
 ### Version Scheme (SemVer)
 

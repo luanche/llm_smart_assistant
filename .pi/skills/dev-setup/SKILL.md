@@ -25,6 +25,20 @@ Ask the developer for anything missing **before** running the script:
 
 If the developer only wants the environment without the LLM integration, use `--skip-integration`.
 
+## Credentials Storage
+
+All local credentials live in the gitignored **`.user/credentials.json`** (project root, mode 600):
+
+| Field | Content | Written by |
+|-------|---------|-----------|
+| `ha_token` | Long-lived access token | `setup_env.py` (or manually) |
+| `ha_url` | HA base URL | `setup_env.py` |
+| `ha_username` / `ha_password` | HA admin login (onboarding) | `setup_env.py` |
+| `llm_base_url` / `llm_api_key` / `llm_model` | LLM API credentials | `setup_env.py` after a successful integration setup |
+
+On subsequent runs the script pre-fills answers from `credentials.json` —
+you can just press Enter to accept them. CLI args override saved values.
+
 ## Usage
 
 ```bash
@@ -51,7 +65,7 @@ python3 .pi/skills/dev-setup/setup_env.py --start-docker
 | 1. Docker | `docker compose up -d` (with `--start-docker`) | ✅ |
 | 2. Wait | Poll HA until HTTP 200/302 (max 120s) | ✅ |
 | 3. Onboarding | Create admin user + finish all steps, if not done | ✅ skips if done |
-| 4. Token | Validate cached `/tmp/hass_token.txt`; otherwise mint a 10-year long-lived token via WebSocket | ✅ reuses valid token |
+| 4. Token | Validate `ha_token` in `.user/credentials.json`; otherwise mint a 10-year long-lived token via WebSocket | ✅ reuses valid token |
 | 5. Dashboard | Run `llm-test/setup_dashboard.py` → `/llm-devices` | ✅ overwrites config |
 | 6. Integration | Start config flow with LLM creds | ✅ skips if entry exists |
 
@@ -66,5 +80,5 @@ Next: verify with a test command, e.g. via the `llm-test` skill ("打开厨房�
 ## Troubleshooting
 
 - **Config flow validation error** — the flow probes `GET {base_url}/models`; some providers (e.g. Databricks serving endpoints) return 404 there, which is treated as OK. `401` = bad key, anything else = connection issue.
-- **Token invalid** — delete `/tmp/hass_token.txt` and re-run; the script mints a new one (requires onboarding token or a provided `--ha-token`).
+- **Token invalid** — remove the `ha_token` field from `.user/credentials.json` and re-run; the script mints a new one (requires onboarding token or a provided `--ha-token`).
 - **Integration already exists** — remove it first via `ha-api` skill (config entries API) if you want a clean reinstall.
