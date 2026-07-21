@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.2.3
+
+- fix: compute PREV_TAG before tagging in release pipeline
+
+
 ## v1.2.2
 
 - docs: move dev docs to docs/dev/
