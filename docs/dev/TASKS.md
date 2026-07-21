@@ -24,8 +24,9 @@
 ### Task 2: Release pipeline 的 changelog 没写进 Release
 - **现象**: 打包后的 changelog 没有写到 release 的 change 里面
 - **类型**: bug | **分支**: `fix/release-notes-changelog`
-- **分析**: `release.yml` 生成 RELEASE_NOTES 时取 `PREV_TAG` 的时机不对——bump 后先打了新 tag，再 `git tag --sort=-creatordate | head -1` 拿到的就是刚打的新 tag，导致 log 范围为空
-- **状态**: ⬜ 未开始
+- **分析**: `release.yml` 生成 RELEASE_NOTES 时取 `PREV_TAG` 的时机不对——bump 后先打了新 tag，再 `git tag --sort=-creatordate | head -1` 拿到的就是刚打的新 tag，导致 `git log "${PREV_TAG}..HEAD"` 范围为空
+- **状态**: ✅ 已完成（待合并）
+- **实现方案**: 在 `Bump version` 步骤（打 tag 之前）预计算 `PREV_TAG` 并通过 GitHub Actions output 传递，changelog 和 release notes 步骤都复用同一个值，不再在打 tag 后重新计算。
 
 ---
 
