@@ -112,9 +112,11 @@ curl -s "http://localhost:8123/api/config/config_entries/entry/llm_smart_assista
 
 ## HA Logs
 
+Paths below are relative to the project root (where `docker-compose.yml` lives).
+
 ```bash
 # Check logs (from host, not docker)
-cat /root/projects/hass-openai-agent/config/home-assistant.log | grep "KEYWORD" | tail -10
+cat config/home-assistant.log | grep "KEYWORD" | tail -10
 
 # From docker
 docker exec hass-dev grep "KEYWORD" /config/home-assistant.log | tail -10

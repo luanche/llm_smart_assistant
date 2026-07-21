@@ -29,7 +29,7 @@ custom_components/llm_smart_assistant/
 ├── __init__.py           # 入口、服务、面板注册
 ├── manifest.json         # 依赖和版本
 ├── const.py              # 常量、默认提示词
-├── config_flow.py        # 单页 ConfigFlow + OptionsFlow (24+ 个字段)
+├── config_flow.py        # ConfigFlow（初始 4 字段）+ 单页 OptionsFlow（24 个字段）
 ├── coordinator.py        # 核心：LLM API、ReAct 循环、自动化
 ├── services.py           # 步骤执行器（含白名单拦截）
 ├── sensor.py             # LLMLastResponseSensor + LLMDebugRawSensor
@@ -101,10 +101,11 @@ t('title')  // → 'AI Chat' 或 'AI 聊天'
 
 iframe 通过多个回退通道获取 HA 认证令牌：
 
-1. `chat.js` 通过 URL 参数传递 (`?auth_token=...`)
-2. 从 `localStorage['hassTokens']` 读取（同源）
-3. 与父窗口 PostMessage 握手
-4. 回退到手动输入
+1. 后端注入的配置令牌（`window.CONFIGURED_ACCESS_TOKEN`，来自配置项 `access_token`）
+2. `chat.js` 通过 URL 参数传递 (`?auth_token=...`)
+3. 从 `localStorage['hassTokens']` 读取（同源）
+4. 与父窗口 PostMessage 握手
+5. 回退到手动输入
 
 ### 关键函数 (index.html)
 
@@ -113,7 +114,8 @@ iframe 通过多个回退通道获取 HA 认证令牌：
 | `t(key)`                      | 翻译键值                       |
 | `applyI18n()`                 | 应用到所有 data-i18n 元素      |
 | `callAPI(method, path, body)` | 带认证的 HA REST API 封装      |
-| `sendMessage()`               | 发送输入、轮询传感器、渐进显示 |
+| `sendMessage()`               | 发送输入，通过 WebSocket 订阅传感器并渐进显示 |
+| `subscribeEntity()`           | 通过 HA WebSocket API 订阅实体状态变化        |
 | `refreshAutomations()`        | 获取并渲染自动化卡片           |
 | `toggleAutomation()`          | 启用/禁用自动化                |
 | `showEditModal()`             | 打开编辑弹窗（3 个字段）       |
@@ -180,7 +182,7 @@ python3 .pi/skills/i18n-audit/check.py --diff
 
 `process_input` 和 `toggle_automation` **全局注册**（首次设置时注册一次）。
 
-其他服务 (`create_automation`、`remove_automation`、`get_automations`、`update_automation`) 按**实例注册**。
+其他服务 (`create_automation`、`remove_automation`、`get_automations`、`update_automation`、`chat`) 按**实例注册**。`chat` 服务由聊天面板后端使用，同步返回 LLM 响应。
 
 ---
 
@@ -193,5 +195,6 @@ python3 .pi/skills/i18n-audit/check.py --diff
 | 面板文件每次请求读取                    | 支持 HTML/JS 热重载而无需重启 HA                     |
 | `data-i18n` 属性模式                    | 添加新字符串只需一个 HTML 属性 + 一个 LANGUAGES 条目 |
 | 数量和时间的双重限制                    | 同时应用两个约束以实现更精确的历史控制               |
+| WebSocket 订阅替代轮询                  | 实时推送 LLM 渐进回复，降低延迟与请求开销            |
 | LLM 格式使用 entity_id/condition/prompt | 简单、对 LLM 友好的结构                              |
 | 禁用移除监听器                          | 不同于标记检查，这能真正停止事件触发                 |

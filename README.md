@@ -117,14 +117,15 @@
 
 ## 🔧 服务调用
 
-| 服务                | 说明                |
-| ------------------- | ------------------- |
-| `process_input`     | 发送文本给 LLM 处理 |
-| `create_automation` | 创建动态自动化      |
-| `update_automation` | 编辑自动化          |
-| `toggle_automation` | 启用或禁用自动化    |
-| `remove_automation` | 删除自动化          |
-| `get_automations`   | 列出所有自动化      |
+| 服务                | 说明                                        |
+| ------------------- | ------------------------------------------- |
+| `process_input`     | 发送文本给 LLM 处理                         |
+| `chat`              | 发送消息并同步返回 LLM 响应（聊天面板使用） |
+| `create_automation` | 创建动态自动化                              |
+| `update_automation` | 编辑自动化                                  |
+| `toggle_automation` | 启用或禁用自动化                            |
+| `remove_automation` | 删除自动化                                  |
+| `get_automations`   | 列出所有自动化                              |
 
 ---
 
@@ -176,4 +177,5 @@ custom_components/llm_smart_assistant/
 ## 📄 许可证
 
 MIT
+
 - 开发流程：分支 → PR → merge 后自动发布
