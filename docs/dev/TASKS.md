@@ -12,7 +12,7 @@
 - **类型**: bug | **分支**: `fix/no-reexec-on-restart`
 - **分析**: 大概率是启动加载 storage 后，input sensor 的 `async_track_state_change_event` 对恢复的状态又触发了一次，或自动化监听器注册时对当前状态误触发。需要加"启动时跳过首次触发"逻辑
 - **优先级**: 🔴 高（会产生实际副作用）
-- **状态**: ✅ 已完成（待合并）
+- **状态**: ✅ 已完成（v1.2.2，PR #9）
 - **实现方案**:
   1. **根因**: `_async_handle_sensor_change` 未检查 `old_state`。HA 重启后输入传感器（如小米 conversation sensor）以旧值重新注册，`old_state=None` 的事件被当成新输入处理。自动化处理器 `_async_handle_automation_event` 早已有此检查，输入处理器漏了。
   2. **修复一（状态恢复跳过）**: `old_state is None` 时视为状态恢复/重注册，将文本记录到 `_last_states` 但不处理。这样重启恢复的旧指令不会重复执行，后续相同文本的幻影更新也会被重复检测拦截。
@@ -25,8 +25,14 @@
 - **现象**: 打包后的 changelog 没有写到 release 的 change 里面
 - **类型**: bug | **分支**: `fix/release-notes-changelog`
 - **分析**: `release.yml` 生成 RELEASE_NOTES 时取 `PREV_TAG` 的时机不对——bump 后先打了新 tag，再 `git tag --sort=-creatordate | head -1` 拿到的就是刚打的新 tag，导致 `git log "${PREV_TAG}..HEAD"` 范围为空
-- **状态**: ✅ 已完成（待合并）
+- **状态**: ✅ 已完成（v1.2.3，PR #10）
 - **实现方案**: 在 `Bump version` 步骤（打 tag 之前）预计算 `PREV_TAG` 并通过 GitHub Actions output 传递，changelog 和 release notes 步骤都复用同一个值，不再在打 tag 后重新计算。
+
+### Task 2b: input_text 实体无法选为输入传感器
+- **现象**: options flow 的 input_entities 选择器不支持 `input_text` domain，选了不生效
+- **类型**: bug | **分支**: `fix/input-entities-allow-input-text`
+- **状态**: ✅ 已完成（v1.2.4，PR #11）
+- **实现方案**: 在 config_flow 的 input_entities 选择器的 include_entities / domain 白名单中补充 `input_text` 域，确保该类型的实体可被选作输入传感器。
 
 ---
 
@@ -35,12 +41,18 @@
 ### Task 3: 按住说话（PTT）交互重做
 - **类型**: feat + bug | **分支**: `feat/ptt-voice-ux`
 - **包含**:
-  - [ ] 按住说话按钮的文本不太对（bug）
-  - [ ] 按住说话上滑取消
-  - [ ] 语音输入内容不要在按钮上显示（会被挡住），改在聊天窗口显示 + "正在输入"动画
-  - [ ] AI chat 语音输入的回复也用 TTS 说给用户
+  - [x] 按住说话按钮的文本不太对（bug）
+  - [x] 按住说话上滑取消
+  - [x] 语音输入内容不要在按钮上显示（会被挡住），改在聊天窗口显示 + "正在输入"动画
+  - [x] AI chat 语音输入的回复也用 TTS 说给用户（prep: 加 `source: "voice"` 标记，后续 Task 4a 完成路由决策）
+- **实现方案**:
+  1. **i18n 修正**: `holdToSpeak` 从 "Tap to speak" / "点击说话" 改为 "Hold to speak" / "按住说话"；新增 `releaseToCancel` / `slideUpCancel` 键
+  2. **上滑取消**: 在 `#voiceHoldBtn` 上添加 `onpointermove` / `onpointerleave` 监听，记录按下时的 `clientY`；当向上滑动超过 60px 时进入 `cancel-state`（按钮变红 + 显示 "Release to cancel"），松开时触发 `abort()` 取消录制
+  3. **语音气泡**: 录制时在聊天区创建一个 `.voice-bubble` 临时元素（带 `.voice-wave` 呼吸动画条 + 闪烁光标的 interim 文本），每帧将识别结果更新到气泡内；取消或完成时自动移除
+  4. **source 标记**: `sendMessage()` 新增 `fromVoice` 参数，为语音输入在请求体中加 `source:'voice'`；后端 `__init__.py` 的 `async_process_input` 接收 `source` 字段并传给 `coordinator._async_process_user_input`（entity_id, text, source）；coordinator 签名扩展为 `source: str = ""`，为 Task 4a 的 TTS 路由决策预留
+- **待验证**: 上滑取消功能在手机上需测试（pointer events 在移动端行为可能有差异）
 - **分析**: 沿用微信 PTT 交互模式；识别中在聊天区加一个带呼吸动画的"临时消息气泡"，识别完成替换为正式消息；TTS 回复需要"输入来源"标记（voice/text）传给后端决定是否 TTS
-- **状态**: ⬜ 未开始
+- **状态**: ⬜ 进行中（代码已完成，待测试）
 
 ---
 

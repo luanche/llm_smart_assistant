@@ -809,9 +809,15 @@ class LLMSmartAssistantCoordinator:
     # ------------------------------------------------------------------
 
     async def _async_process_user_input(
-        self, entity_id: str, user_text: str
+        self, entity_id: str, user_text: str, source: str = ""
     ) -> None:
         """Process a user input through multi-step reasoning loop.
+
+        Args:
+            entity_id: The source entity_id ("service_call" for API calls, or sensor entity_id).
+            user_text: The text to process.
+            source: Input source marker ("voice" for chat UI voice input, "" otherwise).
+                    Used later for TTS routing decisions (Task 4a).
 
         Each round:
         1. Call LLM → get response with steps
