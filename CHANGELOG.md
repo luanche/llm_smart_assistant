@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.3.1
+
+- fix(ptt-voice-mobile): improve PTT mobile UX and cancel animation
+
+
 ## v1.3.0
 
 - feat(ptt-voice-ux): redesign PTT voice interaction
