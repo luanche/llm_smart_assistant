@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.3.2
+
+- docs: update task status (Task 2b/3/4a completed)
+- fix(tts): skip TTS for text input from chat panel
+
+
 ## v1.3.1
 
 - fix(ptt-voice-mobile): improve PTT mobile UX and cancel animation
