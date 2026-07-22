@@ -151,19 +151,20 @@ def _register_global_services(hass: HomeAssistant) -> None:
     async def async_process_input(call):
         """Handle the process_input service call."""
         text = call.data.get("text", "")
+        source = call.data.get("source", "")  # 'voice' from chat UI voice input
         entry_filter = call.data.get("entry_id", "")
         if text:
             if entry_filter:
                 # Look up the coordinator for this instance
                 coordinator = hass.data.get(DOMAIN, {}).get(entry_filter)
                 if coordinator:
-                    await coordinator._async_process_user_input("service_call", text)
+                    await coordinator._async_process_user_input("service_call", text, source)
                 else:
                     _LOGGER.warning("No coordinator found for entry %s", entry_filter)
             else:
                 # No filter: process on all instances
                 for coordinator in hass.data.get(DOMAIN, {}).values():
-                    await coordinator._async_process_user_input("service_call", text)
+                    await coordinator._async_process_user_input("service_call", text, source)
 
     hass.services.async_register(
         DOMAIN,
@@ -173,6 +174,7 @@ def _register_global_services(hass: HomeAssistant) -> None:
             {
                 vol.Optional("text", default=""): cv.string,
                 vol.Optional("entry_id", default=""): cv.string,
+                vol.Optional("source", default=""): cv.string,
             }
         ),
     )

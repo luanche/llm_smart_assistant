@@ -252,6 +252,18 @@
       user-select: none;
       -webkit-user-select: none;
       touch-action: manipulation;
+      position: relative;
+    }
+    #voiceHoldBtn.cancel-state {
+      background: var(--danger);
+      opacity: 0.7;
+      transform: scale(0.95);
+    }
+    #voiceHoldBtn.cancel-state .voice-cancel-hint {
+      display: inline;
+    }
+    #voiceHoldBtn .voice-cancel-hint {
+      display: none;
     }
     #voiceHoldBtn:active {
       background: var(--accent-hover);
@@ -327,6 +339,66 @@
       animation: pulse-text 1.5s ease-in-out infinite;
     }
     @keyframes pulse-text { 0%,100%{opacity:0.4} 50%{opacity:1} }
+
+    /* === VOICE RECORDING BUBBLE (user side, right) === */
+    .voice-bubble {
+      align-self: flex-end;
+      background: var(--accent);
+      color: #fff;
+      border: 1px solid var(--accent);
+      border-radius: var(--radius-inner);
+      border-bottom-right-radius: 4px;
+      padding: 10px 14px;
+      max-width: 88%;
+      animation: msg-in 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .voice-bubble .voice-wave {
+      display: flex;
+      align-items: center;
+      gap: 3px;
+      height: 24px;
+    }
+    .voice-bubble .voice-wave span {
+      display: block;
+      width: 3px;
+      height: 6px;
+      background: rgba(255,255,255,0.9);
+      border-radius: 2px;
+      animation: wave-breathe 0.8s ease-in-out infinite alternate;
+    }
+    .voice-bubble .voice-wave span:nth-child(2) { animation-delay: 0.1s; height: 14px; }
+    .voice-bubble .voice-wave span:nth-child(3) { animation-delay: 0.2s; height: 20px; }
+    .voice-bubble .voice-wave span:nth-child(4) { animation-delay: 0.3s; height: 14px; }
+    .voice-bubble .voice-wave span:nth-child(5) { animation-delay: 0.4s; height: 8px; }
+    @keyframes wave-breathe {
+      0% { opacity: 0.5; transform: scaleY(0.6); }
+      100% { opacity: 1; transform: scaleY(1); }
+    }
+    .voice-bubble .voice-text {
+      font-size: 15px;
+      color: #fff;
+      flex: 1;
+      min-width: 0;
+    }
+    .voice-bubble .voice-text.interim {
+      color: rgba(255,255,255,0.75);
+    }
+    .voice-bubble .voice-text.interim::after {
+      content: '';
+      display: inline-block;
+      width: 2px;
+      height: 1em;
+      background: rgba(255,255,255,0.8);
+      margin-left: 2px;
+      animation: cursor-blink 0.8s step-end infinite;
+      vertical-align: text-bottom;
+    }
+    @keyframes cursor-blink {
+      50% { opacity: 0; }
+    }
     .steps-list {
       margin-top: 6px; font-size: 11px;
       color: var(--text-secondary);
@@ -705,7 +777,7 @@
         <textarea id="inputField" rows="1" data-i18n="placeholderMsg" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMessage()}" oninput="updateSendBtn()"></textarea>
         <button id="sendBtn" onclick="sendMessage()" disabled>↑</button>
       </div>
-      <button id="voiceHoldBtn" onpointerdown="startVoice()" onpointerup="releaseVoice()">🎤 <span id="voiceHoldText"></span></button>
+      <button id="voiceHoldBtn" onpointerdown="startVoice(event)" onpointerup="releaseVoice(event)" onpointermove="onVoiceMove(event)" onpointerleave="releaseVoice(event)">🎤 <span id="voiceHoldText"></span><span class="voice-cancel-hint"> ↑ <span data-i18n="slideUpCancel"></span></span></button>
     </div>
   </div>
 </div>
@@ -832,8 +904,10 @@ const LANGUAGES = {
     noResponse: '(no response)',
     autoLoading: 'Loading automations...',
     noAuto: 'No automations yet. Ask AI to create one!',
-    holdToSpeak: 'Tap to speak',
+    holdToSpeak: 'Hold to speak',
     voiceHint: 'Listening...',
+    releaseToCancel: 'Release to cancel',
+    slideUpCancel: 'Slide up to cancel',
     voiceNotSupported: 'Voice input not supported in this browser',
     microphoneBlocked: 'Microphone blocked — use HTTPS or type your message',
     voiceError: 'Voice input error, please try again',
@@ -890,8 +964,10 @@ const LANGUAGES = {
     noResponse: '（无回复）',
     autoLoading: '加载自动化...',
     noAuto: '还没有动态自动化。让 AI 创建一个吧！',
-    holdToSpeak: '点击说话',
+    holdToSpeak: '按住说话',
     voiceHint: '正在聆听...',
+    releaseToCancel: '松开取消',
+    slideUpCancel: '上滑取消',
     voiceNotSupported: '此浏览器不支持语音输入',
     microphoneBlocked: '麦克风被阻止 — 请使用 HTTPS 或直接输入文字',
     voiceError: '语音输入出错，请重试',
@@ -1163,21 +1239,45 @@ function subscribeEntity(entityId, onChange, onDone) {
 
 // Voice input - hold to speak (press & hold to record, release to send)
 let _voiceText = '';
+let _voiceStartY = 0;
+let _voiceCancel = false;
+let _voiceSent = false;
+let _voiceBubbleEl = null;
 
-function startVoice() {
+function startVoice(e) {
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SpeechRecognition) { alert(t('voiceNotSupported')); return; }
   stopVoice();
   _voiceText = '';
+  _voiceCancel = false;
+  _voiceSent = false;
+  _voiceStartY = e.clientY || e.touches?.[0]?.clientY || 0;
+
+  // Create temporary voice bubble in chat
+  const c = document.getElementById('chatContainer');
+  const es = document.getElementById('emptyState');
+  if (es) es.style.display = 'none';
+  const bubble = document.createElement('div');
+  bubble.className = 'voice-bubble';
+  bubble.id = 'voiceBubble';
+  bubble.innerHTML = '<div class="voice-wave"><span></span><span></span><span></span><span></span><span></span></div><div class="voice-text interim" id="voiceBubbleText"></div>';
+  c.appendChild(bubble);
+  c.scrollTop = c.scrollHeight;
+  _voiceBubbleEl = bubble;
+
   voiceRecognition = new SpeechRecognition();
   voiceRecognition.lang = lang;
-  voiceRecognition.continuous = false;
+  voiceRecognition.continuous = true;
   voiceRecognition.interimResults = true;
   voiceRecognition.onresult = (e) => {
-    const text = e.results[0][0].transcript;
-    if (text) {
-      _voiceText = text;
-      document.getElementById('voiceHoldText').textContent = text;
+    let fullText = '';
+    for (let i = 0; i < e.results.length; i++) {
+      fullText += e.results[i][0].transcript;
+    }
+    if (fullText) {
+      _voiceText = fullText;
+      const txtEl = document.getElementById('voiceBubbleText');
+      if (txtEl) txtEl.textContent = fullText;
     }
   };
   voiceRecognition.onerror = (e) => {
@@ -1190,24 +1290,34 @@ function startVoice() {
     setTimeout(() => setStatus(t('connected')), 3000);
   };
   voiceRecognition.onend = () => {
-    // Recognition ended (either by stop() or auto-completion)
-    if (isListening) {
-      isListening = false;
-      document.getElementById('voiceHoldBtn').classList.remove('listening');
-      document.getElementById('voiceHoldText').textContent = t('holdToSpeak');
-      setStatus(t('connected'));
-      if (_voiceText) {
-        document.getElementById('inputField').value = _voiceText;
-        sendMessage();
-      }
+    // Recognition ended. If user is still holding, restart to keep listening.
+    // Only send when user releases (isListening already false from releaseVoice).
+    if (isListening && !_voiceSent) {
+      // User hasn't released yet — restart to continue listening
+      try { voiceRecognition.start(); return; } catch(e) {}
     }
+    isListening = false;
+    const btn = document.getElementById('voiceHoldBtn');
+    btn.classList.remove('listening');
+    btn.classList.remove('cancel-state');
+    setStatus(t('connected'));
+    if (_voiceText && !_voiceCancel && !_voiceSent) {
+      _voiceSent = true;
+      document.getElementById('inputField').value = _voiceText;
+      sendMessage(true /* fromVoice */);
+    }
+    // Remove bubble
+    const bubble = document.getElementById('voiceBubble');
+    if (bubble) bubble.remove();
+    _voiceBubbleEl = null;
     voiceRecognition = null;
   };
   try {
     voiceRecognition.start();
     isListening = true;
-    document.getElementById('voiceHoldBtn').classList.add('listening');
-    document.getElementById('voiceHoldText').textContent = t('voiceHint');
+    const btn = document.getElementById('voiceHoldBtn');
+    btn.classList.add('listening');
+    btn.classList.remove('cancel-state');
     setStatus(t('voiceHint'));
   } catch(e) {
     stopVoice();
@@ -1216,11 +1326,52 @@ function startVoice() {
   }
 }
 
-function releaseVoice() {
-  // User released the button - stop recognition (onend will send the result)
-  if (voiceRecognition && isListening) {
-    voiceRecognition.stop();
+function onVoiceMove(e) {
+  if (!isListening) return;
+  const currentY = e.clientY || e.touches?.[0]?.clientY || _voiceStartY;
+  const delta = _voiceStartY - currentY;
+  const btn = document.getElementById('voiceHoldBtn');
+  if (delta > 60) {
+    btn.classList.add('cancel-state');
+    btn.classList.remove('listening');
+    _voiceCancel = true;
+    setStatus('↑ ' + t('releaseToCancel'));
+  } else {
+    btn.classList.remove('cancel-state');
+    if (_voiceCancel) {
+      _voiceCancel = false;
+      setStatus(t('voiceHint'));
+    }
   }
+}
+
+function releaseVoice(e) {
+  if (!voiceRecognition || !isListening) {
+    // Clean up bubble if user released without ever starting
+    if (!isListening && _voiceBubbleEl) {
+      _voiceBubbleEl.remove();
+      _voiceBubbleEl = null;
+    }
+    return;
+  }
+  if (_voiceCancel) {
+    // Cancel: abort recording, remove bubble, reset
+    isListening = false;
+    const btn = document.getElementById('voiceHoldBtn');
+    btn.classList.remove('listening');
+    btn.classList.remove('cancel-state');
+    setStatus(t('connected'));
+    const bubble = document.getElementById('voiceBubble');
+    if (bubble) bubble.remove();
+    _voiceBubbleEl = null;
+    _voiceText = '';
+    voiceRecognition.abort();
+    voiceRecognition = null;
+    return;
+  }
+  // User released — stop recognition, onend will send the result
+  isListening = false;
+  voiceRecognition.stop();
 }
 
 function stopVoice() {
@@ -1228,11 +1379,16 @@ function stopVoice() {
     try { voiceRecognition.abort(); } catch(e) {}
     voiceRecognition = null;
   }
+  const bubble = document.getElementById('voiceBubble');
+  if (bubble) bubble.remove();
+  _voiceBubbleEl = null;
   _voiceText = '';
+  _voiceCancel = false;
+  _voiceSent = false;
   isListening = false;
-  document.getElementById('voiceHoldBtn').classList.remove('listening');
-  document.getElementById('voiceHoldText').textContent = t('holdToSpeak');
-  setStatus(t('connected'));
+  const btn = document.getElementById('voiceHoldBtn');
+  btn.classList.remove('listening');
+  btn.classList.remove('cancel-state');
 }
 
 // Debug
@@ -1484,7 +1640,7 @@ function suggest(text) {
 }
 
 // Main send
-async function sendMessage() {
+async function sendMessage(fromVoice) {
   const input = document.getElementById('inputField');
   const btn = document.getElementById('sendBtn');
   const text = input.value.trim();
@@ -1503,6 +1659,7 @@ async function sendMessage() {
   try {
     const inst = document.getElementById('instanceSelect').value;
     const body = inst ? { text, entry_id: inst } : { text };
+    if (fromVoice) body.source = 'voice';
 
     // Wait a beat for any previous WS cleanup, then subscribe
     await new Promise(r => setTimeout(r, 100));
