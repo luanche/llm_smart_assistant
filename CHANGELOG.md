@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.3.0
+
+- feat(ptt-voice-ux): redesign PTT voice interaction
+
+
 ## v1.2.4
 
 - fix: allow input_text entities in input_entities selector
