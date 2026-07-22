@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.3.3
+
+- fix(tts): AI Chat voice uses browser TTS, not HA TTS device
+
+
 ## v1.3.2
 
 - docs: update task status (Task 2b/3/4a completed)
