@@ -1041,9 +1041,9 @@ class LLMSmartAssistantCoordinator:
         elif not final_tts and iteration > 1:
             final_tts = "Done."
 
-        # Speak TTS (skip for text input from chat panel)
+        # Speak TTS (skip for AI Chat — voice uses browser TTS, text uses none)
         should_tts = True
-        if entity_id in ("service_call", "chat_ui") and source != "voice":
+        if entity_id in ("service_call", "chat_ui"):
             should_tts = False
         if final_tts and should_tts:
             await self._async_speak_tts(final_tts)

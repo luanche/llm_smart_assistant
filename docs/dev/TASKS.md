@@ -44,12 +44,12 @@
   - [x] 按住说话按钮的文本不太对（bug）
   - [x] 按住说话上滑取消
   - [x] 语音输入内容不要在按钮上显示（会被挡住），改在聊天窗口显示 + "正在输入"动画
-  - [x] AI chat 语音输入的回复也用 TTS 说给用户（prep: 加 `source: "voice"` 标记，后续 Task 4a 完成路由决策）
+  - [x] AI chat 语音输入使用浏览器 speechSynthesis 播报回复（后端跳过 HA TTS）
 - **实现方案**:
   1. **i18n 修正**: `holdToSpeak` 从 "Tap to speak" / "点击说话" 改为 "Hold to speak" / "按住说话"；新增 `releaseToCancel` / `slideUpCancel` 键
   2. **上滑取消**: 在 `#voiceHoldBtn` 上添加 `onpointermove` / `onpointerleave` 监听，记录按下时的 `clientY`；当向上滑动超过 60px 时进入 `cancel-state`（按钮变红 + 显示 "Release to cancel"），松开时触发 `abort()` 取消录制
   3. **语音气泡**: 录制时在聊天区创建一个 `.voice-bubble` 临时元素（带 `.voice-wave` 呼吸动画条 + 闪烁光标的 interim 文本），每帧将识别结果更新到气泡内；取消或完成时自动移除
-  4. **source 标记**: `sendMessage()` 新增 `fromVoice` 参数，为语音输入在请求体中加 `source:'voice'`；后端 `__init__.py` 的 `async_process_input` 接收 `source` 字段并传给 `coordinator._async_process_user_input`（entity_id, text, source）；coordinator 签名扩展为 `source: str = ""`，为 Task 4a 的 TTS 路由决策预留
+  4. **source 标记 + browser TTS 前置**: `sendMessage()` 新增 `fromVoice` 参数，为语音输入在请求体中加 `source:'voice'`；后端 `__init__.py` 的 `async_process_input` 接收 `source` 字段并传给 `coordinator._async_process_user_input`；协程签名扩展为 `source: str = ""`；前端 `handleState` 回调在 `fromVoice=true` 时调用 `window.speechSynthesis.speak()` 做浏览器播报（后续 Task 4a 完成完整的 TTS 路由）
 - **分析**: 沿用微信 PTT 交互模式；识别中在聊天区加一个带呼吸动画的"临时消息气泡"，识别完成替换为正式消息；TTS 回复需要"输入来源"标记（voice/text）传给后端决定是否 TTS
 - **状态**: ✅ 已完成（v1.3.0，PR #12）
 - **后续修复**: `fix/ptt-voice-mobile`（v1.3.1）———上滑取消适配手机（去掉了 `onpointerleave` 误触释放，改用 `setPointerCapture` 跟踪指针；三态文字互斥；渐进式取消进度条；蓝底红点录制图标；取消态隐藏图标显示动画箭头）
@@ -61,10 +61,12 @@
 ### Task 4: 输出设备决策 + 多设备 I/O
 - **类型**: feat | **分支**: `feat/multi-device-io-routing`
 - **包含**:
-  - [x] 4a: 用 AI chat（文字）就不调用输出设备 TTS
+  - [x] 4a: AI Chat（文字 + 语音）都不调 HA TTS 输出设备；语音回复改由浏览器 `speechSynthesis` 播报
   - [ ] 4b: 允许配置多个输入设备和输出设备提供给模型；用户用某设备输入时，由模型根据设备位置决定最合适的输出设备
 - **分析**: 输入来源标记（`chat_ui` / `service_call` / 具体 sensor entity_id）决定默认是否 TTS；多输出设备需要配置结构改为列表 + prompt 中注入设备位置信息（area），模型在响应 JSON 中指定 `output_device`。建议拆两步：先 4a（chat 不 TTS），再 4b（多设备路由）
-- **4a 实现方案**: 在 `_async_process_user_input` 的 TTS 调用前加条件判断——`entity_id` 为 "service_call" 或 "chat_ui" 且 `source != "voice"` 时跳过 `_async_speak_tts`。Task 3 已预留 `source` 字段，无需额外前端更改。分支 `fix/no-tts-for-chat-text`（v1.3.2 待发）
+- **4a 实现方案**（逻辑变更，同步更新于 `fix/chat-tts-browser`，v1.3.3 待发）:
+  1. **后端** `coordinator.py`: `entity_id` 为 "service_call" 或 "chat_ui" 时无条件跳过 `_async_speak_tts`（之前版本只对 text 跳过、voice 保留，现改为两者都跳过）
+  2. **前端** `panel/index.html`: `sendMessage` 的 `handleState` 回调中，当 `fromVoice=true` 且收到 TTS 文本时，调用 `window.speechSynthesis.speak()` 通过浏览器播报，语音设为当前界面语言
 - **状态**: ◀️ 4a 已完成
 
 ---

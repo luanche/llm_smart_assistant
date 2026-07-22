@@ -1780,6 +1780,15 @@ async function sendMessage(fromVoice) {
 
       if (tts && tts !== lastTts) {
         lastTts = tts;
+
+        // Browser TTS for voice input from chat
+        if (fromVoice && window.speechSynthesis) {
+          window.speechSynthesis.cancel();
+          const utter = new SpeechSynthesisUtterance(tts);
+          utter.lang = lang;
+          window.speechSynthesis.speak(utter);
+        }
+
         try {
           const fr = state.attributes.full_response;
           if (fr) {
