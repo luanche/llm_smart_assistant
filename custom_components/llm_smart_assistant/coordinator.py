@@ -527,13 +527,14 @@ class LLMSmartAssistantCoordinator:
     def _build_entity_csv(self) -> str:
         """Build a compact CSV of available entities for LLM context.
 
-        Format: entity_id, friendly_name, state, area
+        Format: entity_id, friendly_name, state, area, aliases
         This is compact, easy for LLMs to parse, and includes only
         whitelisted entities in non-error states.
         """
-        lines = ["entity_id,name,state,area"]
+        lines = ["entity_id,name,state,area,aliases"]
         domains = self.domains_whitelist
         entity_ids = self.entities_whitelist
+        registry = self.hass.data.get("entity_registry")
 
         for state_obj in self.hass.states.async_all():
             entity_id = state_obj.entity_id
@@ -553,8 +554,15 @@ class LLMSmartAssistantCoordinator:
             friendly = attrs.get("friendly_name", entity_id).replace(",", " ")
             state_val = state_obj.state.replace(",", " ")
             area = self._get_area_name(entity_id)
+            aliases_str = ""
+            if registry is not None:
+                entry = registry.async_get(entity_id)
+                if entry and entry.aliases:
+                    str_aliases = [a for a in entry.aliases if isinstance(a, str)]
+                    if str_aliases:
+                        aliases_str = ";".join(str_aliases).replace(",", " ")
 
-            lines.append(f"{entity_id},{friendly},{state_val},{area}")
+            lines.append(f"{entity_id},{friendly},{state_val},{area},{aliases_str}")
 
         return "\n".join(lines)
 
@@ -1080,13 +1088,23 @@ class LLMSmartAssistantCoordinator:
     def _build_exposed_entities_list(self) -> str:
         """Build a summary of available entities for the system prompt."""
         lines = []
+        # Read entity registry for aliases
+        registry = self.hass.data.get("entity_registry")
         for state_obj in self.hass.states.async_all():
             domain = state_obj.domain
             allowed = self.domains_whitelist
             if allowed and domain not in allowed:
                 continue
             friendly = state_obj.attributes.get("friendly_name", state_obj.entity_id)
-            lines.append(f"  - {state_obj.entity_id} ({friendly}): {state_obj.state}")
+            # Append aliases if any (only user-configured strings, not HA internal enums)
+            aliases_str = ""
+            if registry is not None:
+                entry = registry.async_get(state_obj.entity_id)
+                if entry and entry.aliases:
+                    str_aliases = [a for a in entry.aliases if isinstance(a, str)]
+                    if str_aliases:
+                        aliases_str = " [" + ", ".join(str_aliases) + "]"
+            lines.append(f"  - {state_obj.entity_id} ({friendly}{aliases_str}): {state_obj.state}")
         return "\n".join(lines)
 
     async def _async_process_automation_trigger(
