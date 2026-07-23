@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.3.4
+
+- chore(entity-alias): include entity registry aliases in LLM context
+
+
 ## v1.3.3
 
 - fix(tts): AI Chat voice uses browser TTS, not HA TTS device
