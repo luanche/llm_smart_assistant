@@ -145,15 +145,65 @@
       display: flex; align-items: center; justify-content: center;
     }
     .debug-btn:hover { opacity: 0.6; background: var(--accent-subtle); }
+    .share-btn {
+      background: none; border: none;
+      font-size: 14px; cursor: pointer;
+      opacity: 0.25; transition: var(--transition);
+      padding: 6px; border-radius: 8px;
+      line-height: 1;
+      min-width: 36px; min-height: 36px;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .share-btn:hover { opacity: 0.6; background: var(--accent-subtle); }
     #statusText {
       font-size: 10px; font-weight: 500;
       color: var(--text-tertiary);
       display: none;
     }
 
+    /* === TAB SLIDER === */
+    #tabSlider {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+      position: relative;
+    }
+    #tabSlider > div {
+      flex: 0 0 100% !important;
+      min-width: 0;
+      transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+    }
+    #tabSlider.slide-chat #chatTab { transform: translateX(0); }
+    #tabSlider.slide-chat #autoTab { transform: translateX(100%); }
+    #tabSlider.slide-auto #chatTab { transform: translateX(-100%); }
+    #tabSlider.slide-auto #autoTab { transform: translateX(-100%); }
+    #tabSlider #chatTab, #tabSlider #autoTab { display: flex; }
+
+    /* === TOAST === */
+    #toast {
+      position: fixed;
+      bottom: 80px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 10px 20px;
+      font-size: 14px;
+      font-weight: 500;
+      box-shadow: var(--shadow-lg);
+      z-index: 3000;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+      pointer-events: none;
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      color: var(--text-primary);
+    }
+    #toast.show { opacity: 1; }
+
     /* === CHAT CONTAINER === */
-    #chatTab, #autoTab { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
-    #autoTab { display: none; }
+    #chatTab, #autoTab { display: flex; flex-direction: column; overflow: hidden; }
 
     #chatOuter {
       flex: 1; overflow: hidden;
@@ -609,6 +659,7 @@
 
     /* === FAB === */
     .fab {
+      display: none;
       position: fixed;
       bottom: 28px;
       right: max(20px, env(safe-area-inset-right, 20px));
@@ -619,7 +670,6 @@
       color: #fff;
       font-size: 26px;
       cursor: pointer;
-      display: flex;
       align-items: center;
       justify-content: center;
       box-shadow: 0 6px 20px var(--accent-glow);
@@ -792,9 +842,9 @@
 
     /* === MOBILE === */
     @media (max-width: 640px) {
-      #header { padding: 0 10px; }
-      #headerTitle { font-size: 14px; }
-      .pill-btn { padding: 4px 10px; font-size: 11px; }
+      #header { padding: 0 10px; height: 56px; }
+      #headerTitle { font-size: 14px; min-width: 44px; }
+      .pill-btn { padding: 8px 14px; font-size: 12px; min-height: 40px; }
       .msg { max-width: 92%; padding: 8px 12px; font-size: 15px; }
       #chatOuter { padding: 0 4px 3px; }
       #chatContainer { padding: 2px; gap: 6px; }
@@ -802,6 +852,9 @@
       #inputBar { padding: 6px 8px; padding-bottom: max(6px, env(safe-area-inset-bottom, 6px)); }
       #inputField { font-size: 16px; }
       .auto-card { padding: 10px 12px; }
+      .debug-btn, .share-btn { min-width: 44px; min-height: 44px; font-size: 17px; }
+      .suggestion-btn { min-height: 44px; font-size: 13px; }
+      .voice-bubble { max-width: 95%; padding: 8px 12px; }
     }
   </style>
 </head>
@@ -819,10 +872,12 @@
   <div class="header-right">
     <select id="instanceSelect" class="instance-select" onchange="switchInstance()" title=""></select>
     <button id="debugBtn" class="debug-btn" title="${t('debugBtnTitle')}">🔧</button>
+    <button id="shareBtn" class="share-btn" onclick="copyChatLink()">🔗</button>
     <span id="statusText" class="status-text" data-i18n="connected"></span>
   </div>
 </div>
 
+<div id="tabSlider">
 <div id="chatTab">
   <div id="chatOuter">
     <div id="chatContainer">
@@ -852,6 +907,10 @@
   <button id="fabAdd" onclick="showAddSheet()" class="fab" data-i18n="addAuto"></button>
 </div>
 </div>
+</div>
+
+<!-- Toast notification -->
+<div id="toast"></div>
 
 <!-- Add automation bottom sheet -->
 <div id="addSheet" class="sheet-overlay" onclick="if(event.target===this)cancelAdd()">
@@ -1014,6 +1073,8 @@ const LANGUAGES = {
     reasoningPrefix: 'Reasoning (round ',
     reasoningSuffix: ')...',
     debugBtnTitle: 'Debug',
+    copyLink: 'Copy link',
+    linkCopied: 'Link copied!',
     voiceInputTitle: 'Voice input',
     sendTitle: 'Send',
   },
@@ -1075,6 +1136,8 @@ const LANGUAGES = {
     reasoningPrefix: '推理中（第 ',
     reasoningSuffix: ' 轮）...',
     debugBtnTitle: '调试',
+    copyLink: '复制链接',
+    linkCopied: '链接已复制！',
     voiceInputTitle: '语音输入',
     sendTitle: '发送',
   },
@@ -1195,10 +1258,23 @@ function switchTab(tab) {
   document.querySelectorAll('.pill-btn').forEach(b => b.classList.remove('active'));
   const btns = document.querySelectorAll('.pill-btn');
   btns[tab === 'chat' ? 0 : 1].classList.add('active');
-  document.getElementById('chatTab').style.display = tab === 'chat' ? 'flex' : 'none';
-  document.getElementById('autoTab').style.display = tab === 'auto' ? 'flex' : 'none';
+  // Slide tab slider with CSS transition
+  const slider = document.getElementById('tabSlider');
+  slider.classList.remove('slide-chat', 'slide-auto');
+  slider.classList.add(tab === 'chat' ? 'slide-chat' : 'slide-auto');
   document.getElementById('fabAdd').style.display = tab === 'auto' ? 'flex' : 'none';
   if (tab === 'auto') refreshAutomations();
+}
+
+// ── Toast notification ──
+let _toastTimer = null;
+function showToast(msg) {
+  const el = document.getElementById('toast');
+  if (!el) return;
+  el.textContent = msg;
+  el.classList.add('show');
+  if (_toastTimer) clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(() => el.classList.remove('show'), 2000);
 }
 
 function addMsg(role, text, raw) {
@@ -1495,14 +1571,115 @@ function stopVoice() {
   if (cancelFill) cancelFill.style.width = '0%';
 }
 
-// Debug
+// ── Copy chat link ──
+function copyChatLink() {
+  const url = window.location.href;
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(url).then(() => {
+      showToast('✅ ' + t('linkCopied'));
+    }).catch(() => {
+      fallbackCopy(url);
+    });
+  } else {
+    fallbackCopy(url);
+  }
+}
+function fallbackCopy(text) {
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.position = 'fixed'; ta.style.opacity = '0';
+  document.body.appendChild(ta);
+  ta.select();
+  try { document.execCommand('copy'); showToast('✅ ' + t('linkCopied')); } catch(e) {}
+  document.body.removeChild(ta);
+}
+
+// ── Swipe to switch tabs ──
+let _swipeStartX = 0;
+let _swipeStartY = 0;
+
+function initSwipe() {
+  const containers = ['chatOuter', 'autoContainer'];
+  containers.forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.addEventListener('touchstart', (e) => {
+      const touch = e.touches[0];
+      _swipeStartX = touch.clientX;
+      _swipeStartY = touch.clientY;
+    }, { passive: true });
+    el.addEventListener('touchend', (e) => {
+      const touch = e.changedTouches[0];
+      const dx = touch.clientX - _swipeStartX;
+      const dy = touch.clientY - _swipeStartY;
+      
+      // Dead zone: don't swipe if started within 20px of left edge (HA sidebar)
+      if (_swipeStartX < 20) return;
+      
+      // Must be horizontal swipe (|dx| > 50px, |dy| < |dx| * 0.5)
+      if (Math.abs(dx) > 50 && Math.abs(dy) < Math.abs(dx) * 0.5) {
+        if (dx < 0) {
+          // Swipe left → automations
+          switchTab('auto');
+        } else {
+          // Swipe right → chat
+          switchTab('chat');
+        }
+      }
+    }, { passive: true });
+  });
+}
+
+// ── Debug ──
 document.getElementById('debugBtn').addEventListener('click', async () => {
   const sheet = document.getElementById('debugSheet');
   const content = document.getElementById('debugSheetContent');
   
   let html = '';
   
-  // Fetch prompt from debug raw sensor
+  // Fetch latest response data from the sensor API (more reliable than lastDebugRaw)
+  let freshRaw = lastDebugRaw;
+  try {
+    const ls = await callAPI('GET', '/api/states/sensor.llm_last_response');
+    if (ls && ls.attributes && ls.attributes.full_response) {
+      freshRaw = ls.attributes.full_response;
+    }
+  } catch(e) {}
+  
+  // Show actions/rounds FIRST
+  if (freshRaw) {
+    try {
+      const parsed = JSON.parse(freshRaw);
+      const rounds = parsed.rounds;
+      const steps = parsed.steps || [];
+      
+      html += '<div class="debug-label">' + t('actions') + ' (' + steps.length + ')</div>';
+      if (steps.length > 0) {
+        html += '<pre>' + escapeHtml(JSON.stringify(steps, null, 2)) + '</pre>';
+      } else {
+        html += '<span style="font-size:12px;color:var(--text-tertiary);">' + t('noActionSpecified') + '</span>';
+      }
+      
+      if (rounds && rounds.length > 0) {
+        html += '<div class="debug-label">' + t('debugRound') + ' Rounds</div>';
+        rounds.forEach((r, i) => {
+          const ttsDisplay = r.tts_text || '' + t('debugSilent') + '';
+          html += '<div class="debug-round-block">';
+          html += '<div class="round-header">' + t('debugRound') + ' ' + r.round + '</div>';
+          html += '<div class="round-step">' + t('debugSteps') + ' ' + escapeHtml(JSON.stringify(r.steps, null, 2)) + '</div>';
+          html += '<div class="round-tts">' + t('debugTts') + ' "' + escapeHtml(ttsDisplay) + '"' + (i < rounds.length - 1 ? ' ' + t('debugSilent') : '') + '</div>';
+          html += '</div>';
+        });
+      }
+    } catch(e) {
+      html += '<div class="debug-label">Raw</div>';
+      html += '<pre>' + escapeHtml(freshRaw) + '</pre>';
+    }
+  } else {
+    html += '<span>' + t('noDebugData') + '</span>';
+  }
+  
+  // Show prompt LAST (less frequently needed)
   try {
     const ds = await callAPI('GET', '/api/states/sensor.llm_debug_raw');
     if (ds && ds.attributes && ds.attributes.prompt) {
@@ -1511,33 +1688,6 @@ document.getElementById('debugBtn').addEventListener('click', async () => {
     }
   } catch(e) {}
   
-  if (lastDebugRaw) {
-    try {
-      const parsed = JSON.parse(lastDebugRaw);
-      const rounds = parsed.rounds;
-      
-      if (rounds && rounds.length > 0) {
-        html += '<div class="debug-label">' + t('debugRound') + ' Rounds</div>';
-        rounds.forEach((r, i) => {
-          const stepCount = (r.steps || []).length;
-          const ttsDisplay = r.tts_text || '' + t('debugSilent') + '';
-          html += '<div class="debug-round-block">';
-          html += '<div class="round-header">' + t('debugRound') + ' ' + r.round + '</div>';
-          html += '<div class="round-step">' + t('debugSteps') + ' ' + escapeHtml(JSON.stringify(r.steps, null, 2)) + '</div>';
-          html += '<div class="round-tts">' + t('debugTts') + ' "' + escapeHtml(ttsDisplay) + '"' + (i < rounds.length - 1 ? ' ' + t('debugSilent') : '') + '</div>';
-          html += '</div>';
-        });
-      } else {
-        html += '<div class="debug-label">Raw</div>';
-        html += '<pre>' + escapeHtml(JSON.stringify(parsed, null, 2)) + '</pre>';
-      }
-    } catch(e) {
-      html += '<div class="debug-label">Raw</div>';
-      html += '<pre>' + escapeHtml(lastDebugRaw) + '</pre>';
-    }
-  } else {
-    html += '<span>' + t('noDebugData') + '</span>';
-  }
   content.innerHTML = html;
   sheet.classList.add('open');
 });
@@ -1919,8 +2069,10 @@ function applyI18n() {
   
   if (accessToken) {
     document.getElementById('statusText').textContent = t('connected');
+    document.getElementById('shareBtn').title = t('copyLink');
     discoverInstances();
     loadSuggestions();
+    initSwipe();
     return;
   }
   
@@ -1931,6 +2083,7 @@ function applyI18n() {
     document.getElementById('statusText').textContent = t('connected');
     discoverInstances();
     loadSuggestions();
+    initSwipe();
   } else {
     document.getElementById('statusText').textContent = t('noToken');
     setStatus(t('tokenRequired'), false);
