@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.4.0
+
+- docs: update Task 5 status (v1.4.0)
+- feat(mobile-ui): polish mobile UX, debug sheet, swipe tabs
+- docs: update AGENTS.md, TASKS.md, docker-compose.yml
+
+
 ## v1.3.4
 
 - chore(entity-alias): include entity registry aliases in LLM context
