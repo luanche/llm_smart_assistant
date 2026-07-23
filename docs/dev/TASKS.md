@@ -76,11 +76,19 @@
 ### Task 5: 移动端可用性优化
 - **类型**: feat | **分支**: `feat/mobile-ui-polish`
 - **包含**:
-  - [ ] 顶部"聊天/自动化"tab 按钮太小，手机端整体字体/按钮偏小
-  - [ ] 提供复制 AI Chat 页面链接的地方（方便单独用浏览器打开）
-  - [ ] 聊天窗口左右滑切换聊天/自动化页面（注意不要和 HA 侧边栏手势冲突）
+  - [x] 顶部"聊天/自动化"tab 按钮太小，手机端整体字体/按钮偏小
+  - [x] 提供复制 AI Chat 页面链接的地方（方便单独用浏览器打开）
+  - [x] 聊天窗口左右滑切换聊天/自动化页面（注意不要和 HA 侧边栏手势冲突）
+  - [x] Debug 弹窗：Actions 放 Prompt 前面，拉取最新 `full_response` 避免数据过期
+- **实现方案**:
+  1. **触摸优化**: 移动端 `@media (max-width: 640px)` 中 `.pill-btn` 的 padding 加大到 8px/14px，`min-height: 40px`；`.debug-btn`/`.share-btn` 设为 `min-width: 44px; min-height: 44px`；`.suggestion-btn` 设 `min-height: 44px`
+  2. **复制链接**: header 加 🔗 按钮，调用 `navigator.clipboard.writeText()` 复制当前 URL；成功时弹出 `#toast` 浮层 2 秒后自动消失
+  3. **滑动手势**: 在 `#chatOuter` 和 `#autoContainer` 上监听 `touchstart`/`touchend`；水平滑动 >50px 且纵向偏移 < 横向 50% 时触发切换；左侧 20px 起始不响应（防 HA 侧边栏冲突）
+  4. **滑页动画**: `#chatTab` 和 `#autoTab` 包裹在 `#tabSlider` 中，用 `transform: translateX` + `transition: 0.3s cubic-bezier` 实现顺滑过渡；CSS class `slide-chat`/`slide-auto` 控制位置
+  5. **Debug 弹窗**: 打开时先通过 API 拉 `sensor.llm_last_response` 的 `full_response` 获取最新动作数据，再拉 `sensor.llm_debug_raw` 的 `prompt` 显示在下方；避免依赖内存变量导致过期
+  6. **FAB 修复**: `.fab` 默认 `display: none`，切到 Automations 页时由 `switchTab` 设为 `flex`，避免首次加载时漏出
 - **分析**: 整体过一遍 touch target（≥44px）和字号；滑动手势在内容区域做、加边缘 dead zone（左侧 ~20px 不响应）避免与 HA 侧边栏冲突
-- **状态**: ⬜ 未开始
+- **状态**: ✅ 已完成（v1.4.0 待发）
 
 ---
 
