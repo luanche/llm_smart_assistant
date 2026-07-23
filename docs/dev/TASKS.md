@@ -64,10 +64,10 @@
   - [x] 4a: AI Chat（文字 + 语音）都不调 HA TTS 输出设备；语音回复改由浏览器 `speechSynthesis` 播报
   - [ ] 4b: 允许配置多个输入设备和输出设备提供给模型；用户用某设备输入时，由模型根据设备位置决定最合适的输出设备
 - **分析**: 输入来源标记（`chat_ui` / `service_call` / 具体 sensor entity_id）决定默认是否 TTS；多输出设备需要配置结构改为列表 + prompt 中注入设备位置信息（area），模型在响应 JSON 中指定 `output_device`。建议拆两步：先 4a（chat 不 TTS），再 4b（多设备路由）
-- **4a 实现方案**（逻辑变更，同步更新于 `fix/chat-tts-browser`，v1.3.3 待发）:
+- **4a 实现方案**（`fix/chat-tts-browser`，v1.3.3）:
   1. **后端** `coordinator.py`: `entity_id` 为 "service_call" 或 "chat_ui" 时无条件跳过 `_async_speak_tts`（之前版本只对 text 跳过、voice 保留，现改为两者都跳过）
   2. **前端** `panel/index.html`: `sendMessage` 的 `handleState` 回调中，当 `fromVoice=true` 且收到 TTS 文本时，调用 `window.speechSynthesis.speak()` 通过浏览器播报，语音设为当前界面语言
-- **状态**: ◀️ 4a 已完成
+- **状态**: ◀️ 4a 已完成（v1.3.3）
 
 ---
 
@@ -126,8 +126,8 @@
 - **现象**: 用户配置的实体 alias 也要传给模型
 - **类型**: chore | **分支**: `chore/entity-alias-to-prompt`
 - **分析**: 读 HA entity registry 的 `aliases` 字段加进 exposed_entities CSV，小改动，可单独快速做掉
-- **状态**: ✅ 已完成（v1.3.3 待发）
-- **实现方案**: 在 `_build_exposed_entities_list()` 和 `_build_entity_csv()` 中通过 `self.hass.data.get("entity_registry")` 获取 EntityRegistry 实例，对每个实体调用 `registry.async_get(entity_id)` 读取 `entry.aliases`（字符串列表）；在原有 CSV/列表格式的实体名后追加 `[alias1, alias2]` 或追加 `aliases` 列
+- **状态**: ✅ 已完成（v1.3.4）
+- **实现方案**: 在 `_build_exposed_entities_list()` 和 `_build_entity_csv()` 中通过 `self.hass.data.get("entity_registry")` 获取 EntityRegistry 实例，对每个实体调用 `registry.async_get(entity_id)` 读取 `entry.aliases`（字符串列表）；过滤掉 HA 内部 `ComputedNameType` 枚举值，只保留用户配置的字符串别名；在聊天 prompt 的实体名后追加 `[别名1, 别名2]`，在自动化 CSV 中追加 `aliases` 列
 
 ---
 

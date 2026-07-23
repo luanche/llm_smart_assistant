@@ -43,18 +43,20 @@ Manual equivalent:
 2. **Think ahead**: Check `docs/dev/TASKS.md` (task roadmap) before designing a change. Implementations should make future tasks easier — or at least never conflict with them (e.g., prefer per-instance structures early if multi-instance work is planned). If a roadmap item affects your design, mention it to the user. When a task is completed, update `docs/dev/TASKS.md` with the implementation summary.
 3. Run `python3 .pi/skills/i18n-audit/check.py` after any localization changes
 4. Test via browser at `http://localhost:8123/llm-chat` (AI Chat panel)
-5. Use available skills:
+5. **Check and update docs/skills**: During development or testing, if ANY document, skill, or config is found wrong, stale, or contradicting the code, fix it in the same change. See "Documentation Maintenance" below.
+6. Use available skills:
    - `.pi/skills/dev-setup/` — New dev environment bootstrap (onboarding, token, dashboard, integration)
    - `.pi/skills/browser-mcp/` — Playwright browser automation for UI testing
    - `.pi/skills/ha-api/` — Home Assistant REST API calls
    - `.pi/skills/i18n-audit/` — i18n audit script
    - `.pi/skills/llm-test/` — Test/debug workflow with virtual devices
 
-### Documentation Maintenance
+### Documentation & Skill Maintenance
 
-- **Keep docs in sync**: When development/debugging reveals that any doc (`README.md`, `docs/DEVELOP*.md`, `TEST_FLOW.md`, skill `SKILL.md` files, or this file) is outdated or contradicts the code, update it in the same change.
+- **Keep docs in sync**: When development/debugging reveals that any doc (`README.md`, `docs/DEVELOP*.md`, `docs/dev/*`, skill `SKILL.md` files, `AGENTS.md`, or this file) is outdated or contradicts the code, update it in the same change.
+- **Fix stale skills immediately**: If a skill's instructions are wrong, awkward, use bad paths, reference outdated commands, or lack useful patterns you just discovered, update the corresponding `SKILL.md` right away — don't leave it for later.
+- **Update TASKS.md**: When finishing a task, update its status, add the version/PR info, and write a brief implementation summary.
 - **NEVER edit `CHANGELOG.md`** — it is generated automatically by the release pipeline.
-- **Keep skills healthy**: If a skill's instructions are wrong, stale, or awkward to use (bad paths, outdated commands, missing patterns), update/optimize the corresponding `SKILL.md`.
 
 ### Branch Naming Convention
 
