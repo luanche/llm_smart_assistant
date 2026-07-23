@@ -124,9 +124,10 @@
 
 ### Task 9: 实体别名传给模型
 - **现象**: 用户配置的实体 alias 也要传给模型
-- **类型**: feat | **分支**: `feat/entity-alias-to-prompt`
+- **类型**: chore | **分支**: `chore/entity-alias-to-prompt`
 - **分析**: 读 HA entity registry 的 `aliases` 字段加进 exposed_entities CSV，小改动，可单独快速做掉
-- **状态**: ⬜ 未开始
+- **状态**: ✅ 已完成（v1.3.3 待发）
+- **实现方案**: 在 `_build_exposed_entities_list()` 和 `_build_entity_csv()` 中通过 `self.hass.data.get("entity_registry")` 获取 EntityRegistry 实例，对每个实体调用 `registry.async_get(entity_id)` 读取 `entry.aliases`（字符串列表）；在原有 CSV/列表格式的实体名后追加 `[alias1, alias2]` 或追加 `aliases` 列
 
 ---
 
