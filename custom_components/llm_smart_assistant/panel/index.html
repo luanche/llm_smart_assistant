@@ -79,23 +79,20 @@
       display: flex; align-items: center;
       height: 52px; padding: 0 12px;
       flex-shrink: 0;
+      position: relative; z-index: 60;
       border-bottom: 1px solid var(--border);
       background: var(--surface);
       backdrop-filter: blur(32px) saturate(1.6);
       -webkit-backdrop-filter: blur(32px) saturate(1.6);
     }
-    #headerTitle {
-      font-size: 16px; font-weight: 700;
-      letter-spacing: -0.02em;
-      color: var(--text-primary);
-      min-width: 60px;
-    }
     .pill-switch-wrap {
-      flex: 1;
+      position: absolute;
+      left: 50%;
+      transform: translateX(-50%);
       display: flex;
       justify-content: center;
     }
-    .pill-switch {
+    .pill-switch-wrap .pill-switch {
       display: flex;
       background: var(--surface-alt);
       border-radius: var(--radius-pill);
@@ -122,19 +119,92 @@
       display: flex; align-items: center; gap: 6px;
       margin-left: auto;
     }
-    .instance-select {
-      font-size: 11px; font-weight: 500;
-      padding: 3px 18px 3px 6px; border: 1px solid var(--border);
-      border-radius: 6px; background: var(--surface-alt);
-      color: var(--text-primary); display: none;
-      cursor: pointer; outline: none;
-      appearance: none;
-      -webkit-appearance: none;
-      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%238e8e93' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
-      background-repeat: no-repeat;
-      background-position: right 5px center;
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      min-width: 0;
+      flex-shrink: 1;
     }
-    .instance-select:focus { border-color: var(--accent); }
+    /* Custom instance dropdown */
+    .instance-dropdown {
+      position: relative;
+      flex-shrink: 1;
+      min-width: 0;
+    }
+    .instance-trigger {
+      display: flex;
+      align-items: center;
+      gap: 3px;
+      padding: 4px 8px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-pill);
+      background: var(--surface-alt);
+      color: var(--text-secondary);
+      font-size: 11px; font-weight: 500;
+      font-family: inherit;
+      cursor: pointer;
+      max-width: 130px;
+      min-height: 28px;
+      white-space: nowrap;
+      transition: var(--transition);
+    }
+    .instance-trigger:hover {
+      background: var(--surface-hover);
+      color: var(--text-primary);
+    }
+    .instance-trigger.open {
+      border-color: var(--accent);
+      color: var(--text-primary);
+    }
+    #instanceName {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      min-width: 0;
+    }
+    .instance-chevron {
+      font-size: 10px;
+      opacity: 0.5;
+      flex-shrink: 0;
+    }
+    .instance-menu {
+      position: absolute;
+      top: calc(100% + 4px);
+      left: 0;
+      min-width: 160px;
+      max-width: 220px;
+      background: rgba(250,250,252,0.99);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      box-shadow: var(--shadow-lg);
+      z-index: 300;
+      display: none;
+      overflow: hidden;
+    }
+    @media (prefers-color-scheme: dark) {
+      .instance-menu { background: rgba(36,36,40,0.99); }
+    }
+    .instance-menu.open { display: block; animation: menu-in 0.15s ease; }
+    @keyframes menu-in {
+      from { opacity: 0; transform: translateY(-6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .instance-option {
+      padding: 10px 14px;
+      font-size: 13px;
+      color: var(--text-primary);
+      cursor: pointer;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      transition: background 0.15s;
+    }
+    .instance-option:hover { background: var(--accent-subtle); }
+    .instance-option.active { color: var(--accent); font-weight: 600; }
+    .instance-option + .instance-option {
+      border-top: 1px solid var(--border);
+    }
     .debug-btn {
       background: none; border: none;
       font-size: 15px; cursor: pointer;
@@ -843,7 +913,6 @@
     /* === MOBILE === */
     @media (max-width: 640px) {
       #header { padding: 0 10px; height: 56px; }
-      #headerTitle { font-size: 14px; min-width: 44px; }
       .pill-btn { padding: 8px 14px; font-size: 12px; min-height: 40px; }
       .msg { max-width: 92%; padding: 8px 12px; font-size: 15px; }
       #chatOuter { padding: 0 4px 3px; }
@@ -855,6 +924,10 @@
       .debug-btn, .share-btn { min-width: 44px; min-height: 44px; font-size: 17px; }
       .suggestion-btn { min-height: 44px; font-size: 13px; }
       .voice-bubble { max-width: 95%; padding: 8px 12px; }
+      .instance-trigger { min-height: 32px; font-size: 10px; padding: 4px 8px; max-width: 90px; }
+      .instance-chevron { font-size: 8px; }
+      .instance-menu { left: 0; right: auto; min-width: 140px; max-width: 180px; }
+      .instance-option { padding: 12px 14px; font-size: 13px; }
     }
   </style>
 </head>
@@ -862,7 +935,14 @@
 
 <div id="appContainer">
 <div id="header">
-  <span id="headerTitle" data-i18n="title"></span>
+  <div class="header-left">
+    <div class="instance-dropdown" id="instanceDropdown" style="display:none;">
+      <button class="instance-trigger" id="instanceTrigger" onclick="toggleInstanceMenu(event)">
+        <span id="instanceName"></span><span class="instance-chevron">▾</span>
+      </button>
+      <div class="instance-menu" id="instanceMenu"></div>
+    </div>
+  </div>
   <div class="pill-switch-wrap">
     <div class="pill-switch">
       <button class="pill-btn active" onclick="switchTab('chat')" data-i18n="chat"></button>
@@ -870,7 +950,6 @@
     </div>
   </div>
   <div class="header-right">
-    <select id="instanceSelect" class="instance-select" onchange="switchInstance()" title=""></select>
     <button id="debugBtn" class="debug-btn" title="${t('debugBtnTitle')}">🔧</button>
     <button id="shareBtn" class="share-btn" onclick="copyChatLink()">🔗</button>
     <span id="statusText" class="status-text" data-i18n="connected"></span>
@@ -1161,7 +1240,6 @@ const isZh = langRoot === 'zh';
 
 document.title = t('title');
 applyI18n();
-document.getElementById('headerTitle').textContent = t('title');
 document.getElementById('emptyText').textContent = t('empty');
 document.querySelectorAll('.pill-btn')[0].textContent = t('chat');
 document.querySelectorAll('.pill-btn')[1].textContent = t('automations');
@@ -1173,8 +1251,7 @@ async function loadSuggestions() {
   if (!container) return;
   
   try {
-    const inst = document.getElementById('instanceSelect');
-    const entryId = inst ? inst.value : '';
+    const entryId = currentInstanceId || '';
     
     const resp = await callAPI('GET', '/api/llm_smart_assistant/suggestions?entry_id=' + encodeURIComponent(entryId));
     
@@ -1695,30 +1772,79 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') document.getElementById('debugSheet').classList.remove('open');
 });
 
-// Instance discovery
+// ── Instance discovery & custom dropdown ──
 async function discoverInstances() {
   try {
     const allEntries = await callAPI('GET', '/api/config/config_entries/entry');
     const configs = allEntries.filter(e => e.domain === 'llm_smart_assistant');
-    const sel = document.getElementById('instanceSelect');
-    sel.innerHTML = '';
-    configs.forEach(e => {
-      const opt = document.createElement('option');
-      opt.value = e.entry_id;
-      opt.textContent = e.title || e.entry_id.slice(0, 8);
-      sel.appendChild(opt);
-    });
+    const dropdown = document.getElementById('instanceDropdown');
+    const menu = document.getElementById('instanceMenu');
+    const nameEl = document.getElementById('instanceName');
+    
     if (configs.length > 1) {
-      sel.style.display = 'inline-block';
+      dropdown.style.display = 'block';
+      menu.innerHTML = '';
+      configs.forEach((e, i) => {
+        const opt = document.createElement('div');
+        const name = e.title || e.entry_id.slice(0, 8);
+        opt.className = 'instance-option' + (i === 0 ? ' active' : '');
+        opt.dataset.entryId = e.entry_id;
+        opt.textContent = name;
+        // pointerdown fires before click on mobile — avoids close-on-outside race
+        opt.addEventListener('pointerdown', (ev) => {
+          ev.stopPropagation();
+          selectInstance(e.entry_id, name);
+        });
+        menu.appendChild(opt);
+      });
+      if (!currentInstanceId || !configs.find(c => c.entry_id === currentInstanceId)) {
+        currentInstanceId = configs[0].entry_id;
+        nameEl.textContent = configs[0].title || configs[0].entry_id.slice(0, 8);
+      } else {
+        const cur = configs.find(c => c.entry_id === currentInstanceId);
+        if (cur) nameEl.textContent = cur.title || cur.entry_id.slice(0, 8);
+      }
     } else {
-      sel.style.display = 'none';
+      dropdown.style.display = 'none';
+      if (configs.length === 1) {
+        currentInstanceId = configs[0].entry_id;
+      }
     }
   } catch(e) {}
 }
 
-function switchInstance() {
-  currentInstanceId = document.getElementById('instanceSelect').value;
+function toggleInstanceMenu(e) {
+  e.stopPropagation();
+  const menu = document.getElementById('instanceMenu');
+  const trigger = document.getElementById('instanceTrigger');
+  menu.classList.toggle('open');
+  trigger.classList.toggle('open');
 }
+
+function selectInstance(entryId, name) {
+  currentInstanceId = entryId;
+  document.getElementById('instanceName').textContent = name;
+  document.querySelectorAll('.instance-option').forEach(opt => {
+    opt.classList.toggle('active', opt.dataset.entryId === entryId);
+  });
+  closeInstanceMenu();
+  loadSuggestions();
+}
+
+function closeInstanceMenu() {
+  const menu = document.getElementById('instanceMenu');
+  const trigger = document.getElementById('instanceTrigger');
+  menu.classList.remove('open');
+  trigger.classList.remove('open');
+}
+
+// Close menu when clicking outside (pointerdown for mobile reliability)
+document.addEventListener('pointerdown', (e) => {
+  const dropdown = document.getElementById('instanceDropdown');
+  if (dropdown && !dropdown.contains(e.target)) {
+    closeInstanceMenu();
+  }
+});
 
 // Automations
 async function refreshAutomations() {
@@ -1789,7 +1915,7 @@ async function toggleAutomation(id) {
   }
 
   try {
-    const inst = document.getElementById('instanceSelect').value;
+    const inst = currentInstanceId;
     await callAPI('POST', '/api/services/llm_smart_assistant/toggle_automation', {
       automation_id: id,
       disable: disable,
@@ -1911,7 +2037,7 @@ async function sendMessage(fromVoice) {
   setStatus(t('thinkingText'));
 
   try {
-    const inst = document.getElementById('instanceSelect').value;
+    const inst = currentInstanceId;
     const body = inst ? { text, entry_id: inst } : { text };
     if (fromVoice) body.source = 'voice';
 
