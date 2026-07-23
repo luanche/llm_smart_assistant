@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.4.1
+
+- fix(instance-selector): replace native select with custom dropdown, fix z-index, remove title
+
+
 ## v1.4.0
 
 - docs: update Task 5 status (v1.4.0)
