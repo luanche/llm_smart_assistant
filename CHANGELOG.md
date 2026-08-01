@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.5.0
+
+- feat(config): independent history switches, per-instance sensors, panel toggle
+- docs: sync docs with v1.4.1 (mobile UI, PTT, instance dropdown)
+
+
 ## v1.4.1
 
 - fix(instance-selector): replace native select with custom dropdown, fix z-index, remove title
