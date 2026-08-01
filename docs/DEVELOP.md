@@ -215,6 +215,7 @@ python3 .pi/skills/i18n-audit/check.py --diff
 | 复合表达式 expression                  | 触发索引用数字（`(0 and 1) or 2`），安全递归下降解析器（无 eval）；支持 AND/OR/括号/优先级；无 expression 时按 trigger_logic 回退 |
 | AND 逻辑实时检查全部触发源              | 任一触发源变化时检查**所有** entity trigger 当前状态（而非历史状态），避免跨事件状态跟踪复杂度 |
 | 时间触发每日自动重注册                 | `async_track_point_in_time` 触发后若非 one-shot/未禁用则注册下一天，实现"每天 21:00"式长期定时 |
+| schedule 计划调度（once/daily/weekly/monthly）| Task 7c：`_compute_next_fire` 计算下一次触发（weekly 扫 7 天、monthly 扫 62 天跨月边界、once 精确 datetime 触发后不再重复）；`_register_time_trigger` 按 schedule 重注册，无未来时间则停止；LLM 可用自然语言创建（"每个星期一…"→weekly weekdays:[1]） |
 | one-shot 触发后自毁                    | 执行完成即 `async_remove_automation`，适用于"1分钟后关空调"等一次性规则 |
 | 执行记录环形缓冲 30 条                | 每次触发写入 time/trigger/result/ok/steps，随自动化持久化，重启保留；UI 专属 debug 弹窗按 automation 显示 |
 | 多输出设备 tts_entities 列表           | Task 4b：可配多个 TTS 设备（含区域）；prompt 注入 `## Output devices`（entity_id/name/area CSV），LLM 响应 JSON 可加 `output_device` 选择最近设备；兼容旧 `tts_entity_id`（首设备作默认，旧配置自动镜像进列表） |

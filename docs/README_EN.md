@@ -149,7 +149,18 @@ Create automations using natural language:
 > "(smoke high OR temp high) AND window open" → complex expression `(0 or 1) and 2` (configurable via UI or LLM)
 > "Turn off the TV at 21:00 daily" → time trigger, repeats every day
 
+**Scheduled time triggers** — 4 schedule types (via UI form or natural language):
+
+| Schedule | Example | Notes |
+|----------|---------|-------|
+| One-time | "turn on the TV at 2pm on Aug 15" | exact datetime (seconds supported), fires once |
+| Daily | "turn off the AC every night at 11pm" | every day at HH:MM |
+| Weekly | "start the robot vacuum every Monday at 8am" | multi-select days (Mon–Sun) |
+| Monthly | "open the garage door on the 1st of each month at 9am" | multi-select days (1–31) |
+
 **One-shot automations** — add `one_shot` to auto-remove after a single firing (e.g. "turn off the AC in 1 minute").
+
+**Scheduled reminders** — just say "remind me to leave in 1 minute" or "remind me to take medicine every day at 8am"; when the time comes the assistant speaks the reminder via TTS (e.g. "time to go, don't forget your keys"). Supports one-time and recurring schedules.
 
 Automations persist across restarts and use Home Assistant's event system for real-time state change detection. Every execution is recorded (time, trigger source, result, success/failure) — the last 30 per automation — and the AI Chat UI's 🔧 button on each automation card shows its dedicated execution log.
 
