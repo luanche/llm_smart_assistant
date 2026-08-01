@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.9.0
+
+- feat: scheduled time triggers with reminders, mobile UX polish (v4/v5), automation test suite
+
+
 ## v1.8.0
 
 - feat(tts): multi-device I/O routing — LLM picks nearest output device by input location
