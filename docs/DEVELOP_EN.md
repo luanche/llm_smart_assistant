@@ -210,3 +210,9 @@ Other services (`create_automation`, `remove_automation`, `get_automations`, `up
 | History reads HA recorder (no cache)             | History survives restarts; all input sources recorded via `sensor.llm_last_input` (chat panel / service calls / voice sensors), merged with the response sensor into one timeline |
 | History skips intermediate rounds                | Recorder dedupes identical states, so the final reply may equal the last round; use consecutive-dedup instead of in_progress filtering |
 | History lazy-loads via `before` cursor           | Newest-first with cursor pagination; scroll-to-top loads older entries; cursor must be URL-encoded (`+` → space) |
+| Automation `triggers` array                     | `[{entity_id, condition}]` or `[{type: time, time}]`; keeps legacy `entity_id`/`condition` properties for backward-compatible storage migration |
+| Boolean `expression` (advanced)                 | Trigger indexes as numbers (`(0 and 1) or 2`); safe recursive-descent parser (no eval) supporting AND/OR/parentheses/precedence; falls back to trigger_logic when absent |
+| AND logic re-checks ALL trigger states on change | When any trigger changes, evaluate **all** entity triggers' current states (not historical), avoiding cross-event state tracking |
+| Time triggers auto-re-register daily            | After `async_track_point_in_time` fires, re-registers for the next day unless one-shot or disabled → supports "every day at 21:00" long-running schedules |
+| One-shot auto-removes after firing              | Calls `async_remove_automation` after execution for one-time rules like "turn off AC in 1 minute" |
+| Execution records ring buffer (30)              | Each firing writes time/trigger/result/ok/steps; persisted with the automation across restarts; dedicated debug sheet shows per-automation records |

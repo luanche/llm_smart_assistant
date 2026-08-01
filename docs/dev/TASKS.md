@@ -114,14 +114,24 @@
 ## ⚡ 自动化引擎增强
 
 ### Task 7: 自动化能力升级（核心，改动最大）
-- **类型**: feat | **分支**: `feat/automation-engine-v2`
+- **类型**: feat | **分支**: `feat/automation-upgrade`
 - **包含**:
-  - [ ] 一条自动化允许配置多个传感器，条件用逻辑运算符连接（AND/OR）；且不只 sensor，开关等实体、当前时间等也可作为监听源
-  - [ ] 自动化分一次性/长期，由模型根据用户输入决定（如"1分钟后关闭空调"=临时）
-  - [ ] Automation 的执行也要记录，方便回溯 debug
-  - [ ] AI Chat Automation 界面点 debug 按钮，显示该 automation 的 debug 信息而不是 chat 的
+  - [x] 一条自动化允许配置多个传感器，条件用逻辑运算符连接（AND/OR）；且不只 sensor，开关等实体、当前时间等也可作为监听源
+  - [x] 自动化分一次性/长期，由模型根据用户输入决定（如"1分钟后关闭空调"=临时）
+  - [x] Automation 的执行也要记录，方便回溯 debug
+  - [x] AI Chat Automation 界面点 debug 按钮，显示该 automation 的 debug 信息而不是 chat 的
 - **分析**: 触发模型从"单实体+条件"升级为"多触发源+逻辑表达式"；一次性自动化用 `async_track_point_in_time` 或触发后自毁；执行记录存 storage（环形缓冲，保留最近 N 条），debug 弹窗按来源显示。建议拆 2 个 PR：先多触发源，再一次性功能+执行记录
-- **状态**: ⬜ 未开始
+- **状态**: ✅ 已完成（v1.7.0 待发）
+- **实现方案**:
+  - `DynamicAutomation` 升级: `triggers` 数组（每项 `{entity_id, condition}` 或 `{type: time, time: HH:MM}`）+ `trigger_logic` (and/or) + `expression`（复合布尔表达式，如 `"(0 and 1) or 2"`，触发索引用数字）+ `one_shot` + `records`（环形缓冲 30 条）; 保留 `entity_id`/`condition` property 做向后兼容，旧 storage 数据自动迁移; 无 expression 时按 trigger_logic 回退（全 AND/任意 OR）
+  - 监听: 每个 entity trigger 单独注册 `async_track_state_change_event`; time trigger 用 `async_track_point_in_time` 每日重复（非 one-shot/未禁用时触发后自动重注册下一天）; 表达式用安全递归下降解析器 `_TriggerExpressionParser`（无 eval，支持 AND/OR/括号/优先级），任一触发源变化时求整个表达式
+  - one-shot: 执行后 `async_remove_automation` 自毁（日志验证）; 时间 one-shot 如"1分钟后关空调"
+  - 执行记录: `_async_process_automation_trigger` 每次执行写 record (time/trigger_entity/trigger_state/result/ok/steps)，持久化到 storage，重启保留
+  - LLM prompt (HARDCODED): create_automation 支持 `triggers` 数组 + `trigger_logic` + `one_shot` 格式，DeepSeek 实测正确生成多触发
+  - 服务升级: create/update_automation 支持 triggers/trigger_logic/one_shot（schema 放宽）; get_automations 返回新字段 + records
+  - 前端: 自动化卡片显示多触发（AND=& / OR=| 分隔）+ ONCE 徽标 + 🔧 按钮; add/edit sheet 动态 trigger 行 + 逻辑选择 + one-shot 开关; 新 `autoDebugSheet` 显示该自动化的触发配置 + 执行记录（成功/失败 + 时间 + 结果）
+  - dev 环境: 新增 7 个 input_boolean + 3 个 input_number + 3 个 template sensor（烟雾/CO2/窗户开度），dashboard 增加"传感器(新)/环境"卡片与自动化调试板块
+  - 测试覆盖: OR one-shot 自毁 ✓、AND 条件全满足才触发 ✓、时间触发准时+每日重复 ✓、执行记录持久化 ✓、旧格式兼容 ✓、LLM 端到端多触发创建 ✓、复合表达式 `(0 and 1) or 2` 三分支触发 ✓、UI 全流程（创建/编辑/调试弹窗/一次性自毁）✓
 
 ---
 
@@ -147,10 +157,8 @@
 
 ## 📋 建议实施顺序
 
-> 已完成：Task 1（v1.2.2）、Task 2（v1.2.3）、Task 2b（v1.2.4）、Task 9（v1.3.4）、Task 3（v1.3.0/1.3.1）、Task 4a（v1.3.3）、Task 5（v1.4.0/1.4.1）
+> 已完成：Task 1（v1.2.2）、Task 2（v1.2.3）、Task 2b（v1.2.4）、Task 9（v1.3.4）、Task 3（v1.3.0/1.3.1）、Task 4a（v1.3.3）、Task 5（v1.4.0/1.4.1）、Task 6（v1.6.0）、Task 7（v1.7.0 待发）、Task 8（v1.5.0）
 
 | 顺序 | Task | 理由 |
 |------|------|------|
-| 1 | Task 6（聊天历史）| 已实现，待合入 |
-| 2 | Task 7（自动化引擎 v2）| 最大改动，放后面 |
-| 3 | Task 4b（多设备路由）| 依赖架构成熟后做 |
+| 1 | Task 4b（多设备路由）| 唯一剩余开放任务 |

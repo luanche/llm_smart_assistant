@@ -8,44 +8,64 @@ default_config:
 input_boolean:
   living_room_light:
     name: "客厅灯"
-    icon: mdi:lightbulb
+    icon: "mdi:lightbulb"
   bed_room_light:
     name: "卧室灯"
-    icon: mdi:lightbulb
+    icon: "mdi:lightbulb"
   kitchen_light:
     name: "厨房灯"
-    icon: mdi:lightbulb
+    icon: "mdi:lightbulb"
   study_light:
     name: "书房灯"
-    icon: mdi:lightbulb
+    icon: "mdi:lightbulb"
   porch_light:
     name: "门廊灯"
-    icon: mdi:lightbulb
+    icon: "mdi:lightbulb"
   tv:
     name: "电视"
-    icon: mdi:television
+    icon: "mdi:television"
   air_conditioner:
     name: "客厅空调"
-    icon: mdi:air-conditioner
+    icon: "mdi:air-conditioner"
   bed_room_ac:
     name: "卧室空调"
-    icon: mdi:air-conditioner
+    icon: "mdi:air-conditioner"
   water_heater:
     name: "热水器"
-    icon: mdi:water-heater
+    icon: "mdi:water-heater"
   garage_door:
     name: "车库门"
-    icon: mdi:garage
+    icon: "mdi:garage"
   front_door_lock:
     name: "大门锁"
-    icon: mdi:lock
+    icon: "mdi:lock"
   alarm_system:
     name: "安防系统"
-    icon: mdi:shield-home
+    icon: "mdi:shield-home"
   robot_vacuum:
     name: "扫地机器人"
-    icon: mdi:robot-vacuum
-
+    icon: "mdi:robot-vacuum"
+  window_sensor:
+    name: "窗户传感器"
+    icon: "mdi:window-open"
+  motion_sensor:
+    name: "人体传感器"
+    icon: "mdi:motion-sensor"
+  door_sensor:
+    name: "门传感器"
+    icon: "mdi:door"
+  washing_machine:
+    name: "洗衣机"
+    icon: "mdi:washing-machine"
+  dishwasher:
+    name: "洗碗机"
+    icon: "mdi:dishwasher"
+  coffee_machine:
+    name: "咖啡机"
+    icon: "mdi:coffee-maker"
+  fan:
+    name: "电风扇"
+    icon: "mdi:fan"
 input_number:
   test_temperature:
     name: "客厅温度"
@@ -94,6 +114,30 @@ input_number:
     max: 100
     step: 10
     unit_of_measurement: "%"
+    mode: slider
+  window_open_percent:
+    name: "窗户开度"
+    initial: 0
+    min: 0
+    max: 100
+    step: 5
+    unit_of_measurement: "%"
+    mode: slider
+  smoke_level:
+    name: "烟雾浓度"
+    initial: 0
+    min: 0
+    max: 500
+    step: 5
+    unit_of_measurement: "ppm"
+    mode: slider
+  co2_level:
+    name: "CO2 浓度"
+    initial: 450
+    min: 300
+    max: 2000
+    step: 50
+    unit_of_measurement: "ppm"
     mode: slider
 
 input_select:
@@ -152,9 +196,25 @@ template:
         unit_of_measurement: "°C"
         state: "{{ states('input_number.test_temperature') | float | round(1) }}"
         device_class: temperature
+      - name: "烟雾传感器"
+        unique_id: smoke_sensor
+        unit_of_measurement: "ppm"
+        state: "{{ states('input_number.smoke_level') }}"
+        icon: mdi:fire
+      - name: "CO2 传感器"
+        unique_id: co2_sensor
+        unit_of_measurement: "ppm"
+        state: "{{ states('input_number.co2_level') }}"
+        icon: mdi:molecule-co2
+      - name: "窗户开度"
+        unique_id: window_open_sensor
+        unit_of_measurement: "%"
+        state: "{{ states('input_number.window_open_percent') }}"
+        icon: mdi:window-open
 
 # Enable logging
 logger:
   logs:
     custom_components.llm_smart_assistant: debug
     custom_components.llm_smart_assistant.coordinator: debug
+

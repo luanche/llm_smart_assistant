@@ -658,6 +658,28 @@
       border-radius: 4px;
       color: var(--accent);
     }
+    .auto-card-oneshot {
+      font-size: 10px; font-weight: 700;
+      color: var(--warning, #ffb454);
+      border: 1px solid var(--warning, #ffb454);
+      padding: 0 6px; border-radius: 4px;
+      letter-spacing: 0.04em;
+    }
+    .trigger-row {
+      display: flex; gap: 6px; align-items: center;
+      margin-bottom: 8px;
+    }
+    .trigger-row .sheet-input { padding: 8px 10px; }
+    .trig-index {
+      font-size: 11px; font-weight: 700;
+      color: var(--accent);
+      background: var(--surface-alt);
+      border: 1px solid var(--border);
+      border-radius: 50%;
+      width: 22px; height: 22px;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
     /* Toggle switch */
     .auto-card-toggle {
       width: 44px; height: 24px;
@@ -1000,14 +1022,26 @@
       <button class="sheet-close" onclick="cancelAdd()">✕</button>
     </div>
     <div class="sheet-body">
-      <div style="margin-bottom:12px;">
-        <label data-i18n="labelEntityId"></label>
-        <input id="addEntityInput" class="sheet-input" data-i18n="placeholderEntity">
+      <div id="addTriggersBox"></div>
+      <div style="display:flex;gap:8px;margin-bottom:12px;">
+        <button class="sheet-btn secondary" style="flex:1;" onclick="addTriggerRow('add')">+ <span data-i18n="addTrigger"></span></button>
       </div>
       <div style="margin-bottom:12px;">
-        <label data-i18n="labelCondition"></label>
-        <input id="addConditionInput" class="sheet-input" data-i18n="placeholderCondition">
+        <label data-i18n="expressionLabel"></label>
+        <input id="addExpressionInput" class="sheet-input" data-i18n="placeholderExpression">
+        <div style="font-size:11px;color:var(--text-tertiary);margin-top:4px;" data-i18n="expressionHint"></div>
       </div>
+      <div style="margin-bottom:12px;">
+        <label data-i18n="triggerLogicLabel"></label>
+        <select id="addLogicInput" class="sheet-input">
+          <option value="or">OR (<span data-i18n="orOption"></span>)</option>
+          <option value="and">AND (<span data-i18n="andOption"></span>)</option>
+        </select>
+      </div>
+      <label style="display:flex;align-items:center;gap:8px;margin-bottom:12px;font-size:13px;color:var(--text-secondary);">
+        <input type="checkbox" id="addOneShotInput" style="width:18px;height:18px;">
+        <span data-i18n="oneShotLabel"></span>
+      </label>
       <div>
         <label data-i18n="labelAction"></label>
         <textarea id="addPromptInput" class="sheet-input" rows="2" data-i18n="placeholderAction" style="resize:none;"></textarea>
@@ -1047,14 +1081,26 @@
       <button class="sheet-close" onclick="cancelEdit()">✕</button>
     </div>
     <div class="sheet-body">
-      <div style="margin-bottom:12px;">
-        <label data-i18n="labelEntityId"></label>
-        <input id="editEntityInput" class="sheet-input" data-i18n="placeholderEntity">
+      <div id="editTriggersBox"></div>
+      <div style="display:flex;gap:8px;margin-bottom:12px;">
+        <button class="sheet-btn secondary" style="flex:1;" onclick="addTriggerRow('edit')">+ <span data-i18n="addTrigger"></span></button>
       </div>
       <div style="margin-bottom:12px;">
-        <label data-i18n="labelCondition"></label>
-        <input id="editConditionInput" class="sheet-input" data-i18n="placeholderCondition">
+        <label data-i18n="expressionLabel"></label>
+        <input id="editExpressionInput" class="sheet-input" data-i18n="placeholderExpression">
+        <div style="font-size:11px;color:var(--text-tertiary);margin-top:4px;" data-i18n="expressionHint"></div>
       </div>
+      <div style="margin-bottom:12px;">
+        <label data-i18n="triggerLogicLabel"></label>
+        <select id="editLogicInput" class="sheet-input">
+          <option value="or">OR (<span data-i18n="orOption"></span>)</option>
+          <option value="and">AND (<span data-i18n="andOption"></span>)</option>
+        </select>
+      </div>
+      <label style="display:flex;align-items:center;gap:8px;margin-bottom:12px;font-size:13px;color:var(--text-secondary);">
+        <input type="checkbox" id="editOneShotInput" style="width:18px;height:18px;">
+        <span data-i18n="oneShotLabel"></span>
+      </label>
       <div>
         <label data-i18n="labelAction"></label>
         <textarea id="editInput" class="sheet-input" rows="2" data-i18n="editPromptPlaceholder" style="resize:none;"></textarea>
@@ -1075,6 +1121,20 @@
       <button class="sheet-close" onclick="document.getElementById('debugSheet').classList.remove('open')">✕</button>
     </div>
     <div id="debugSheetContent">
+      <span data-i18n="noDebugData"></span>
+    </div>
+  </div>
+</div>
+
+<!-- Automation-specific debug bottom sheet -->
+<div id="autoDebugSheet" class="sheet-overlay" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="sheet" onclick="event.stopPropagation()">
+    <div class="sheet-handle"></div>
+    <div class="sheet-header">
+      <span class="sheet-title">🔧 <span data-i18n="autoDebugTitle"></span></span>
+      <button class="sheet-close" onclick="document.getElementById('autoDebugSheet').classList.remove('open')">✕</button>
+    </div>
+    <div id="autoDebugContent">
       <span data-i18n="noDebugData"></span>
     </div>
   </div>
@@ -1156,6 +1216,23 @@ const LANGUAGES = {
     linkCopied: 'Link copied!',
     voiceInputTitle: 'Voice input',
     sendTitle: 'Send',
+    addTrigger: '+ Add trigger',
+    triggerLogicLabel: 'Trigger logic',
+    oneShotLabel: 'One-shot (auto-remove after firing)',
+    oneShotBadge: 'ONCE',
+    andOption: 'AND (all must match)',
+    orOption: 'OR (any matches)',
+    labelTriggerEntity: 'Trigger entity',
+    timeTrigger: 'Time (HH:MM)',
+    debugRecords: 'Execution records',
+    noRecords: 'No executions yet.',
+    recordOk: 'OK',
+    recordFail: 'FAILED',
+    autoDebugTitle: 'Automation Debug',
+    removeTrigger: 'Remove',
+    expressionLabel: 'Trigger expression (advanced)',
+    placeholderExpression: 'e.g. (0 and 1) or 2',
+    expressionHint: 'Trigger indexes: 0, 1, 2... Combine with AND/OR and parentheses. Leave empty to use the logic selector below.',
   },
   zh: {
     title: 'AI 聊天',
@@ -1219,6 +1296,23 @@ const LANGUAGES = {
     linkCopied: '链接已复制！',
     voiceInputTitle: '语音输入',
     sendTitle: '发送',
+    addTrigger: '+ 添加触发条件',
+    triggerLogicLabel: '触发逻辑',
+    oneShotLabel: '一次性（触发后自动删除）',
+    oneShotBadge: '一次性',
+    andOption: 'AND（全部满足才触发）',
+    orOption: 'OR（任一满足即触发）',
+    labelTriggerEntity: '触发实体',
+    timeTrigger: '时间 (HH:MM)',
+    debugRecords: '执行记录',
+    noRecords: '暂无执行记录。',
+    recordOk: '成功',
+    recordFail: '失败',
+    autoDebugTitle: '自动化调试',
+    removeTrigger: '删除',
+    expressionLabel: '触发表达式（高级）',
+    placeholderExpression: '例如 (0 and 1) or 2',
+    expressionHint: '触发索引：0、1、2… 用 AND/OR 和括号组合。留空则使用下方逻辑选择器。',
   },
 };
 
@@ -2020,6 +2114,15 @@ document.addEventListener('pointerdown', (e) => {
 });
 
 // Automations
+function triggerLabel(t) {
+  if (t && t.type === 'time') {
+    return '<code>time</code> <span>' + escapeHtml(t.time || '') + '</span>';
+  }
+  const eid = t && t.entity_id ? escapeHtml(t.entity_id) : '';
+  const cond = t && t.condition ? escapeHtml(t.condition) : '';
+  return '<code>' + eid + '</code> <span>' + cond + '</span>';
+}
+
 async function refreshAutomations() {
   const container = document.getElementById('autoContainer');
   try {
@@ -2041,25 +2144,42 @@ async function refreshAutomations() {
       const card = document.createElement('div');
       card.className = 'auto-card' + (isDisabled ? ' disabled' : '');
       card.dataset.aid = id;
+      const triggers = a.triggers || [{ entity_id: a.entity_id, condition: a.condition }];
+      const logic = (a.trigger_logic || 'or').toUpperCase();
+      const expr = a.expression || '';
+      let trigHtml;
+      if (expr) {
+        // Expression display: replace indexes with trigger labels
+        trigHtml = expr.replace(/\b(\d+)\b/g, (m) => {
+          const idx = parseInt(m, 10);
+          return triggers[idx] ? triggerLabel(triggers[idx]) : m;
+        }).replace(/\band\b/gi, '<b style="color:var(--accent);">AND</b>')
+          .replace(/\bor\b/gi, '<b style="color:var(--accent);">OR</b>');
+      } else {
+        trigHtml = triggers.map(triggerLabel).join(logic === 'AND' ? ' <b style="color:var(--accent);">&amp;</b> ' : ' <b style="color:var(--accent);">|</b> ');
+      }
       const promptEsc = (a.prompt || '').replace(/'/g, "\\'");
-      const entityEsc = (a.entity_id || '').replace(/'/g, "\\'");
-      const condEsc = (a.condition || '').replace(/'/g, "\\'");
       const descEsc = (a.description || '').replace(/'/g, "\\'");
       const actionSummary = a.description || a.prompt || t('noActionSpecified');
+      const oneShotBadge = a.one_shot ? '<span class="auto-card-oneshot">' + t('oneShotBadge') + '</span>' : '';
       card.innerHTML = `
           <div class="auto-card-header">
             <div class="auto-card-header-left">
               <div class="auto-card-badge">AUTOMATION</div>
-              <div class="auto-card-title">When <code>${escapeHtml(a.entity_id)}</code> <span>${escapeHtml(a.condition)}</span></div>
+              ${oneShotBadge}
+              <div class="auto-card-title">When ${trigHtml}</div>
             </div>
             <button class="auto-card-toggle ${isDisabled ? '' : 'on'}" onclick="toggleAutomation('${id}')"></button>
           </div>
           <div class="auto-card-action"><span class="alabel">Action:</span><span class="avalue">${escapeHtml(actionSummary)}</span></div>
           <div class="auto-card-footer">
-            <button class="edit-btn" onclick="showEditSheet('${id}', '${entityEsc}', '${condEsc}', '${promptEsc}')">${t('edit')}</button>
+            <button class="edit-btn" onclick="showEditSheet('${id}')">${t('edit')}</button>
             <button class="delete-btn" onclick="showDeleteConfirm('${id}')">${t('delete')}</button>
+            <button class="debug-btn" onclick="showAutomationDebug('${id}')" title="${t('debugBtnTitle')}">🔧</button>
           </div>
       `;
+      // Store full automation object for edit/debug
+      card.dataset.auto = JSON.stringify(a);
       container.appendChild(card);
     });
   } catch(e) {
@@ -2105,29 +2225,96 @@ async function toggleAutomation(id) {
   }
 }
 
+// ── Automation trigger row editor (add/edit sheets) ─────────────────────────
+let _addTriggerCount = 0;
+let _editTriggerCount = 0;
+
+function addTriggerRow(mode) {
+  const box = document.getElementById(mode + 'TriggersBox');
+  if (!box) return;
+  const countKey = mode + 'TriggerCount';
+  const idx = window[countKey]++;
+  const row = document.createElement('div');
+  row.className = 'trigger-row';
+  row.innerHTML = `
+      <span class="trig-index" data-idx="${idx}">${idx}</span>
+      <input class="sheet-input trig-entity" data-idx="${idx}" placeholder="${t('labelTriggerEntity')}" style="flex:1;min-width:0;">
+      <input class="sheet-input trig-cond" data-idx="${idx}" placeholder="${t('placeholderCondition')} e.g. >30" style="width:90px;flex-shrink:0;">
+      <button type="button" class="sheet-btn trig-del" onclick="this.closest('.trigger-row').remove()" style="flex-shrink:0;padding:4px 8px;">✕</button>
+  `;
+  box.appendChild(row);
+}
+
+function collectTriggers(mode) {
+  const box = document.getElementById(mode + 'TriggersBox');
+  const triggers = [];
+  box.querySelectorAll('.trigger-row').forEach(row => {
+    const ent = row.querySelector('.trig-entity').value.trim();
+    const cond = row.querySelector('.trig-cond').value.trim();
+    if (ent && cond) {
+      triggers.push({ entity_id: ent, condition: cond });
+    }
+  });
+  return triggers;
+}
+
+function renderTriggerRows(mode, triggers) {
+  const box = document.getElementById(mode + 'TriggersBox');
+  if (!box) return;
+  box.innerHTML = '';
+  window[mode + 'TriggerCount'] = 0;
+  (triggers || []).forEach(trig => {
+    if (trig.type === 'time') {
+      // Time trigger row
+      const row = document.createElement('div');
+      row.className = 'trigger-row';
+      row.innerHTML = `
+          <input class="sheet-input trig-time" placeholder="${t('timeTrigger')}" value="${escapeHtml(trig.time || '')}" style="flex:1;min-width:0;">
+          <button type="button" class="sheet-btn trig-del" onclick="this.closest('.trigger-row').remove()" style="flex-shrink:0;padding:4px 8px;">✕</button>
+      `;
+      box.appendChild(row);
+    } else {
+      addTriggerRow(mode);
+      const rows = box.querySelectorAll('.trigger-row');
+      const row = rows[rows.length - 1];
+      row.querySelector('.trig-entity').value = trig.entity_id || '';
+      row.querySelector('.trig-cond').value = trig.condition || '';
+    }
+  });
+  if ((triggers || []).length === 0) addTriggerRow(mode);
+}
+
 // Add automation bottom sheet
 function showAddSheet() {
-  document.getElementById('addEntityInput').value = '';
-  document.getElementById('addConditionInput').value = '';
   document.getElementById('addPromptInput').value = '';
+  document.getElementById('addLogicInput').value = 'or';
+  document.getElementById('addOneShotInput').checked = false;
+  document.getElementById('addExpressionInput').value = '';
+  renderTriggerRows('add', [{ entity_id: '', condition: '' }]);
   document.getElementById('addSheet').classList.add('open');
-  setTimeout(() => document.getElementById('addEntityInput').focus(), 100);
+  const first = document.querySelector('#addTriggersBox .trig-entity');
+  if (first) setTimeout(() => first.focus(), 100);
 }
 
 async function confirmAdd() {
   const sheet = document.getElementById('addSheet');
-  const entity = document.getElementById('addEntityInput').value.trim();
-  const cond = document.getElementById('addConditionInput').value.trim();
+  const triggers = collectTriggers('add');
   const prompt = document.getElementById('addPromptInput').value.trim();
+  const logic = document.getElementById('addLogicInput').value;
+  const oneShot = document.getElementById('addOneShotInput').checked;
+  const expression = document.getElementById('addExpressionInput').value.trim();
   sheet.classList.remove('open');
-  if (!entity || !cond) return;
+  if (triggers.length === 0) return;
+  const body = {
+    triggers: triggers,
+    trigger_logic: logic,
+    one_shot: oneShot,
+    prompt: prompt || t('noActionSpecified'),
+    description: prompt ? prompt.substring(0, 60) : t('autoPrefix') + triggers.map(x => x.entity_id).join('+')
+  };
+  if (expression) body.expression = expression;
   try {
-    await callAPI('POST', '/api/services/llm_smart_assistant/create_automation', {
-      entity_id: entity,
-      condition: cond,
-      prompt: prompt || t('noActionSpecified'),
-      description: prompt ? prompt.substring(0, 60) : t('autoPrefix') + entity + ' ' + cond
-    });
+    await callAPI('POST', '/api/services/llm_smart_assistant/create_automation', body);
     refreshAutomations();
   } catch(e) { alert(t('errorPrefix') + e.message); }
 }
@@ -2136,27 +2323,44 @@ function cancelAdd() {
   document.getElementById('addSheet').classList.remove('open');
 }
 
-function showEditSheet(id, entity, condition, prompt) {
-  document.getElementById('editEntityInput').value = entity || '';
-  document.getElementById('editConditionInput').value = condition || '';
-  document.getElementById('editInput').value = prompt || '';
-  document.getElementById('editSheet').dataset.automationId = id;
-  document.getElementById('editSheet').classList.add('open');
-  setTimeout(() => document.getElementById('editEntityInput').focus(), 100);
+function getAutoById(id) {
+  for (const card of document.querySelectorAll('#autoContainer .auto-card')) {
+    if (card.dataset.aid === id) {
+      try { return JSON.parse(card.dataset.auto); } catch(e) { return null; }
+    }
+  }
+  return null;
+}
+
+function showEditSheet(id) {
+  const a = getAutoById(id);
+  const sheet = document.getElementById('editSheet');
+  sheet.dataset.automationId = id;
+  const triggers = (a && a.triggers) || [{ entity_id: a && a.entity_id, condition: a && a.condition }];
+  renderTriggerRows('edit', triggers);
+  document.getElementById('editLogicInput').value = (a && a.trigger_logic) || 'or';
+  document.getElementById('editOneShotInput').checked = !!(a && a.one_shot);
+  document.getElementById('editInput').value = (a && a.prompt) || '';
+  document.getElementById('editExpressionInput').value = (a && a.expression) || '';
+  sheet.classList.add('open');
+  const first = document.querySelector('#editTriggersBox .trig-entity');
+  if (first) setTimeout(() => first.focus(), 100);
 }
 
 async function confirmEdit() {
   const sheet = document.getElementById('editSheet');
   const id = sheet.dataset.automationId;
-  const newEntity = document.getElementById('editEntityInput').value.trim();
-  const newCondition = document.getElementById('editConditionInput').value.trim();
+  const triggers = collectTriggers('edit');
+  const logic = document.getElementById('editLogicInput').value;
+  const oneShot = document.getElementById('editOneShotInput').checked;
   const newPrompt = document.getElementById('editInput').value.trim();
+  const expression = document.getElementById('editExpressionInput').value.trim();
   sheet.classList.remove('open');
-  if (!newEntity && !newCondition && !newPrompt) return;
-  const body = { automation_id: id };
-  if (newEntity) body.entity_id = newEntity;
-  if (newCondition) body.condition = newCondition;
+  if (triggers.length === 0 && !newPrompt) return;
+  const body = { automation_id: id, trigger_logic: logic, one_shot: oneShot };
+  if (triggers.length > 0) body.triggers = triggers;
   if (newPrompt) body.prompt = newPrompt;
+  if (expression) body.expression = expression;
   try {
     await callAPI('POST', '/api/services/llm_smart_assistant/update_automation', body);
     refreshAutomations();
@@ -2181,6 +2385,53 @@ async function confirmDelete() {
     await callAPI('POST', '/api/services/llm_smart_assistant/remove_automation', { automation_id: id });
     refreshAutomations();
   } catch(e) { alert(t('errorPrefix') + e.message); }
+}
+
+// ── Automation-specific debug sheet ─────────────────────────────────────────
+async function showAutomationDebug(id) {
+  const sheet = document.getElementById('autoDebugSheet');
+  const content = document.getElementById('autoDebugContent');
+  const a = getAutoById(id);
+  if (!a) { content.innerHTML = '<span>' + t('noDebugData') + '</span>'; sheet.classList.add('open'); return; }
+  
+  const triggers = a.triggers || [{ entity_id: a.entity_id, condition: a.condition }];
+  const logic = (a.trigger_logic || 'or').toUpperCase();
+  const expr = a.expression || '';
+  let trigHtml;
+  if (expr) {
+    trigHtml = expr.replace(/\b(\d+)\b/g, (m) => {
+      const idx = parseInt(m, 10);
+      return triggers[idx] ? triggerLabel(triggers[idx]) : m;
+    }).replace(/\band\b/gi, '<b>AND</b>').replace(/\bor\b/gi, '<b>OR</b>');
+  } else {
+    trigHtml = triggers.map(triggerLabel).join(logic === 'AND' ? ' <b>&amp;</b> ' : ' <b>|</b> ');
+  }
+  
+  let html = '';
+  html += '<div class="debug-label">Trigger</div>';
+  html += '<pre>' + trigHtml + '</pre>';
+  html += '<div class="debug-label">' + (expr ? 'Expression: ' + escapeHtml(expr) : 'Logic: ' + logic) + (a.one_shot ? ' · ' + t('oneShotBadge') : '') + '</div>';
+  html += '<div class="debug-label">Action</div>';
+  html += '<pre>' + escapeHtml(a.description || a.prompt || t('noActionSpecified')) + '</pre>';
+  
+  const records = a.records || [];
+  html += '<div class="debug-label">' + t('debugRecords') + ' (' + records.length + ')</div>';
+  if (records.length === 0) {
+    html += '<span style="font-size:12px;color:var(--text-tertiary);">' + t('noRecords') + '</span>';
+  } else {
+    records.slice().reverse().forEach(r => {
+      const ok = r.ok !== false;
+      const time = r.time ? new Date(r.time).toLocaleString() : '?';
+      html += '<div class="debug-round-block">';
+      html += '<div class="round-header">' + (ok ? '✅ ' + t('recordOk') : '❌ ' + t('recordFail')) + ' · ' + escapeHtml(time) + '</div>';
+      html += '<div class="round-step">' + escapeHtml(r.trigger_entity || '') + ' = ' + escapeHtml(r.trigger_state || '') + '</div>';
+      html += '<div class="round-tts">' + escapeHtml(r.result || '') + '</div>';
+      html += '</div>';
+    });
+  }
+  
+  content.innerHTML = html;
+  sheet.classList.add('open');
 }
 
 function cancelConfirm() {

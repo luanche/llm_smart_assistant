@@ -194,7 +194,12 @@ class ServicesExecutor:
         }
 
     async def _async_create_automation(self, step: dict[str, Any]) -> dict[str, Any]:
-        """Handle create_automation action: create a dynamic automation."""
+        """Handle create_automation action: create a dynamic automation.
+
+        Supports either legacy {entity_id, condition} or multi-trigger
+        format: {triggers: [{entity_id, condition}, ...], trigger_logic: and|or,
+        one_shot: bool}.
+        """
         if not self.coordinator.allow_automation:
             raise StepInterceptionError(
                 "Dynamic automation creation is disabled in configuration"
@@ -203,10 +208,14 @@ class ServicesExecutor:
         entity_id = step.get("entity_id", "")
         condition = step.get("condition", "")
         prompt = step.get("prompt", "") or step.get("description", "")
+        triggers = step.get("triggers")
+        trigger_logic = step.get("trigger_logic", "or")
+        one_shot = bool(step.get("one_shot", False))
+        expression = step.get("expression", "") or step.get("trigger_expression", "")
 
-        if not entity_id or not condition:
+        if not triggers and (not entity_id or not condition):
             raise ValueError(
-                "create_automation requires 'entity_id' and 'condition' fields"
+                "create_automation requires 'entity_id'+'condition' or 'triggers' fields"
             )
 
         automation_id = await self.coordinator.async_create_automation(
@@ -214,20 +223,29 @@ class ServicesExecutor:
             condition=condition,
             prompt=prompt or self.coordinator.prompt_automation,
             description=step.get("description", ""),
+            triggers=triggers,
+            trigger_logic=trigger_logic,
+            one_shot=one_shot,
+            expression=expression,
         )
 
         if automation_id:
             _LOGGER.info(
-                "Dynamic automation created: %s (entity=%s, condition=%s)",
+                "Dynamic automation created: %s (triggers=%s, expr=%s, one_shot=%s)",
                 automation_id,
-                entity_id,
-                condition,
+                len(triggers) if triggers else 1,
+                expression or trigger_logic,
+                one_shot,
             )
 
         return {
             "automation_id": automation_id,
             "entity_id": entity_id,
             "condition": condition,
+            "triggers": triggers,
+            "trigger_logic": trigger_logic,
+            "one_shot": one_shot,
+            "expression": expression,
         }
 
     def _handle_update_automation_prompt(self, step: dict[str, Any]) -> dict[str, Any]:

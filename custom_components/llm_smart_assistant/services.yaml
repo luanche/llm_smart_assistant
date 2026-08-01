@@ -20,12 +20,12 @@ process_input:
 
 create_automation:
   name: Create Automation
-  description: "Create a dynamic automation rule via LLM."
+  description: "Create a dynamic automation rule via LLM. Supports multiple triggers with AND/OR logic and one-shot (auto-remove) behavior."
   fields:
     entity_id:
       name: Entity ID
-      description: "The sensor entity to monitor for state changes."
-      required: true
+      description: "The entity to monitor for state changes (legacy single-trigger form)."
+      required: false
       example: "sensor.temperature"
       selector:
         entity:
@@ -33,10 +33,40 @@ create_automation:
     condition:
       name: Condition
       description: "Condition to trigger the automation (e.g., '>30', '==on', '<5')."
-      required: true
+      required: false
       example: ">30"
       selector:
         text:
+    triggers:
+      name: Triggers
+      description: "List of triggers: [{'entity_id': ..., 'condition': ...}] or [{'type': 'time', 'time': '21:00'}]. Overrides entity_id/condition when provided."
+      required: false
+      selector:
+        object:
+    trigger_logic:
+      name: Trigger Logic
+      description: "Simple AND/OR mode for multiple triggers: 'and' (all must match) or 'or' (any matches). Ignored when expression is provided."
+      required: false
+      default: "or"
+      selector:
+        select:
+          options:
+            - "or"
+            - "and"
+    expression:
+      name: Trigger Expression
+      description: "Advanced boolean expression combining triggers by index, e.g. '(0 and 1) or 2'. Supports AND, OR and parentheses."
+      required: false
+      example: "(0 and 1) or 2"
+      selector:
+        text:
+    one_shot:
+      name: One Shot
+      description: "If true, the automation fires once and then removes itself (good for time-based rules)."
+      required: false
+      default: false
+      selector:
+        boolean:
     prompt:
       name: Automation Prompt
       description: "The prompt template used for LLM context when automation triggers."
@@ -70,7 +100,7 @@ get_automations:
 
 update_automation:
   name: Update Automation
-  description: "Update an existing dynamic automation. The state listener is re-registered when entity_id or condition changes."
+  description: "Update an existing dynamic automation. Listeners are re-registered when triggers, logic, entity_id or condition change."
   fields:
     automation_id:
       name: Automation ID
@@ -81,7 +111,7 @@ update_automation:
         text:
     entity_id:
       name: Entity ID
-      description: "New trigger entity. Re-registers the state-change listener."
+      description: "New trigger entity (updates the first trigger). Re-registers the state-change listener."
       required: false
       example: "sensor.temperature"
       selector:
@@ -94,6 +124,33 @@ update_automation:
       example: ">30"
       selector:
         text:
+    triggers:
+      name: Triggers
+      description: "Full replacement list of triggers: [{'entity_id': ..., 'condition': ...}] or time triggers. Overrides entity_id/condition when provided."
+      required: false
+      selector:
+        object:
+    trigger_logic:
+      name: Trigger Logic
+      description: "Simple AND/OR mode: 'and' or 'or'. Ignored when expression is provided."
+      required: false
+      selector:
+        select:
+          options:
+            - "or"
+            - "and"
+    expression:
+      name: Trigger Expression
+      description: "Advanced boolean expression combining triggers by index, e.g. '(0 and 1) or 2'. Supports AND, OR and parentheses."
+      required: false
+      selector:
+        text:
+    one_shot:
+      name: One Shot
+      description: "If true, the automation fires once then removes itself."
+      required: false
+      selector:
+        boolean:
     prompt:
       name: Automation Prompt
       description: "New prompt template used for LLM context when the automation triggers."
