@@ -111,7 +111,7 @@ The built-in web UI provides:
 - **Progressive Display** — Responses appear round-by-round.
 - **Debug Modal** — Click 🔧 to view the full reasoning trace and the generated prompt (scrollable).
 - **Instance Selector** — Custom dropdown to switch between multiple configured instances.
-- **Automations Tab** — View, create, edit, enable/disable, and delete automations (optimistic UI with instant feedback).
+- **Automations Tab** — View, create, edit, enable/disable, and delete automations (optimistic UI with instant feedback); each automation's 🔧 shows its own execution log and trigger config (multi-trigger + logic + one-shot).
 - **Voice Input** — Hold 🎤 to speak, slide up to cancel.
 - **Chat History** — Automatically loads recent conversations on open (from HA recorder); scroll up to lazy-load older entries.
 - **Mobile Friendly** — Responsive layout, swipe left/right to switch tabs, one-tap copy link.
@@ -139,7 +139,16 @@ Create automations using natural language:
 > "Turn on the AC when the temperature exceeds 30°C"
 > → Creates: `sensor.living_room_temperature > 30` → turn on air conditioner
 
-Automations are persisted across restarts and use Home Assistant's event system for real-time state change detection.
+**Multiple triggers** — one automation can combine several trigger conditions (entities, switches, time-of-day) with AND/OR logic, including parenthesized boolean expressions:
+
+> "Turn on the living room light when the porch or study light turns on" → `porch_light==on OR study_light==on`
+> "Turn on the fan when temp > 30 AND window open > 20%" → AND (all must match)
+> "(smoke high OR temp high) AND window open" → complex expression `(0 or 1) and 2` (configurable via UI or LLM)
+> "Turn off the TV at 21:00 daily" → time trigger, repeats every day
+
+**One-shot automations** — add `one_shot` to auto-remove after a single firing (e.g. "turn off the AC in 1 minute").
+
+Automations persist across restarts and use Home Assistant's event system for real-time state change detection. Every execution is recorded (time, trigger source, result, success/failure) — the last 30 per automation — and the AI Chat UI's 🔧 button on each automation card shows its dedicated execution log.
 
 ---
 

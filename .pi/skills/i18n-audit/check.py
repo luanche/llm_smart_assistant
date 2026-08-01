@@ -66,6 +66,13 @@ ALLOWED_HARDCODED = {
     "append", "prepend",
     # CSS classes / state values
     "disabled",
+    # Automation upgrade (v1.7.x): element IDs, JS arg strings, CSS classes
+    "TriggerCount", "TriggersBox", "addLogicInput", "addOneShotInput",
+    "autoDebugContent", "autoDebugSheet", "editLogicInput", "editOneShotInput",
+    "addExpressionInput", "editExpressionInput",
+    "trigger-row", "trig-entity", "trig-cond", "trig-time", "trig-del",
+    "time", "edit", "add", "and", "or", "records", "one_shot",
+    "trigger_logic", "triggers", "entity_id", "condition", "entity",
     # WebSocket protocol message types
     "event", "result",
     # SpeechRecognition error codes

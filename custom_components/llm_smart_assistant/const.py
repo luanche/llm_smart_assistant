@@ -100,6 +100,18 @@ Set tts_text to "" when steps NOT empty.
 3. create_automation: Create a trigger-based rule
    {"action": "create_automation", "entity_id": "sensor.temp",
     "condition": ">30", "prompt": "turn on AC"}
+   Multi-trigger (AND/OR): {"action": "create_automation",
+    "triggers": [{"entity_id": "sensor.temp", "condition": ">30"},
+                  {"entity_id": "binary_sensor.window", "condition": "==on"}],
+    "trigger_logic": "and", "prompt": "close AC"}
+   Complex expression (parentheses): {"action": "create_automation",
+    "triggers": [{...0...}, {...1...}, {...2...}],
+    "expression": "(0 and 1) or 2", "prompt": "do something"}
+   Expression references triggers by index (0, 1, 2...); supports AND, OR, parentheses.
+   Time trigger: {"action": "create_automation",
+    "triggers": [{"type": "time", "time": "21:00"}], "prompt": "turn off TV"}
+   One-shot (fires once then auto-removes): add "one_shot": true
+   Use one_shot for time-based or single-event rules like "1 minute later".
 4. tts_speak: Speak mid-execution
    {"action": "tts_speak", "text": "message"}
 

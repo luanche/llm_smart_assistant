@@ -272,13 +272,21 @@ async def _async_register_services(
         condition = call.data.get("condition", "")
         prompt = call.data.get("prompt", "")
         description = call.data.get("description", "")
+        triggers = call.data.get("triggers")
+        trigger_logic = call.data.get("trigger_logic", "or")
+        one_shot = call.data.get("one_shot", False)
+        expression = call.data.get("expression", "")
 
-        if entity_id and condition:
+        if triggers or (entity_id and condition):
             await coordinator.async_create_automation(
                 entity_id=entity_id,
                 condition=condition,
                 prompt=prompt,
                 description=description,
+                triggers=triggers,
+                trigger_logic=trigger_logic,
+                one_shot=bool(one_shot),
+                expression=expression,
             )
 
     async def async_remove_automation(call):
@@ -297,9 +305,14 @@ async def _async_register_services(
                     "automation_id": a.automation_id,
                     "entity_id": a.entity_id,
                     "condition": a.condition,
+                    "triggers": a.triggers,
+                    "trigger_logic": a.trigger_logic,
+                    "expression": a.expression,
                     "description": a.description,
                     "prompt": a.prompt,
+                    "one_shot": a.one_shot,
                     "disabled": a.automation_id in disabled_set,
+                    "records": a.records[-10:],  # recent records for debug UI
                 }
                 for a in automations
             ],
@@ -316,10 +329,14 @@ async def _async_register_services(
         async_create_automation,
         schema=vol.Schema(
             {
-                vol.Required("entity_id"): cv.string,
-                vol.Required("condition"): cv.string,
+                vol.Optional("entity_id"): cv.string,
+                vol.Optional("condition"): cv.string,
                 vol.Optional("prompt"): cv.string,
                 vol.Optional("description"): cv.string,
+                vol.Optional("triggers"): list,
+                vol.Optional("trigger_logic"): cv.string,
+                vol.Optional("one_shot"): bool,
+                vol.Optional("expression"): cv.string,
             }
         ),
     )
@@ -342,6 +359,10 @@ async def _async_register_services(
         description = call.data.get("description", "")
         entity_id = call.data.get("entity_id", "")
         condition = call.data.get("condition", "")
+        triggers = call.data.get("triggers")
+        trigger_logic = call.data.get("trigger_logic", "")
+        one_shot = call.data.get("one_shot")
+        expression = call.data.get("expression")
         
         for c in hass.data.get(DOMAIN, {}).values():
             coord = c
@@ -350,28 +371,39 @@ async def _async_register_services(
                 needs_relisten = False
                 if prompt:
                     auto.prompt = prompt
-                if description:
+                if description is not None:
                     auto.description = description
-                if entity_id:
-                    auto.entity_id = entity_id
+                if triggers is not None:
+                    auto.triggers = [
+                        t for t in triggers if t.get("entity_id") or t.get("time")
+                    ]
                     needs_relisten = True
-                if condition:
-                    auto.condition = condition
+                elif entity_id or condition:
+                    # Legacy single-field update: replace the first trigger
+                    if auto.triggers:
+                        if entity_id:
+                            auto.triggers[0]["entity_id"] = entity_id
+                        if condition is not None:
+                            auto.triggers[0]["condition"] = condition
+                    else:
+                        auto.triggers = [
+                            {"entity_id": entity_id, "condition": condition}
+                        ]
                     needs_relisten = True
+                if trigger_logic in ("and", "or"):
+                    auto.trigger_logic = trigger_logic
+                if expression is not None:
+                    auto.expression = expression or ""
+                if one_shot is not None:
+                    auto.one_shot = bool(one_shot)
                 
                 if needs_relisten:
-                    # Remove old listener and register new one
-                    old_listener = coord._automation_listeners.pop(automation_id, None)
-                    if old_listener:
-                        old_listener()
-                    from homeassistant.helpers.event import async_track_state_change_event
-                    remove_listener = async_track_state_change_event(
-                        coord.hass,
-                        auto.entity_id,
-                        lambda event: coord._async_handle_automation_event(auto, event),
+                    coord._unregister_automation_listener(automation_id)
+                    coord._register_automation_listener(auto)
+                    _LOGGER.info(
+                        "Re-registered listener for automation '%s' -> %d triggers (expr=%s)",
+                        automation_id, len(auto.triggers), auto.expression or auto.trigger_logic,
                     )
-                    coord._automation_listeners[automation_id] = remove_listener
-                    _LOGGER.info("Re-registered listener for automation '%s' -> %s %s", automation_id, auto.entity_id, auto.condition)
                 
                 await coord._async_save_storage()
                 _LOGGER.info("Updated automation '%s'", automation_id)
@@ -387,6 +419,10 @@ async def _async_register_services(
             vol.Optional("description"): cv.string,
             vol.Optional("entity_id"): cv.string,
             vol.Optional("condition"): cv.string,
+            vol.Optional("triggers"): list,
+            vol.Optional("trigger_logic"): cv.string,
+            vol.Optional("one_shot"): bool,
+            vol.Optional("expression"): cv.string,
         }),
     )
 

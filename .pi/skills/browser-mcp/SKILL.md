@@ -15,7 +15,22 @@ set "PLAYWRIGHT_MCP_EXTENSION_TOKEN=<你的token>" && npx @playwright/mcp@latest
 ```
 > 注意 `set "VAR=value"` 的引号用法（CMD 语法）。
 > Edge 需要安装 Playwright Extension。
-> 防火墙需放行 3030 端口入站。
+> 防火墙需放行 3030 端口入站：`netsh advfirewall firewall add rule name="MCP 3030" dir=in action=allow protocol=TCP localport=3030`
+
+### WSL（pi 端）
+通过 HTTP 直接调用 MCP server。**关键：Playwright MCP 校验 Host header 必须是 `localhost`**，直接连 Windows IP 会返回 `Access is only allowed at localhost:3030`。
+
+**用 socat 建本地隧道**（pi 连 WSL 的 localhost:3030，socat 转发到 Windows）：
+```bash
+nohup socat TCP-LISTEN:3030,fork,bind=127.0.0.1,reuseaddr TCP:172.21.160.1:3030 > /tmp/socat_mcp.log 2>&1 &
+# 或复用脚本
+/root/.pi/start-mcp-tunnel.sh
+```
+
+`/root/.pi/agent/mcp.json` 配置为 `http://localhost:3030/mcp`（Streamable HTTP，不要用 /sse）。
+
+> 若 pi 进程缓存旧配置，需重启 pi；`mcp-cache.json` 可在重启前删除。
+> `--host 0.0.0.0` 已生效但外部 IP 直连仍 403 是 Host header 校验，用隧道解决。
 
 ### WSL（pi 端）
 通过 HTTP 直接调用 MCP server（`localhost:3030`）。无需额外扩展。

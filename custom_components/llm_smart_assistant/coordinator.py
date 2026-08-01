@@ -101,41 +101,199 @@ class LLMChatMessage:
         )
 
 
+class _TriggerExpressionParser:
+    """Safe recursive-descent parser for boolean trigger expressions.
+
+    Grammar (case-insensitive):
+        expr    := or_expr
+        or_expr := and_expr ("or" and_expr)*
+        and_expr := unary ("and" unary)*
+        unary   := "(" expr ")" | index
+        index   := integer >= 0
+
+    No eval() — builds a callable that resolves trigger indexes against
+    the automation's trigger list.
+    """
+
+    def __init__(self, text: str) -> None:
+        # Normalize tokens
+        self.tokens = (
+            text.replace("(", " ( ")
+            .replace(")", " ) ")
+            .split()
+        )
+        self.pos = 0
+
+    def peek(self) -> str:
+        return self.tokens[self.pos].lower() if self.pos < len(self.tokens) else ""
+
+    def next(self) -> str:
+        tok = self.peek()
+        self.pos += 1
+        return tok
+
+    def parse(self):
+        """Return a callable: lambda automation, coordinator -> bool."""
+        node = self._parse_or()
+        if self.pos < len(self.tokens):
+            raise ValueError(f"Unexpected token '{self.peek()}'")
+        return node
+
+    def _parse_or(self):
+        node = self._parse_and()
+        while self.peek() == "or":
+            self.next()
+            rhs = self._parse_and()
+            node = _OrNode(node, rhs)
+        return node
+
+    def _parse_and(self):
+        node = self._parse_unary()
+        while self.peek() == "and":
+            self.next()
+            rhs = self._parse_unary()
+            node = _AndNode(node, rhs)
+        return node
+
+    def _parse_unary(self):
+        tok = self.next()
+        if tok == "(":
+            node = self._parse_or()
+            if self.next() != ")":
+                raise ValueError("Missing closing parenthesis")
+            return node
+        if tok.isdigit():
+            idx = int(tok)
+            return _IndexNode(idx)
+        raise ValueError(f"Unexpected token '{tok}'")
+
+
+class _IndexNode:
+    def __init__(self, index: int) -> None:
+        self.index = index
+
+    def __call__(self, automation, coordinator) -> bool:
+        return coordinator._trigger_satisfied(automation, self.index)
+
+
+class _AndNode:
+    def __init__(self, left, right) -> None:
+        self.left = left
+        self.right = right
+
+    def __call__(self, automation, coordinator) -> bool:
+        return self.left(automation, coordinator) and self.right(automation, coordinator)
+
+
+class _OrNode:
+    def __init__(self, left, right) -> None:
+        self.left = left
+        self.right = right
+
+    def __call__(self, automation, coordinator) -> bool:
+        return self.left(automation, coordinator) or self.right(automation, coordinator)
+
+
 class DynamicAutomation:
-    """Represents a dynamically created automation rule."""
+    """Represents a dynamically created automation rule.
+
+    Supports multiple triggers (entity+condition pairs) combined with an
+    AND/OR logic, optional one-shot behavior (auto-remove after firing),
+    and persisted execution records for debugging.
+    """
 
     def __init__(
         self,
         automation_id: str,
-        entity_id: str,
-        condition: str,
-        prompt: str,
+        triggers: list[dict[str, str]],
+        trigger_logic: str = "or",
+        prompt: str = "",
         description: str = "",
+        one_shot: bool = False,
+        expression: str = "",
     ) -> None:
         self.automation_id = automation_id
-        self.entity_id = entity_id
-        self.condition = condition
+        # triggers: list of {"entity_id": str, "condition": str} or
+        # {"type": "time", "time": "HH:MM"} for time-based triggers
+        self.triggers: list[dict[str, str]] = triggers or []
+        self.trigger_logic = trigger_logic  # "and" | "or" (legacy, used as default)
+        # Boolean expression combining trigger indexes, e.g. "(0 and 1) or 2"
+        self.expression = expression or ""
         self.prompt = prompt
         self.description = description
+        self.one_shot = one_shot
+        # Execution records (recent first), kept in-memory + persisted
+        self.records: list[dict] = []
+
+    # ── Backward compatibility accessors ────────────────────────────────
+    @property
+    def entity_id(self) -> str:
+        """First entity trigger (legacy single-entity view)."""
+        for t in self.triggers:
+            if t.get("type", "entity") == "entity":
+                return t.get("entity_id", "")
+        return ""
+
+    @entity_id.setter
+    def entity_id(self, value: str) -> None:
+        if self.triggers:
+            self.triggers[0]["entity_id"] = value
+        else:
+            self.triggers = [{"entity_id": value, "condition": ""}]
+
+    @property
+    def condition(self) -> str:
+        """First entity trigger's condition (legacy view)."""
+        for t in self.triggers:
+            if t.get("type", "entity") == "entity":
+                return t.get("condition", "")
+        return ""
+
+    @condition.setter
+    def condition(self, value: str) -> None:
+        if self.triggers:
+            self.triggers[0]["condition"] = value
+        else:
+            self.triggers = [{"entity_id": "", "condition": value}]
 
     def to_dict(self) -> dict[str, Any]:
         return {
             "automation_id": self.automation_id,
-            "entity_id": self.entity_id,
-            "condition": self.condition,
+            "triggers": self.triggers,
+            "trigger_logic": self.trigger_logic,
+            "expression": self.expression,
             "prompt": self.prompt,
             "description": self.description,
+            "one_shot": self.one_shot,
+            "records": self.records[-30:],  # ring buffer, recent 30
         }
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "DynamicAutomation":
-        return cls(
+        triggers = data.get("triggers")
+        if not triggers:
+            # Legacy single-entity format
+            triggers = [{
+                "entity_id": data.get("entity_id", ""),
+                "condition": data.get("condition", ""),
+            }]
+        auto = cls(
             automation_id=data["automation_id"],
-            entity_id=data["entity_id"],
-            condition=data["condition"],
-            prompt=data["prompt"],
+            triggers=triggers,
+            trigger_logic=data.get("trigger_logic", "or"),
+            prompt=data.get("prompt", ""),
             description=data.get("description", ""),
+            one_shot=bool(data.get("one_shot", False)),
+            expression=data.get("expression", ""),
         )
+        auto.records = data.get("records", []) or []
+        return auto
+
+    def add_record(self, record: dict) -> None:
+        """Append an execution record, keeping the ring buffer bounded."""
+        self.records.append(record)
+        if len(self.records) > 30:
+            self.records = self.records[-30:]
 
 
 class LLMSmartAssistantCoordinator:
@@ -1045,12 +1203,26 @@ class LLMSmartAssistantCoordinator:
                     elif action == ACTION_CREATE_AUTOMATION:
                         # create_automation: feed back the automation id so LLM knows it's done
                         auto_id = step_result_data.get("automation_id", "")
-                        entity = step_result_data.get("entity_id", "")
-                        cond = step_result_data.get("condition", "")
+                        triggers = step_result_data.get("triggers")
+                        logic = step_result_data.get("trigger_logic", "or")
+                        one_shot = step_result_data.get("one_shot", False)
                         if success and auto_id:
-                            step_feedback.append(
-                                f"  - create_automation: DONE (id={auto_id[:8]}, entity={entity}, condition={cond})"
-                            )
+                            if triggers:
+                                trig_desc = ", ".join(
+                                    f"{t.get('entity_id','?')} {t.get('condition','')}"
+                                    for t in triggers
+                                )
+                                extra = f" [one-shot]" if one_shot else ""
+                                step_feedback.append(
+                                    f"  - create_automation: DONE (id={auto_id[:8]}, "
+                                    f"triggers[{logic}]: {trig_desc}{extra})"
+                                )
+                            else:
+                                step_feedback.append(
+                                    f"  - create_automation: DONE (id={auto_id[:8]}, "
+                                    f"entity={step_result_data.get('entity_id','')}, "
+                                    f"condition={step_result_data.get('condition','')})"
+                                )
                         elif not success:
                             error = result.get("error", "Unknown error")
                             step_feedback.append(f"  - create_automation: failed ({error})")
@@ -1157,11 +1329,20 @@ class LLMSmartAssistantCoordinator:
         
         Passes the full available entities list to the LLM so it can
         determine the correct action and entity IDs dynamically.
+        Records the execution for the debug UI; one-shot automations
+        remove themselves after firing.
         """
+        record = {
+            "time": dt_util.utcnow().isoformat(),
+            "trigger_entity": state.entity_id,
+            "trigger_state": str(state.state),
+            "result": "",
+            "ok": True,
+        }
         _LOGGER.info(
             "Automation '%s' triggered by %s = %s",
             automation.automation_id,
-            automation.entity_id,
+            state.entity_id,
             state.state,
         )
 
@@ -1179,7 +1360,7 @@ class LLMSmartAssistantCoordinator:
         messages = self._build_messages_for_llm(
             user_input=(
                 f"AUTOMATION TRIGGERED\n"
-                f"Trigger: {automation.entity_id} = {state.state}\n"
+                f"Trigger: {state.entity_id} = {state.state}\n"
                 f"Task: {action_prompt}\n"
                 f"Language: {lang_name}\n"
                 f"\n{entity_context}\n\n"
@@ -1187,6 +1368,7 @@ class LLMSmartAssistantCoordinator:
                 f"For example, if you see input_boolean.air_conditioner, use that (not climate.ac)."
             ),
             prompt_template=self.prompt_automation,
+
         )
 
         # Store for debug display
@@ -1198,6 +1380,10 @@ class LLMSmartAssistantCoordinator:
             _LOGGER.error(
                 "Automation '%s' LLM call failed", automation.automation_id
             )
+            record["ok"] = False
+            record["result"] = "LLM call failed"
+            automation.add_record(record)
+            await self._async_save_storage()
             return
 
         tts_text = response.get("tts_text", "")
@@ -1205,18 +1391,46 @@ class LLMSmartAssistantCoordinator:
 
         # If LLM returned empty steps, try fallback matching
         if not steps:
-            _LOGGER.info("LLM returned empty steps, trying fallback entity match")
+            _LOGGER.info("Automation returned empty steps, trying fallback entity match")
             steps = self._try_fallback_automation_action(automation)
             if steps:
                 _LOGGER.info("Fallback matched: %s", steps)
 
         # Execute steps
+        exec_ok = True
         if steps and self.executor:
-            await self.executor.async_execute_steps(steps)
+            try:
+                results = await self.executor.async_execute_steps(steps)
+                failed = [r for r in results if not r.get("success", True)]
+                if failed:
+                    exec_ok = False
+                    record["result"] = "; ".join(
+                        f"{r.get('error', '?')}" for r in failed[:2]
+                    )
+            except Exception as exc:
+                exec_ok = False
+                record["result"] = str(exc)
 
         # Speak TTS if text is present
         if tts_text:
             await self._async_speak_tts(tts_text)
+
+        # Record execution for debug UI
+        record["result"] = record["result"] or tts_text or (
+            f"executed {len(steps)} step(s)" if steps else "no action"
+        )
+        record["ok"] = exec_ok
+        record["steps"] = len(steps)
+        automation.add_record(record)
+        await self._async_save_storage()
+
+        # One-shot automations remove themselves after firing
+        if automation.one_shot:
+            _LOGGER.info(
+                "One-shot automation '%s' fired — removing",
+                automation.automation_id[:8],
+            )
+            await self.async_remove_automation(automation.automation_id)
 
     # ------------------------------------------------------------------
     # Dynamic Automation Management
@@ -1224,46 +1438,58 @@ class LLMSmartAssistantCoordinator:
 
     async def async_create_automation(
         self,
-        entity_id: str,
-        condition: str,
-        prompt: str,
+        entity_id: str = "",
+        condition: str = "",
+        prompt: str = "",
         description: str = "",
+        triggers: list[dict[str, str]] | None = None,
+        trigger_logic: str = "or",
+        one_shot: bool = False,
+        expression: str = "",
     ) -> str | None:
-        """Create a dynamic automation that listens for state changes.
+        """Create a dynamic automation.
+
+        Accepts either the legacy (entity_id, condition) pair or a list of
+        triggers ({"entity_id", "condition"} or {"type": "time", "time": ...})
+        combined with AND/OR logic. Pass an `expression` (e.g. "(0 and 1) or 2")
+        for complex boolean combinations with parentheses. one_shot automations
+        remove themselves after their first execution.
 
         Returns the automation_id on success, or None on failure.
         """
+        if not triggers:
+            triggers = [{"entity_id": entity_id, "condition": condition}]
+        triggers = [t for t in triggers if t.get("entity_id") or t.get("time")]
+        if not triggers:
+            _LOGGER.error("create_automation: no valid triggers provided")
+            return None
+
         automation_id = str(uuid.uuid4())
 
         automation = DynamicAutomation(
             automation_id=automation_id,
-            entity_id=entity_id,
-            condition=condition,
+            triggers=triggers,
+            trigger_logic=trigger_logic if trigger_logic in ("and", "or") else "or",
             prompt=prompt,
             description=description,
+            one_shot=one_shot,
+            expression=expression or "",
         )
 
-        # Register the listener
+        # Register the listeners (one per entity trigger + time triggers)
         try:
-            remove_listener = async_track_state_change_event(
-                self.hass,
-                entity_id,
-                lambda event: self._async_handle_automation_event(
-                    automation, event
-                ),
-            )
-            self._automation_listeners[automation_id] = remove_listener
+            self._register_automation_listener(automation)
             self._automations[automation_id] = automation
 
             # Persist to storage
             await self._async_save_storage()
 
             _LOGGER.info(
-                "Created dynamic automation '%s': %s %s -> %s",
+                "Created dynamic automation '%s': %d triggers (expr=%s)%s",
                 automation_id,
-                entity_id,
-                condition,
-                description,
+                len(triggers),
+                expression or trigger_logic,
+                " [one-shot]" if one_shot else "",
             )
 
             return automation_id
@@ -1290,21 +1516,82 @@ class LLMSmartAssistantCoordinator:
         _LOGGER.info("Removed dynamic automation '%s'", automation_id)
         return True
 
+    def _register_time_trigger(
+        self, automation: "DynamicAutomation", trigger_index: int
+    ) -> callable | None:
+        """Register a daily time-of-day trigger for one time-based trigger.
+
+        Fires at HH:MM every day. After firing, re-registers for the next
+        day (unless the automation was removed, e.g. one-shot).
+        """
+        from homeassistant.helpers.event import async_track_point_in_time
+
+        trigger = automation.triggers[trigger_index]
+        time_str = str(trigger.get("time", "")).strip()
+        try:
+            hour, minute = (int(x) for x in time_str.split(":"))
+        except (ValueError, AttributeError):
+            _LOGGER.warning(
+                "Automation '%s': invalid time trigger %r",
+                automation.automation_id[:8], time_str,
+            )
+            return None
+
+        now = dt_util.as_local(dt_util.utcnow())
+        fire_at = now.replace(hour=hour, minute=minute, second=0, microsecond=0)
+        if fire_at <= now:
+            fire_at = fire_at + timedelta(days=1)
+
+        def _fire(ts: datetime) -> None:
+            self._async_handle_time_trigger(automation, trigger_index, ts)
+            # Long-running (non-one-shot, non-disabled) automations repeat daily
+            if (
+                automation.automation_id in self._automations
+                and not automation.one_shot
+                and automation.automation_id not in self.disabled_automations
+            ):
+                self._register_time_trigger(automation, trigger_index)
+
+        return async_track_point_in_time(self.hass, _fire, fire_at)
+
     def _register_automation_listener(self, automation: "DynamicAutomation") -> None:
-        """Register the state change listener for an automation."""
+        """Register all listeners (one per entity trigger + time triggers)."""
         from homeassistant.helpers.event import async_track_state_change_event
-        remove_listener = async_track_state_change_event(
-            self.hass,
-            automation.entity_id,
-            lambda event: self._async_handle_automation_event(automation, event),
-        )
-        self._automation_listeners[automation.automation_id] = remove_listener
+        remove_fns: list[callable] = []
+
+        for i, trigger in enumerate(automation.triggers):
+            t_type = trigger.get("type", "entity")
+            if t_type == "time":
+                remove_fn = self._register_time_trigger(automation, i)
+                if remove_fn:
+                    remove_fns.append(remove_fn)
+            else:
+                entity_id = trigger.get("entity_id", "")
+                if not entity_id:
+                    continue
+                remove_fns.append(
+                    async_track_state_change_event(
+                        self.hass,
+                        entity_id,
+                        lambda event, a=automation, ti=i: self._async_handle_automation_event(
+                            a, ti, event
+                        ),
+                    )
+                )
+
+        # Store ALL remove fns so disable/unload can detach everything
+        self._automation_listeners[automation.automation_id] = lambda: [
+            fn() for fn in remove_fns
+        ]
 
     def _unregister_automation_listener(self, automation_id: str) -> None:
-        """Unregister the state change listener for an automation."""
-        remove_listener = self._automation_listeners.pop(automation_id, None)
-        if remove_listener:
-            remove_listener()
+        """Unregister all listeners for an automation."""
+        remove_all = self._automation_listeners.pop(automation_id, None)
+        if remove_all:
+            try:
+                remove_all()
+            except Exception as exc:
+                _LOGGER.debug("Listener cleanup for %s: %s", automation_id[:8], exc)
 
     async def async_disable_automation(self, automation_id: str) -> bool:
         """Disable an automation by removing its listener."""
@@ -1332,24 +1619,20 @@ class LLMSmartAssistantCoordinator:
         # Clean up old listeners first (prevent duplicate registration)
         old_listeners = list(self._automation_listeners.values())
         for remove_fn in old_listeners:
-            remove_fn()
+            try:
+                remove_fn()
+            except Exception:
+                pass
         self._automation_listeners.clear()
 
         for automation in self._automations.values():
-            remove_listener = async_track_state_change_event(
-                self.hass,
-                automation.entity_id,
-                lambda event, a=automation: self._async_handle_automation_event(
-                    a, event
-                ),
-            )
-            self._automation_listeners[automation.automation_id] = remove_listener
+            self._register_automation_listener(automation)
 
     @callback
     def _async_handle_automation_event(
-        self, automation: DynamicAutomation, event: Event
+        self, automation: DynamicAutomation, trigger_index: int, event: Event
     ) -> None:
-        """Handle a state change event for an automation."""
+        """Handle a state change event for one trigger of an automation."""
         if not self._is_started:
             return
 
@@ -1364,15 +1647,96 @@ class LLMSmartAssistantCoordinator:
         if new_state is None or old_state is None:
             return
 
-        # Evaluate the condition
+        # The changed trigger must satisfy its own condition
+        changed_trigger = automation.triggers[trigger_index]
         if not self._evaluate_condition(
-            str(new_state.state), automation.condition
+            str(new_state.state), changed_trigger.get("condition", "")
         ):
+            return
+
+        # Evaluate the full boolean expression (AND/OR/parentheses)
+        if not self._evaluate_expression(automation):
             return
 
         # Process the automation trigger (use add_job for thread-safety)
         self.hass.add_job(
             self._async_process_automation_trigger(automation, new_state)
+        )
+
+    @callback
+    def _async_handle_time_trigger(
+        self, automation: DynamicAutomation, trigger_index: int, _dt: datetime
+    ) -> None:
+        """Handle a time-based trigger firing."""
+        if not self._is_started:
+            return
+        if automation.automation_id in self.disabled_automations:
+            return
+        if not self._evaluate_all_entity_triggers(automation):
+            return
+        _LOGGER.info(
+            "Automation '%s' time trigger %d fired at %s",
+            automation.automation_id[:8], trigger_index, _dt,
+        )
+        # Build a pseudo state for the time trigger
+        pseudo_state = State(
+            f"time.{automation.automation_id[:8]}", str(_dt.strftime("%H:%M"))
+        )
+        self.hass.add_job(
+            self._async_process_automation_trigger(automation, pseudo_state)
+        )
+
+    def _evaluate_all_entity_triggers(self, automation: DynamicAutomation) -> bool:
+        """Evaluate all entity triggers (used for time-trigger automations)."""
+        return self._evaluate_expression(automation)
+
+    def _evaluate_expression(self, automation: DynamicAutomation) -> bool:
+        """Evaluate the automation's boolean trigger expression.
+
+        Expression uses trigger indexes, e.g. "0 and 1" or "(0 or 1) and 2".
+        Falls back to the legacy trigger_logic (all-and / any-or) when no
+        explicit expression is stored.
+        """
+        expr = getattr(automation, "expression", "") or ""
+        if not expr:
+            # Legacy: derive from trigger_logic
+            if automation.trigger_logic == "and":
+                return all(
+                    self._trigger_satisfied(automation, i)
+                    for i in range(len(automation.triggers))
+                )
+            return any(
+                self._trigger_satisfied(automation, i)
+                for i in range(len(automation.triggers))
+            )
+        try:
+            parser = _TriggerExpressionParser(expr)
+            result = parser.parse()
+            return bool(result(automation, self))
+        except Exception as exc:
+            _LOGGER.warning(
+                "Automation '%s': expression parse failed (%s), falling back to OR",
+                automation.automation_id[:8], exc,
+            )
+            return any(
+                self._trigger_satisfied(automation, i)
+                for i in range(len(automation.triggers))
+            )
+
+    def _trigger_satisfied(self, automation: DynamicAutomation, index: int) -> bool:
+        """Check if one trigger's current state satisfies its condition."""
+        if index >= len(automation.triggers):
+            return False
+        trigger = automation.triggers[index]
+        if trigger.get("type", "entity") != "entity":
+            # Non-entity triggers (time) count as satisfied only when firing;
+            # for evaluation purposes treat missing state as False
+            return False
+        ent_state = self.hass.states.get(trigger.get("entity_id", ""))
+        if ent_state is None:
+            return False
+        return self._evaluate_condition(
+            str(ent_state.state), trigger.get("condition", "")
         )
 
     @staticmethod

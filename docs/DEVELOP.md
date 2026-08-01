@@ -211,3 +211,9 @@ python3 .pi/skills/i18n-audit/check.py --diff
 | 历史记录读 HA recorder（不缓存）        | 重启后历史仍在；所有输入来源统一由 `sensor.llm_last_input` 记录（聊天面板/服务调用/语音传感器），与回复 sensor 合并成时间线 |
 | 历史过滤跳过中间轮次                    | recorder 对相同 state 去重，最终回复可能与上轮相同；用相邻去重而非 in_progress 过滤 |
 | 历史懒加载用 before 游标                | 时间倒序 + 游标分页，滚动到顶加载更早记录；游标需 URL 编码（`+` → 空格） |
+| 自动化多触发 triggers 数组              | `[{entity_id, condition}]` 或 `[{type: time, time}]`；保留 entity_id/condition property 兼容旧 storage，自动迁移 |
+| 复合表达式 expression                  | 触发索引用数字（`(0 and 1) or 2`），安全递归下降解析器（无 eval）；支持 AND/OR/括号/优先级；无 expression 时按 trigger_logic 回退 |
+| AND 逻辑实时检查全部触发源              | 任一触发源变化时检查**所有** entity trigger 当前状态（而非历史状态），避免跨事件状态跟踪复杂度 |
+| 时间触发每日自动重注册                 | `async_track_point_in_time` 触发后若非 one-shot/未禁用则注册下一天，实现"每天 21:00"式长期定时 |
+| one-shot 触发后自毁                    | 执行完成即 `async_remove_automation`，适用于"1分钟后关空调"等一次性规则 |
+| 执行记录环形缓冲 30 条                | 每次触发写入 time/trigger/result/ok/steps，随自动化持久化，重启保留；UI 专属 debug 弹窗按 automation 显示 |
