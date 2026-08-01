@@ -18,6 +18,8 @@ CONF_PROMPT_DEFAULT: Final = "prompt_default"
 CONF_PROMPT_AUTOMATION: Final = "prompt_automation"
 CONF_INPUT_ENTITIES: Final = "input_entities"
 CONF_TTS_ENTITY_ID: Final = "tts_entity_id"
+CONF_TTS_ENTITIES: Final = "tts_entities"  # multi output devices (Task 4b)
+CONF_TTS_INPUT_ENTITY: Final = "tts_input_entity"  # current input device for routing
 CONF_TTS_MODE: Final = "tts_mode"
 CONF_TTS_CUSTOM_TEMPLATE: Final = "tts_custom_template"
 CONF_TTS_SPEAK_VOLUME: Final = "tts_speak_volume"
@@ -83,11 +85,21 @@ HARDCODED_SYSTEM_PROMPT: Final = """You control Home Assistant devices. Convert 
 ## Entities (use ONLY these entity_ids)
 {{ exposed_entities }}
 
+## Output devices (TTS speakers available)
+{{ output_devices }}
+
+## Input source (where the user is speaking from)
+{{ input_source }}
+
 Time: {{ time }} {{ date }}  Max rounds: {{ max_iterations }}
 
 ## Output format: raw JSON, no markdown
 {"tts_text": "reply to user", "steps": [{"action": "...", ...}]}
 Set tts_text to "" when steps NOT empty.
+Optional: add "output_device": "<entity_id>" to speak through a specific
+output device instead of the default. The user speaks from the "Input source"
+area; pick the output device in that same area (see "## Output devices"
+above). If no device matches, omit the field to use the default.
 
 ## Available actions
 1. get_states: Check states + available services

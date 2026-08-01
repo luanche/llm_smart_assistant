@@ -197,18 +197,25 @@ def _register_global_services(hass: HomeAssistant) -> None:
         text = call.data.get("text", "")
         source = call.data.get("source", "")  # 'voice' from chat UI voice input
         entry_filter = call.data.get("entry_id", "")
+        # Task 4b: optional explicit input device (e.g. which mic/room).
+        # The model can then route the TTS reply to the nearest output device.
+        source_entity = call.data.get("source_entity", "")
         if text:
             if entry_filter:
                 # Look up the coordinator for this instance
                 coordinator = hass.data.get(DOMAIN, {}).get(entry_filter)
                 if coordinator:
-                    await coordinator._async_process_user_input("service_call", text, source)
+                    await coordinator._async_process_user_input(
+                        source_entity or "service_call", text, source
+                    )
                 else:
                     _LOGGER.warning("No coordinator found for entry %s", entry_filter)
             else:
                 # No filter: process on all instances
                 for coordinator in hass.data.get(DOMAIN, {}).values():
-                    await coordinator._async_process_user_input("service_call", text, source)
+                    await coordinator._async_process_user_input(
+                        source_entity or "service_call", text, source
+                    )
 
     hass.services.async_register(
         DOMAIN,
@@ -219,6 +226,7 @@ def _register_global_services(hass: HomeAssistant) -> None:
                 vol.Optional("text", default=""): cv.string,
                 vol.Optional("entry_id", default=""): cv.string,
                 vol.Optional("source", default=""): cv.string,
+                vol.Optional("source_entity", default=""): cv.string,
             }
         ),
     )

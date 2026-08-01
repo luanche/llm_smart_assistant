@@ -62,12 +62,19 @@
 - **类型**: feat | **分支**: `feat/multi-device-io-routing`
 - **包含**:
   - [x] 4a: AI Chat（文字 + 语音）都不调 HA TTS 输出设备；语音回复改由浏览器 `speechSynthesis` 播报
-  - [ ] 4b: 允许配置多个输入设备和输出设备提供给模型；用户用某设备输入时，由模型根据设备位置决定最合适的输出设备
+  - [x] 4b: 允许配置多个输入设备和输出设备提供给模型；用户用某设备输入时，由模型根据设备位置决定最合适的输出设备
 - **分析**: 输入来源标记（`chat_ui` / `service_call` / 具体 sensor entity_id）决定默认是否 TTS；多输出设备需要配置结构改为列表 + prompt 中注入设备位置信息（area），模型在响应 JSON 中指定 `output_device`。建议拆两步：先 4a（chat 不 TTS），再 4b（多设备路由）
 - **4a 实现方案**（`fix/chat-tts-browser`，v1.3.3）:
   1. **后端** `coordinator.py`: `entity_id` 为 "service_call" 或 "chat_ui" 时无条件跳过 `_async_speak_tts`（之前版本只对 text 跳过、voice 保留，现改为两者都跳过）
   2. **前端** `panel/index.html`: `sendMessage` 的 `handleState` 回调中，当 `fromVoice=true` 且收到 TTS 文本时，调用 `window.speechSynthesis.speak()` 通过浏览器播报，语音设为当前界面语言
-- **状态**: ◀️ 4a 已完成（v1.3.3）
+- **4b 实现方案**（`feat/multi-device-io-routing`，v1.8.0 待发）:
+  1. **const.py**: 新增 `CONF_TTS_ENTITIES`（多输出设备列表）、`CONF_TTS_INPUT_ENTITY`；HARDCODED prompt 增加 `## Output devices`（设备+区域 CSV）与 `## Input source`（用户输入来源+区域）段，响应 JSON 支持可选 `output_device` 字段（默认省略则用首设备）
+  2. **coordinator.py**: `tts_entities` property（多设备，回退旧 `tts_entity_id`，同时查 `_data` 兼容历史存储）；`_get_area_name` 真正实现（entity registry `area_id` → area registry `async_get_area` 名称）；`_build_output_devices_info` / `_build_input_source_info` 构建 prompt 注入；`_output_device_from_rounds` 提取 LLM 选择（仅接受配置内的设备）；`_async_speak_tts(text, output_device="")` 支持显式路由，无效回退默认；自动化触发也透传 `output_device`
+  3. **config_flow.py**: options 表单新增多设备选择器（`CONF_TTS_ENTITIES` multiple=True，保留旧单设备字段）；保存时同步 `tts_entity_id`=列表首个，旧单设备自动镜像进列表
+  4. **__init__.py**: `process_input` 服务新增 `source_entity` 参数（输入设备，用于位置路由），schema 加 `vol.Optional("source_entity")`
+  5. **前端** `panel/index.html`: debug 弹窗 round 显示 `输出设备：<entity_id>`（`debugOutputDevice` i18n key）
+  6. **测试**: 卧室输入（sensor.test_voice_input area=卧室）→ LLM 选择卧室音箱并 TTS ✓；无来源 service_call → 不 TTS ✓；自动化触发 → 回退默认设备 ✓；区域解析（entity registry area_id → area 名称）✓；prompt 正确注入 Output devices / Input source ✓；debug 弹窗显示路由 ✓
+- **状态**: ✅ 已完成（v1.8.0 待发）
 
 ---
 
@@ -157,8 +164,10 @@
 
 ## 📋 建议实施顺序
 
-> 已完成：Task 1（v1.2.2）、Task 2（v1.2.3）、Task 2b（v1.2.4）、Task 9（v1.3.4）、Task 3（v1.3.0/1.3.1）、Task 4a（v1.3.3）、Task 5（v1.4.0/1.4.1）、Task 6（v1.6.0）、Task 7（v1.7.0 待发）、Task 8（v1.5.0）
+> 已完成：Task 1（v1.2.2）、Task 2（v1.2.3）、Task 2b（v1.2.4）、Task 9（v1.3.4）、Task 3（v1.3.0/1.3.1）、Task 4a（v1.3.3）、Task 5（v1.4.0/1.4.1）、Task 6（v1.6.0）、Task 7（v1.7.0）、Task 8（v1.5.0）、Task 4b（v1.8.0 待发）
+
+> 🎉 **全部 roadmap 任务已完成**，不再有剩余开放任务。后续需求以新 issue / 新 roadmap 形式提出。
 
 | 顺序 | Task | 理由 |
 |------|------|------|
-| 1 | Task 4b（多设备路由）| 唯一剩余开放任务 |
+| — | 全部任务已完成 | — |

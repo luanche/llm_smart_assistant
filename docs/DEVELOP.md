@@ -217,3 +217,6 @@ python3 .pi/skills/i18n-audit/check.py --diff
 | 时间触发每日自动重注册                 | `async_track_point_in_time` 触发后若非 one-shot/未禁用则注册下一天，实现"每天 21:00"式长期定时 |
 | one-shot 触发后自毁                    | 执行完成即 `async_remove_automation`，适用于"1分钟后关空调"等一次性规则 |
 | 执行记录环形缓冲 30 条                | 每次触发写入 time/trigger/result/ok/steps，随自动化持久化，重启保留；UI 专属 debug 弹窗按 automation 显示 |
+| 多输出设备 tts_entities 列表           | Task 4b：可配多个 TTS 设备（含区域）；prompt 注入 `## Output devices`（entity_id/name/area CSV），LLM 响应 JSON 可加 `output_device` 选择最近设备；兼容旧 `tts_entity_id`（首设备作默认，旧配置自动镜像进列表） |
+| 输入来源标记 + 区域解析                | `process_input` 支持 `source_entity`；`_get_area_name` 用 entity registry `area_id` → area registry 名称，注入 `## Input source`；LLM 按用户所在区域选输出设备；AI Chat/service_call 不 TTS（浏览器播报） |
+| output_device 白名单校验              | 仅接受配置内设备（`in self.tts_entities`），防止 LLM 幻觉设备 ID；无效回退默认设备 |

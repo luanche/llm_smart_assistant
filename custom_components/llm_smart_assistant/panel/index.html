@@ -1192,6 +1192,7 @@ const LANGUAGES = {
     debugSteps: 'Steps:',
     debugTts: 'TTS:',
     debugSilent: '(silent)',
+    debugOutputDevice: 'Output device:',
     labelEntityId: 'Entity ID (trigger)',
     labelCondition: 'Condition',
     labelAction: 'Action',
@@ -1272,6 +1273,7 @@ const LANGUAGES = {
     debugSteps: '步骤：',
     debugTts: '语音：',
     debugSilent: '（静默）',
+    debugOutputDevice: '输出设备：',
     labelEntityId: '实体 ID（触发条件）',
     labelCondition: '触发条件',
     labelAction: '执行动作',
@@ -1886,6 +1888,9 @@ document.getElementById('debugBtn').addEventListener('click', async () => {
           html += '<div class="round-header">' + t('debugRound') + ' ' + r.round + '</div>';
           html += '<div class="round-step">' + t('debugSteps') + ' ' + escapeHtml(JSON.stringify(r.steps, null, 2)) + '</div>';
           html += '<div class="round-tts">' + t('debugTts') + ' "' + escapeHtml(ttsDisplay) + '"' + (i < rounds.length - 1 ? ' ' + t('debugSilent') : '') + '</div>';
+          if (r.output_device) {
+            html += '<div class="round-tts">' + t('debugOutputDevice') + ' ' + escapeHtml(r.output_device) + '</div>';
+          }
           html += '</div>';
         });
       }

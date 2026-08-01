@@ -37,6 +37,7 @@ from .const import (
     CONF_SHOW_PANEL,
     CONF_TEMPERATURE,
     CONF_TTS_CUSTOM_TEMPLATE,
+    CONF_TTS_ENTITIES,
     CONF_TTS_ENTITY_ID,
     CONF_TTS_MODE,
     CONF_TTS_SPEAK_VOLUME,
@@ -204,6 +205,13 @@ class LLMSmartAssistantOptionsFlow(config_entries.OptionsFlow):
             # Remove empty TTS entity to avoid validation error from EntitySelector
             if not user_input.get(CONF_TTS_ENTITY_ID):
                 user_input.pop(CONF_TTS_ENTITY_ID, None)
+            # Task 4b: multi-device routing — keep legacy tts_entity_id in sync
+            # so old code paths and the default device keep working.
+            if user_input.get(CONF_TTS_ENTITIES):
+                user_input[CONF_TTS_ENTITY_ID] = user_input[CONF_TTS_ENTITIES][0]
+            elif CONF_TTS_ENTITY_ID in user_input and not user_input.get(CONF_TTS_ENTITIES):
+                # Only legacy single device set → mirror it into the multi list
+                user_input[CONF_TTS_ENTITIES] = [user_input[CONF_TTS_ENTITY_ID]]
             # Ensure disabled_automations is a list
             if CONF_DISABLED_AUTOMATIONS not in user_input:
                 user_input[CONF_DISABLED_AUTOMATIONS] = []
@@ -290,6 +298,12 @@ class LLMSmartAssistantOptionsFlow(config_entries.OptionsFlow):
                 selector.BooleanSelector(),
 
                 # ── Text-to-Speech ──
+                # Task 4b: multiple output devices (LLM picks per input location).
+                # Legacy single-device selector kept for backward compatibility.
+                vol.Optional(CONF_TTS_ENTITIES,
+                    default=cur.get(CONF_TTS_ENTITIES) or
+                           ([cur[CONF_TTS_ENTITY_ID]] if cur.get(CONF_TTS_ENTITY_ID) else [])):
+                _OptionalEntitySelector(selector.EntitySelectorConfig(multiple=True)),
                 # EntitySelector for UI picker; custom subclass accepts empty string
                 vol.Optional(CONF_TTS_ENTITY_ID,
                     default=cur.get(CONF_TTS_ENTITY_ID) or ""):

@@ -82,12 +82,15 @@ All settings are configured in a single-page form accessible via **Settings → 
 
 | Field           | Description                                                     |
 | --------------- | --------------------------------------------------------------- |
-| TTS Entity      | Media player to speak through (EntitySelector)                  |
+| Output Devices (multi-device routing) | Configure multiple TTS speakers; the AI automatically replies from the speaker closest to where you're speaking (e.g. speak from bedroom → bedroom speaker) |
+| TTS Entity      | Default speaker (first in the list)                             |
 | TTS Mode        | `Standard` (media_player), `Xiaomi MIoT`, or `Custom Template`  |
 | Custom Template | Jinja2 template for custom TTS service calls                    |
 | Speak Volume    | Volume level (0.0–1.0) to set before speaking                   |
 | Mute After      | Enable mute/DND after TTS to prevent speaker echo               |
 | Mute Entity     | Separate media_player entity for volume/mute control (optional) |
+
+> **Multi-device routing**: add several speakers under **Output Devices** (e.g. living room / bedroom / kitchen) and assign an area to each. The AI Chat panel replies via your browser; when speaking from an external voice sensor, the LLM picks the output device in the same area as the input device (via the `output_device` field in its JSON). The `process_input` service accepts a `source_entity` argument to specify the input device.
 
 ### Voice Input
 
