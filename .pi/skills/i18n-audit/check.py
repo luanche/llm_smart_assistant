@@ -52,6 +52,14 @@ ALLOWED_HARDCODED = {
     "addSheet", "addSheetTitle", "auth", "confirmSheet", "debugSheet",
     "debugSheetContent", "editSheet", "fabAdd", "modeToggle",
     "textInputWrap", "voice", "voiceHoldBtn", "voiceHoldText",
+    # Element IDs / classes (v1.3.x PTT + v1.4.x mobile UI)
+    "cancelFill", "cancelText", "chatOuter", "instanceDropdown",
+    "instanceMenu", "instanceName", "instanceTrigger", "shareBtn",
+    "tabSlider", "toast", "voiceBubble", "voiceBubbleText",
+    "cancel-approaching", "cancel-state", "instance-option",
+    "slide-auto", "slide-chat", "voice-bubble",
+    # CSS / events
+    "block", "show", "pointerdown", "touchend", "touchstart",
     # CSS classes / state values
     "disabled",
     # WebSocket protocol message types
@@ -81,6 +89,7 @@ ALLOWED_HARDCODED = {
     "Delete this automation?", "Enable", "Disable", "Edit", "Delete",
     "Chat", "Automations",
     "Reasoning (round ", ")...",
+    "Release to send", "copy",
     "sensor.living_room_temperature", ">30",
     "💡 Living room light", "📺 Turn off TV", "🌡️ Temperature", "🛏️ Bedroom light",
     # LANGUAGES.en keys (translation values, not hardcoded)

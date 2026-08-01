@@ -125,9 +125,10 @@ The iframe gets the HA auth token through multiple fallback channels:
 | `sendMessage()`               | Send user input, subscribe to the response sensor via WebSocket, display progressively |
 | `subscribeEntity()`           | Subscribe to entity state changes via the HA WebSocket API                             |
 | `refreshAutomations()`        | Fetch and render automation cards                            |
-| `toggleAutomation()`          | Enable/disable an automation                                 |
-| `showEditModal()`             | Open edit modal with 3 fields (entity, condition, action)    |
-| `showAddModal()`              | Open add automation modal                                    |
+| `toggleAutomation()`          | Enable/disable an automation (optimistic UI, instant feedback)  |
+| `showAddSheet()`              | Open add-automation bottom sheet           |
+| `showEditSheet()`             | Open edit bottom sheet (entity, condition, action)        |
+| `showDeleteConfirm()`         | Open delete confirmation bottom sheet        |
 
 ---
 

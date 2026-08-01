@@ -110,10 +110,10 @@ The built-in web UI provides:
 - **Multi-round Reasoning** — Status shows "Reasoning (round N)..." during processing.
 - **Progressive Display** — Responses appear round-by-round.
 - **Debug Modal** — Click 🔧 to view the full reasoning trace and the generated prompt (scrollable).
-- **Instance Selector** — Switch between multiple configured instances.
-- **Automations Tab** — View, create, edit, enable/disable, and delete automations.
-- **Voice Input** — Click 🎤 to use browser speech recognition.
-- **Mobile Friendly** — Responsive layout.
+- **Instance Selector** — Custom dropdown to switch between multiple configured instances.
+- **Automations Tab** — View, create, edit, enable/disable, and delete automations (optimistic UI with instant feedback).
+- **Voice Input** — Hold 🎤 to speak, slide up to cancel.
+- **Mobile Friendly** — Responsive layout, swipe left/right to switch tabs, one-tap copy link.
 
 ---
 

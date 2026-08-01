@@ -125,9 +125,10 @@ iframe 通过多个回退通道获取 HA 认证令牌：
 | `sendMessage()`               | 发送输入，通过 WebSocket 订阅传感器并渐进显示 |
 | `subscribeEntity()`           | 通过 HA WebSocket API 订阅实体状态变化        |
 | `refreshAutomations()`        | 获取并渲染自动化卡片           |
-| `toggleAutomation()`          | 启用/禁用自动化                |
-| `showEditModal()`             | 打开编辑弹窗（3 个字段）       |
-| `showAddModal()`              | 打开添加自动化弹窗             |
+| `toggleAutomation()`          | 启用/禁用自动化（乐观 UI，即时反馈）        |
+| `showAddSheet()`              | 打开添加自动化底部弹窗        |
+| `showEditSheet()`             | 打开编辑底部弹窗（实体/条件/动作）        |
+| `showDeleteConfirm()`         | 打开删除确认底部弹窗        |
 
 ---
 
