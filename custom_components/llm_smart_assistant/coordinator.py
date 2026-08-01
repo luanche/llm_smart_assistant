@@ -1486,6 +1486,20 @@ class LLMSmartAssistantCoordinator:
             if steps:
                 _LOGGER.info("Fallback matched: %s", steps)
 
+        # Reminder fallback: the LLM produced neither an action nor speech.
+        # For reminder-type automations ("提醒我出门"), speak the prompt itself
+        # so a silent no-op never swallows the reminder.
+        if not steps and not tts_text and (automation.prompt or automation.description):
+            reminder = self._clean_reminder_text(
+                automation.prompt or automation.description
+            )
+            if reminder:
+                _LOGGER.info(
+                    "Automation '%s': no action from LLM, speaking reminder: %s",
+                    automation.automation_id[:8], reminder,
+                )
+                tts_text = reminder
+
         # Execute steps
         exec_ok = True
         if steps and self.executor:
@@ -1551,10 +1565,41 @@ class LLMSmartAssistantCoordinator:
         """
         if not triggers:
             triggers = [{"entity_id": entity_id, "condition": condition}]
-        triggers = [t for t in triggers if t.get("entity_id") or t.get("time")]
+        triggers = [
+            t for t in triggers
+            if t.get("entity_id") or t.get("time") or t.get("datetime")
+        ]
         if not triggers:
             _LOGGER.error("create_automation: no valid triggers provided")
             return None
+
+        # Some LLMs put one_shot inside a trigger dict instead of at the top
+        # level. Hoist it to the automation and drop it from the trigger (it
+        # is automation-level semantics, not per-trigger).
+        for trig in triggers:
+            if trig.get("one_shot") is True:
+                one_shot = True
+                trig.pop("one_shot", None)
+                _LOGGER.debug(
+                    "create_automation: hoisted one_shot from trigger to automation"
+                )
+
+        # Duplicate detection: the ReAct loop can make the LLM re-emit the same
+        # create_automation step across rounds. Reuse the existing automation
+        # instead of stacking identical copies.
+        trig_key = json.dumps(triggers, sort_keys=True, ensure_ascii=False)
+        for existing in list(self._automations.values()):
+            if (
+                existing.prompt == prompt
+                and existing.description == description
+                and json.dumps(existing.triggers, sort_keys=True, ensure_ascii=False)
+                == trig_key
+            ):
+                _LOGGER.info(
+                    "create_automation: duplicate of '%s', reusing it",
+                    existing.automation_id[:8],
+                )
+                return existing.automation_id
 
         automation_id = str(uuid.uuid4())
 
@@ -1608,41 +1653,142 @@ class LLMSmartAssistantCoordinator:
         _LOGGER.info("Removed dynamic automation '%s'", automation_id)
         return True
 
+    def _compute_next_fire(self, trigger: dict, now: datetime) -> datetime | None:
+        """Compute the next fire time for a time trigger.
+
+        Supports schedules:
+          - once:    one-shot at `datetime` ("YYYY-MM-DDTHH:MM[:SS]"), no repeat
+          - daily:   every day at `time` (HH:MM)  [default, backward compatible]
+          - weekly:  at `time` on `weekdays` (1=Mon..7=Sun)
+          - monthly: at `time` on `days_of_month` (1..31, invalid days skipped)
+        Returns None when there is no future occurrence (e.g. past one-shot).
+        """
+        schedule = str(trigger.get("schedule", "") or "")
+        if not schedule and trigger.get("datetime"):
+            schedule = "once"
+        if not schedule:
+            schedule = "daily"
+        time_str = str(trigger.get("time", "")).strip()
+        try:
+            parts = [int(x) for x in time_str.split(":")] if time_str else []
+            hour = parts[0] if len(parts) > 0 else 0
+            minute = parts[1] if len(parts) > 1 else 0
+        except (ValueError, AttributeError):
+            hour, minute = 0, 0
+        # Optional second-level precision (e.g. time "23:59:45" or second field)
+        try:
+            second = int(trigger.get("second", 0) or 0)
+            if len(parts) > 2:
+                second = parts[2]
+        except (ValueError, AttributeError, TypeError):
+            second = 0
+        if not (0 <= second <= 59):
+            second = 0
+
+        def _at(d: datetime) -> datetime:
+            return d.replace(hour=hour, minute=minute, second=second, microsecond=0)
+
+        if schedule == "once":
+            dt_str = str(trigger.get("datetime", "")).strip()
+            if not dt_str:
+                # Some LLMs emit once with only `time` (no datetime). Treat it
+                # as the next HH:MM — fires once, never re-registers.
+                if time_str:
+                    fire = _at(now)
+                    if fire <= now:
+                        fire = fire + timedelta(days=1)
+                    _LOGGER.debug(
+                        "Automation time trigger: once+time fallback → %s", fire
+                    )
+                    return fire
+                _LOGGER.warning(
+                    "Automation time trigger: once schedule without datetime, skipped"
+                )
+                return None
+            try:
+                fire = datetime.fromisoformat(dt_str)
+            except ValueError:
+                _LOGGER.warning("Automation time trigger: invalid datetime %r", dt_str)
+                return None
+            if fire.tzinfo is None:
+                fire = fire.replace(tzinfo=now.tzinfo)
+            return fire if fire > now else None
+
+        if schedule == "weekly":
+            weekdays = {int(w) for w in trigger.get("weekdays", []) or [] if str(w).isdigit()}
+            weekdays = {w for w in weekdays if 1 <= w <= 7}
+            if not weekdays:
+                weekdays = set(range(1, 8))  # every day fallback
+            for offset in range(0, 8):
+                candidate = _at(now + timedelta(days=offset))
+                if candidate <= now:
+                    continue
+                # now.weekday(): 0=Mon..6=Sun; weekdays stored 1=Mon..7=Sun
+                if (candidate.weekday() + 1) in weekdays:
+                    return candidate
+            return None
+
+        if schedule == "monthly":
+            days = {int(d) for d in trigger.get("days_of_month", []) or [] if str(d).isdigit()}
+            days = {d for d in days if 1 <= d <= 31}
+            if not days:
+                days = {1}
+            # Scan up to 62 days ahead to cover month boundaries + invalid days
+            for offset in range(0, 62):
+                candidate = _at(now + timedelta(days=offset))
+                if candidate <= now:
+                    continue
+                if candidate.day in days:
+                    return candidate
+            return None
+
+        # daily (default)
+        fire_at = _at(now)
+        if fire_at <= now:
+            fire_at = fire_at + timedelta(days=1)
+        return fire_at
+
     def _register_time_trigger(
         self, automation: "DynamicAutomation", trigger_index: int
     ) -> callable | None:
-        """Register a daily time-of-day trigger for one time-based trigger.
+        """Register a schedule-aware time trigger.
 
-        Fires at HH:MM every day. After firing, re-registers for the next
-        day (unless the automation was removed, e.g. one-shot).
+        Computes the next occurrence (daily/weekly/monthly/once) and
+        re-registers for the following one after firing, unless the
+        automation is one-shot/disabled or there is no next occurrence.
         """
         from homeassistant.helpers.event import async_track_point_in_time
 
         trigger = automation.triggers[trigger_index]
-        time_str = str(trigger.get("time", "")).strip()
-        try:
-            hour, minute = (int(x) for x in time_str.split(":"))
-        except (ValueError, AttributeError):
-            _LOGGER.warning(
-                "Automation '%s': invalid time trigger %r",
-                automation.automation_id[:8], time_str,
+        now = dt_util.as_local(dt_util.utcnow())
+        fire_at = self._compute_next_fire(trigger, now)
+        if fire_at is None:
+            _LOGGER.info(
+                "Automation '%s': no future occurrence for time trigger, not registering",
+                automation.automation_id[:8],
             )
             return None
 
-        now = dt_util.as_local(dt_util.utcnow())
-        fire_at = now.replace(hour=hour, minute=minute, second=0, microsecond=0)
-        if fire_at <= now:
-            fire_at = fire_at + timedelta(days=1)
-
         def _fire(ts: datetime) -> None:
             self._async_handle_time_trigger(automation, trigger_index, ts)
-            # Long-running (non-one-shot, non-disabled) automations repeat daily
+            # Long-running automations repeat per their schedule; a "once"
+            # schedule never re-registers (fires exactly one time).
             if (
                 automation.automation_id in self._automations
                 and not automation.one_shot
                 and automation.automation_id not in self.disabled_automations
+                and trigger.get("schedule") != "once"
             ):
-                self._register_time_trigger(automation, trigger_index)
+                next_fire = self._compute_next_fire(
+                    trigger, dt_util.as_local(dt_util.utcnow())
+                )
+                if next_fire is not None:
+                    self._register_time_trigger(automation, trigger_index)
+                else:
+                    _LOGGER.info(
+                        "Automation '%s': no next occurrence, schedule complete",
+                        automation.automation_id[:8],
+                    )
 
         return async_track_point_in_time(self.hass, _fire, fire_at)
 
@@ -1779,7 +1925,16 @@ class LLMSmartAssistantCoordinator:
         )
 
     def _evaluate_all_entity_triggers(self, automation: DynamicAutomation) -> bool:
-        """Evaluate all entity triggers (used for time-trigger automations)."""
+        """Evaluate all entity triggers (used for time-trigger automations).
+
+        Pure-time automations (no entity triggers) evaluate to True: when a
+        time trigger fires, there is nothing else to check, so it proceeds.
+        """
+        has_entity = any(
+            t.get("type", "entity") == "entity" for t in automation.triggers
+        )
+        if not has_entity:
+            return True
         return self._evaluate_expression(automation)
 
     def _evaluate_expression(self, automation: DynamicAutomation) -> bool:
@@ -1898,6 +2053,22 @@ class LLMSmartAssistantCoordinator:
                              "service": "turn_off",
                              "target": {"entity_id": s_obj.entity_id}}]
         return []
+
+    @staticmethod
+    def _clean_reminder_text(text: str) -> str:
+        """Strip reminder-style prefixes so the spoken text reads naturally.
+
+        "提醒我出门" → "出门"; "请提醒我吃药" → "吃药"; "记得关窗" stays as-is.
+        """
+        t = (text or "").strip()
+        for prefix in ("请提醒我", "提醒我", "请记得", "记得提醒我", "提醒"):
+            if t.startswith(prefix):
+                t = t[len(prefix):].strip()
+                break
+        # If nothing meaningful remains after stripping, keep original
+        if not t:
+            return (text or "").strip()
+        return t
 
     async def _async_speak_tts(self, text: str, output_device: str = "") -> None:
         """Speak text via the configured TTS mechanism.

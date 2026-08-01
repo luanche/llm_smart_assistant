@@ -659,17 +659,31 @@
       color: var(--accent);
     }
     .auto-card-oneshot {
-      font-size: 10px; font-weight: 700;
-      color: var(--warning, #ffb454);
-      border: 1px solid var(--warning, #ffb454);
-      padding: 0 6px; border-radius: 4px;
-      letter-spacing: 0.04em;
+      font-size: 10px; font-weight: 400;
+      color: #f59e0b;  /* amber-500 */
+      background: rgba(245,158,11,0.10);  /* amber-500/10 */
+      border: 1px solid rgba(245,158,11,0.30);  /* amber-500/30 */
+      padding: 1px 8px;
+      border-radius: 9999px;  /* pill */
+      letter-spacing: 0.03em;
+      display: inline-block;
+      width: fit-content;
     }
     .trigger-row {
       display: flex; gap: 6px; align-items: center;
-      margin-bottom: 8px;
+      margin-bottom: 10px;
+      flex-wrap: wrap;
+      background: var(--surface-alt);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 10px;
     }
-    .trigger-row .sheet-input { padding: 8px 10px; }
+    .trigger-row .sheet-input { padding: 10px 12px; }
+    /* Row header: index + type segmented + delete */
+    .trig-row-head {
+      display: flex; align-items: center; gap: 6px;
+      width: 100%; margin-bottom: 8px;
+    }
     .trig-index {
       font-size: 11px; font-weight: 700;
       color: var(--accent);
@@ -679,6 +693,166 @@
       width: 22px; height: 22px;
       display: flex; align-items: center; justify-content: center;
       flex-shrink: 0;
+    }
+    /* Inline type segmented switch */
+    .trig-type-switch {
+      display: flex; background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      padding: 2px;
+      flex: 1; min-width: 0;
+    }
+    .trig-type-switch button {
+      flex: 1; border: none; background: none;
+      padding: 5px 8px;
+      border-radius: 7px;
+      font-size: 11px; font-weight: 600;
+      color: var(--text-tertiary);
+      font-family: inherit;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: var(--transition);
+    }
+    .trig-type-switch button.active {
+      background: var(--accent); color: #fff;
+    }
+    .trig-del {
+      flex-shrink: 0; min-width: 32px; min-height: 32px;
+      border-radius: 8px; border: none;
+      background: var(--surface-alt);
+      color: var(--text-secondary);
+      cursor: pointer; font-size: 14px;
+      transition: var(--transition);
+    }
+    .trig-del:hover { color: var(--danger); background: rgba(255,59,48,0.1); }
+    /* Time picker (native mobile wheel picker) */
+    .trig-time-field {
+      width: 100%;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px 14px;
+      font-size: 24px; font-weight: 600;
+      text-align: center;
+      background: var(--surface-alt);
+      color: var(--text-primary);
+      outline: none;
+      font-family: 'SF Mono', Menlo, monospace;
+      min-height: 52px;
+      transition: var(--transition);
+    }
+    .trig-time-field:focus { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-glow); }
+    .trig-time-field::-webkit-calendar-picker-indicator { filter: none; opacity: 0.6; }
+    .trig-device-fields { display: flex; gap: 6px; width: 100%; }
+    .trig-device-fields .trig-entity { flex: 1; min-width: 0; }
+    .trig-device-fields .trig-cond { width: 96px; flex-shrink: 0; }
+    /* Schedule-aware time row */
+    .trig-sched { width: 100%; }
+    .sched-top-row { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
+    .sched-type-select {
+      flex-shrink: 0;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 8px 6px;
+      font-size: 13px; font-weight: 600;
+      background: var(--surface-alt);
+      color: var(--text-primary);
+      outline: none;
+      font-family: inherit;
+    }
+    .sched-type-select:focus { border-color: var(--accent); }
+    .sched-time-input {
+      flex: 1; min-width: 0;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 8px 10px;
+      font-size: 17px; font-weight: 600;
+      text-align: center;
+      background: var(--surface-alt);
+      color: var(--text-primary);
+      outline: none;
+      font-family: 'SF Mono', Menlo, monospace;
+      /* Native picker follows the panel theme (dark mode fix) */
+      color-scheme: light dark;
+      -webkit-color-scheme: light dark;
+    }
+    .sched-time-input:focus { border-color: var(--accent); }
+    .sched-datetime-input {
+      flex: 1; min-width: 0;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 8px 10px;
+      font-size: 14px;
+      background: var(--surface-alt);
+      color: var(--text-primary);
+      outline: none;
+      font-family: inherit;
+      /* Native picker follows the panel theme (dark mode fix) */
+      color-scheme: light dark;
+      -webkit-color-scheme: light dark;
+    }
+    .sched-datetime-input:focus { border-color: var(--accent); }
+    /* Weekday chips */
+    .sched-weekdays { display: flex; gap: 6px; margin-bottom: 8px; }
+    .wd-chip {
+      flex: 1;
+      border: 1px solid var(--border);
+      background: var(--surface-alt);
+      color: var(--text-secondary);
+      border-radius: 9px;
+      padding: 8px 0;
+      font-size: 13px; font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      transition: var(--transition);
+    }
+    .wd-chip.active {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+    }
+    /* Month days chips (add/remove) */
+    .sched-monthdays { display: flex; gap: 6px; align-items: center; margin-bottom: 4px; }
+    .md-input {
+      width: 80px; flex-shrink: 0;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 8px 10px;
+      font-size: 14px;
+      background: var(--surface-alt);
+      color: var(--text-primary);
+      outline: none;
+      font-family: inherit;
+    }
+    .md-input:focus { border-color: var(--accent); }
+    .md-add-btn {
+      flex-shrink: 0;
+      border: 1px solid var(--border);
+      background: var(--surface-alt);
+      color: var(--accent);
+      border-radius: 10px;
+      padding: 8px 14px;
+      font-size: 13px; font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+    }
+    .md-add-btn:hover { background: var(--accent-subtle); }
+    .md-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+    .md-chip {
+      border: 1px solid var(--border);
+      background: var(--surface-alt);
+      color: var(--text-primary);
+      border-radius: 8px;
+      padding: 4px 10px;
+      font-size: 12px; font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      display: flex; align-items: center; gap: 4px;
+    }
+    .md-chip .md-x { color: var(--text-tertiary); font-size: 11px; }
+    .md-chip:hover .md-x { color: var(--danger); }
+    .sched-hint {
+      font-size: 11px; color: var(--text-tertiary);
+      margin-top: 2px;
     }
     /* Toggle switch */
     .auto-card-toggle {
@@ -720,34 +894,132 @@
       color: var(--text-primary);
       font-weight: 500;
     }
-    /* Footer */
+    /* Footer: unified 36px action buttons */
     .auto-card-footer {
-      display: flex; justify-content: flex-end; gap: 8px;
+      display: flex; gap: 8px;
       padding-top: 12px;
       border-top: 1px solid var(--border);
     }
     .auto-card-footer button {
-      padding: 8px 14px;
+      flex: 1;
+      height: 36px;
       border-radius: 10px;
-      border: none;
-      font-size: 12px; font-weight: 500;
+      border: 1px solid var(--border);
+      font-size: 12px; font-weight: 600;
       font-family: inherit;
       cursor: pointer;
       transition: var(--transition);
+      display: flex; align-items: center; justify-content: center; gap: 4px;
+      min-width: 0;
     }
-    .auto-card-footer .edit-btn {
+    .auto-card-footer .ac-neutral {
       background: var(--surface-alt);
       color: var(--text-primary);
     }
-    .auto-card-footer .edit-btn:hover { background: var(--accent-subtle); }
-    .auto-card-footer .delete-btn {
+    .auto-card-footer .ac-neutral:hover { background: var(--accent-subtle); }
+    .auto-card-footer .ac-debug { background: var(--surface-alt); color: var(--text-primary); }
+    .auto-card-footer .ac-debug:hover { background: var(--accent-subtle); }
+    .auto-card-footer .ac-delete {
       background: rgba(255,59,48,0.08);
       color: var(--danger);
-      border: 1px solid rgba(255,59,48,0.15);
+      border-color: rgba(255,59,48,0.15);
     }
-    .auto-card-footer .delete-btn:hover {
+    .auto-card-footer .ac-delete:hover {
       background: rgba(255,59,48,0.15);
     }
+
+    /* One-shot trailing switch (form) */
+    .oneshot-row {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 6px 2px; margin-bottom: 12px;
+    }
+    .oneshot-row .os-label {
+      font-size: 13px; font-weight: 500;
+      color: var(--text-secondary);
+    }
+    .oneshot-row .os-sub {
+      font-size: 11px; color: var(--text-tertiary);
+      display: block; margin-top: 1px;
+    }
+    /* Reuse .auto-card-toggle style for form switches */
+    .form-toggle {
+      width: 46px; height: 26px;
+      border-radius: 13px;
+      border: none;
+      cursor: pointer;
+      position: relative;
+      background: var(--border);
+      transition: var(--transition);
+      flex-shrink: 0;
+    }
+    .form-toggle.on { background: var(--accent); }
+    .form-toggle::after {
+      content: '';
+      position: absolute; top: 2px; left: 2px;
+      width: 22px; height: 22px;
+      border-radius: 50%;
+      background: #fff;
+      transition: var(--transition);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+    }
+    .form-toggle.on::after { left: 22px; }
+
+    /* Advanced options collapsible */
+    .adv-toggle-btn {
+      display: flex; align-items: center; gap: 6px;
+      background: none; border: none;
+      color: var(--text-tertiary);
+      font-size: 12px; font-weight: 500;
+      font-family: inherit;
+      cursor: pointer;
+      padding: 8px 2px;
+      width: 100%;
+      justify-content: flex-start;
+    }
+    .adv-toggle-btn .adv-caret { transition: var(--transition); font-size: 10px; }
+    .adv-toggle-btn.open .adv-caret { transform: rotate(90deg); }
+    .adv-body { display: none; }
+    .adv-body.open { display: block; }
+
+    /* Entity autocomplete dropdown */
+    .ent-autocomplete {
+      position: relative; flex: 1; min-width: 0;
+    }
+    .ent-ac-list {
+      display: none;
+      position: absolute; z-index: 90;
+      top: calc(100% + 6px); left: 0; right: 0;
+      background: var(--surface);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      border: 1px solid var(--border-hover);
+      border-radius: 12px;
+      box-shadow: 0 16px 40px rgba(0,0,0,0.18), 0 4px 12px rgba(0,0,0,0.10);
+      max-height: 200px; overflow-y: auto;
+      padding: 4px;
+    }
+    .ent-ac-list.show { display: block; }
+    .ent-ac-item {
+      display: flex; align-items: center; justify-content: space-between; gap: 8px;
+      padding: 10px 12px;
+      font-size: 12px;
+      color: var(--text-primary);
+      cursor: pointer;
+      border-radius: 8px;
+      border-bottom: 1px solid var(--border);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      transition: var(--transition);
+    }
+    .ent-ac-item:last-child { border-bottom: none; }
+    .ent-ac-item:hover { background: var(--accent-subtle); }
+    .ent-ac-item .eid { font-family: 'SF Mono', Menlo, monospace; color: var(--accent); font-size: 11px; }
+    .ent-ac-item .ename { color: var(--text-tertiary); margin-left: 6px; font-size: 11px; }
+    .ent-ac-item .ac-pick {
+      flex-shrink: 0;
+      font-size: 10px; color: var(--text-tertiary);
+      font-weight: 500;
+    }
+    .ent-ac-item:hover .ac-pick { color: var(--accent); }
 
     /* === FAB === */
     .fab {
@@ -779,52 +1051,86 @@
       align-items: flex-end; justify-content: center;
     }
     #debugSheet.open { display: flex; }
-    #debugSheet .sheet {
-      max-height: 85vh;
+    #debugSheet .sheet, #autoDebugSheet .sheet {
+      max-height: 80vh;
       overflow: hidden;
     }
-    #debugSheetContent {
+    #debugSheetContent, #autoDebugContent {
       flex: 1; overflow-y: auto;
       padding: 0 16px 16px;
       font-family: 'SF Mono', Menlo, monospace; font-size: 11px;
       color: var(--text-primary);
     }
-    #debugSheetContent pre {
+    #debugSheetContent pre, #autoDebugContent pre {
       background: var(--surface-alt);
       border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 10px;
-      font-size: 10px;
+      border-radius: 10px;
+      padding: 12px 14px;
+      font-size: 11px;
       overflow-x: auto;
       white-space: pre-wrap;
       word-break: break-all;
-      line-height: 1.5;
+      line-height: 1.6;
+      color: var(--text-primary);
     }
-    #debugSheetContent .debug-label {
+    #debugSheetContent .debug-label, #autoDebugContent .debug-label {
       font-size: 11px; font-weight: 600;
       color: var(--accent);
-      margin-bottom: 4px; margin-top: 12px;
+      margin-bottom: 5px; margin-top: 14px;
+      letter-spacing: 0.03em;
     }
-    #debugSheetContent .debug-label:first-child { margin-top: 0; }
+    #debugSheetContent .debug-label:first-child, #autoDebugContent .debug-label:first-child { margin-top: 0; }
     .debug-round-block {
       background: var(--surface-alt);
       border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 10px;
+      border-radius: 10px;
+      padding: 12px 14px;
       margin-bottom: 8px;
     }
     .debug-round-block .round-header {
       font-weight: 600; font-size: 11px;
       color: var(--accent);
-      margin-bottom: 4px;
+      margin-bottom: 5px;
     }
     .debug-round-block .round-step {
       font-size: 10px; color: var(--text-secondary);
-      margin: 2px 0;
+      margin: 3px 0;
     }
     .debug-round-block .round-tts {
       font-size: 10px; color: var(--text-tertiary);
     }
+    /* Debug sticky header + copy button */
+    .debug-header {
+      position: sticky; top: 0; z-index: 5;
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 8px;
+      background: var(--surface);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      padding: 8px 16px;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .copy-raw-btn {
+      display: flex; align-items: center; gap: 5px;
+      background: var(--surface-alt);
+      border: 1px solid var(--border);
+      color: var(--text-secondary);
+      border-radius: 9px;
+      padding: 6px 12px;
+      font-size: 12px; font-weight: 500;
+      font-family: inherit;
+      cursor: pointer;
+      min-height: 34px;
+      transition: var(--transition);
+    }
+    .copy-raw-btn:hover { color: var(--accent); border-color: var(--accent); background: var(--accent-subtle); }
+    /* JSON syntax highlighting */
+    .jv-key { color: var(--accent); }
+    .jv-string { color: var(--success); }
+    .jv-number { color: #ff9f0a; }
+    .jv-bool { color: #bf5af2; font-weight: 600; }
+    .jv-null { color: var(--text-tertiary); font-style: italic; }
 
     /* === BOTTOM SHEET MODALS === */
     .sheet-overlay {
@@ -1022,26 +1328,34 @@
       <button class="sheet-close" onclick="cancelAdd()">✕</button>
     </div>
     <div class="sheet-body">
+      <label data-i18n="labelTrigger"></label>
       <div id="addTriggersBox"></div>
-      <div style="display:flex;gap:8px;margin-bottom:12px;">
-        <button class="sheet-btn secondary" style="flex:1;" onclick="addTriggerRow('add')">+ <span data-i18n="addTrigger"></span></button>
+      <button class="sheet-btn secondary" style="width:100%;margin-bottom:12px;" onclick="addTriggerRow('add')">+ <span data-i18n="addTrigger"></span></button>
+      <button type="button" class="adv-toggle-btn" id="addAdvToggle" onclick="toggleAdv('add')">
+        <span class="adv-caret">▶</span><span data-i18n="advOptions"></span>
+      </button>
+      <div class="adv-body" id="addAdvBody">
+        <div style="margin-bottom:12px;">
+          <label data-i18n="triggerLogicLabel"></label>
+          <select id="addLogicInput" class="sheet-input" onchange="updateLogicHint('add')">
+            <option value="and">AND</option>
+            <option value="or">OR</option>
+          </select>
+          <div style="font-size:11px;color:var(--text-tertiary);margin-top:4px;" id="addLogicHint"></div>
+        </div>
+        <div style="margin-bottom:12px;">
+          <label data-i18n="expressionLabel"></label>
+          <input id="addExpressionInput" class="sheet-input" data-i18n="placeholderExpression">
+          <div style="font-size:11px;color:var(--text-tertiary);margin-top:4px;" data-i18n="expressionHint"></div>
+        </div>
       </div>
-      <div style="margin-bottom:12px;">
-        <label data-i18n="expressionLabel"></label>
-        <input id="addExpressionInput" class="sheet-input" data-i18n="placeholderExpression">
-        <div style="font-size:11px;color:var(--text-tertiary);margin-top:4px;" data-i18n="expressionHint"></div>
+      <div class="oneshot-row">
+        <div>
+          <span class="os-label" data-i18n="oneShotLabel"></span>
+          <span class="os-sub" data-i18n="oneShotHint"></span>
+        </div>
+        <button type="button" class="form-toggle" id="addOneShotInput" onclick="this.classList.toggle('on')" role="switch" aria-checked="false"></button>
       </div>
-      <div style="margin-bottom:12px;">
-        <label data-i18n="triggerLogicLabel"></label>
-        <select id="addLogicInput" class="sheet-input">
-          <option value="or">OR (<span data-i18n="orOption"></span>)</option>
-          <option value="and">AND (<span data-i18n="andOption"></span>)</option>
-        </select>
-      </div>
-      <label style="display:flex;align-items:center;gap:8px;margin-bottom:12px;font-size:13px;color:var(--text-secondary);">
-        <input type="checkbox" id="addOneShotInput" style="width:18px;height:18px;">
-        <span data-i18n="oneShotLabel"></span>
-      </label>
       <div>
         <label data-i18n="labelAction"></label>
         <textarea id="addPromptInput" class="sheet-input" rows="2" data-i18n="placeholderAction" style="resize:none;"></textarea>
@@ -1081,26 +1395,34 @@
       <button class="sheet-close" onclick="cancelEdit()">✕</button>
     </div>
     <div class="sheet-body">
+      <label data-i18n="labelTrigger"></label>
       <div id="editTriggersBox"></div>
-      <div style="display:flex;gap:8px;margin-bottom:12px;">
-        <button class="sheet-btn secondary" style="flex:1;" onclick="addTriggerRow('edit')">+ <span data-i18n="addTrigger"></span></button>
+      <button class="sheet-btn secondary" style="width:100%;margin-bottom:12px;" onclick="addTriggerRow('edit')">+ <span data-i18n="addTrigger"></span></button>
+      <button type="button" class="adv-toggle-btn" id="editAdvToggle" onclick="toggleAdv('edit')">
+        <span class="adv-caret">▶</span><span data-i18n="advOptions"></span>
+      </button>
+      <div class="adv-body" id="editAdvBody">
+        <div style="margin-bottom:12px;">
+          <label data-i18n="triggerLogicLabel"></label>
+          <select id="editLogicInput" class="sheet-input" onchange="updateLogicHint('edit')">
+            <option value="and">AND</option>
+            <option value="or">OR</option>
+          </select>
+          <div style="font-size:11px;color:var(--text-tertiary);margin-top:4px;" id="editLogicHint"></div>
+        </div>
+        <div style="margin-bottom:12px;">
+          <label data-i18n="expressionLabel"></label>
+          <input id="editExpressionInput" class="sheet-input" data-i18n="placeholderExpression">
+          <div style="font-size:11px;color:var(--text-tertiary);margin-top:4px;" data-i18n="expressionHint"></div>
+        </div>
       </div>
-      <div style="margin-bottom:12px;">
-        <label data-i18n="expressionLabel"></label>
-        <input id="editExpressionInput" class="sheet-input" data-i18n="placeholderExpression">
-        <div style="font-size:11px;color:var(--text-tertiary);margin-top:4px;" data-i18n="expressionHint"></div>
+      <div class="oneshot-row">
+        <div>
+          <span class="os-label" data-i18n="oneShotLabel"></span>
+          <span class="os-sub" data-i18n="oneShotHint"></span>
+        </div>
+        <button type="button" class="form-toggle" id="editOneShotInput" onclick="this.classList.toggle('on')" role="switch" aria-checked="false"></button>
       </div>
-      <div style="margin-bottom:12px;">
-        <label data-i18n="triggerLogicLabel"></label>
-        <select id="editLogicInput" class="sheet-input">
-          <option value="or">OR (<span data-i18n="orOption"></span>)</option>
-          <option value="and">AND (<span data-i18n="andOption"></span>)</option>
-        </select>
-      </div>
-      <label style="display:flex;align-items:center;gap:8px;margin-bottom:12px;font-size:13px;color:var(--text-secondary);">
-        <input type="checkbox" id="editOneShotInput" style="width:18px;height:18px;">
-        <span data-i18n="oneShotLabel"></span>
-      </label>
       <div>
         <label data-i18n="labelAction"></label>
         <textarea id="editInput" class="sheet-input" rows="2" data-i18n="editPromptPlaceholder" style="resize:none;"></textarea>
@@ -1116,9 +1438,9 @@
 <div id="debugSheet" class="sheet-overlay" onclick="if(event.target===this)this.classList.remove('open')">
   <div class="sheet" onclick="event.stopPropagation()">
     <div class="sheet-handle"></div>
-    <div class="sheet-header">
+    <div class="debug-header">
       <span class="sheet-title">Debug</span>
-      <button class="sheet-close" onclick="document.getElementById('debugSheet').classList.remove('open')">✕</button>
+      <button class="copy-raw-btn" id="debugCopyRawBtn" onclick="copyRawLog('debug')">📋 <span data-i18n="copyRaw"></span></button>
     </div>
     <div id="debugSheetContent">
       <span data-i18n="noDebugData"></span>
@@ -1130,9 +1452,9 @@
 <div id="autoDebugSheet" class="sheet-overlay" onclick="if(event.target===this)this.classList.remove('open')">
   <div class="sheet" onclick="event.stopPropagation()">
     <div class="sheet-handle"></div>
-    <div class="sheet-header">
+    <div class="debug-header">
       <span class="sheet-title">🔧 <span data-i18n="autoDebugTitle"></span></span>
-      <button class="sheet-close" onclick="document.getElementById('autoDebugSheet').classList.remove('open')">✕</button>
+      <button class="copy-raw-btn" id="autoDebugCopyRawBtn" onclick="copyRawLog('auto')">📋 <span data-i18n="copyRaw"></span></button>
     </div>
     <div id="autoDebugContent">
       <span data-i18n="noDebugData"></span>
@@ -1198,7 +1520,7 @@ const LANGUAGES = {
     labelAction: 'Action',
     placeholderEntity: 'sensor.living_room_temperature',
     placeholderCondition: '>30',
-    placeholderAction: 'e.g., turn on input_boolean.air_conditioner',
+    placeholderAction: 'e.g., turn off living room TV / set AC to 26°C',
     placeholderMsg: 'Message...',
     deleteConfirm: 'Delete this automation?',
     enable: 'Enable',
@@ -1213,11 +1535,30 @@ const LANGUAGES = {
     reasoningPrefix: 'Reasoning (round ',
     reasoningSuffix: ')...',
     debugBtnTitle: 'Debug',
+    debug: 'Debug',
     copyLink: 'Copy link',
     linkCopied: 'Link copied!',
     voiceInputTitle: 'Voice input',
     sendTitle: 'Send',
     addTrigger: '+ Add trigger',
+    needTrigger: 'Please add at least one trigger (entity+condition or time).',
+    advOptions: 'Advanced options (logic / expression)',
+    labelTrigger: 'When',
+    trigTypeTime: '⏰ Time',
+    trigTypeDevice: '⚡ Device',
+    oneShotHint: 'Auto-removes after firing',
+    copyRaw: 'Copy',
+    copied: 'Copied!',
+    schedOnce: 'Once',
+    schedDaily: 'Every day',
+    schedWeekly: 'Weekly',
+    schedMonthly: 'Monthly',
+    acPick: 'Select',
+    everyDay: 'every day',
+    everyWeek: 'every week:',
+    everyMonth: 'day',
+    daySuffix: '',
+    monthDayHint: 'Tap + to add more days (e.g. 1st and 15th)',
     triggerLogicLabel: 'Trigger logic',
     oneShotLabel: 'One-shot (auto-remove after firing)',
     oneShotBadge: 'ONCE',
@@ -1234,6 +1575,7 @@ const LANGUAGES = {
     expressionLabel: 'Trigger expression (advanced)',
     placeholderExpression: 'e.g. (0 and 1) or 2',
     expressionHint: 'Trigger indexes: 0, 1, 2... Combine with AND/OR and parentheses. Leave empty to use the logic selector below.',
+    labelAction: 'What to do (Action)',
   },
   zh: {
     title: 'AI 聊天',
@@ -1276,10 +1618,10 @@ const LANGUAGES = {
     debugOutputDevice: '输出设备：',
     labelEntityId: '实体 ID（触发条件）',
     labelCondition: '触发条件',
-    labelAction: '执行动作',
+    labelAction: '执行什么动作',
     placeholderEntity: 'sensor.living_room_temperature',
     placeholderCondition: '>30',
-    placeholderAction: '例如 turn on input_boolean.air_conditioner',
+    placeholderAction: '例如：关闭客厅电视 / 打开空调到 26 度',
     placeholderMsg: '输入消息...',
     deleteConfirm: '确定删除此自动化？',
     enable: '启用',
@@ -1294,11 +1636,30 @@ const LANGUAGES = {
     reasoningPrefix: '推理中（第 ',
     reasoningSuffix: ' 轮）...',
     debugBtnTitle: '调试',
+    debug: '调试',
     copyLink: '复制链接',
     linkCopied: '链接已复制！',
     voiceInputTitle: '语音输入',
     sendTitle: '发送',
     addTrigger: '+ 添加触发条件',
+    needTrigger: '请至少添加一个触发条件（实体+条件或时间）。',
+    advOptions: '高级选项（逻辑 / 表达式）',
+    labelTrigger: '当',
+    trigTypeTime: '⏰ 定时',
+    trigTypeDevice: '⚡ 设备',
+    oneShotHint: '触发后自动删除',
+    copyRaw: '复制',
+    copied: '已复制！',
+    schedOnce: '一次性',
+    schedDaily: '每天',
+    schedWeekly: '每周',
+    schedMonthly: '每月',
+    acPick: '选择',
+    everyDay: '每天',
+    everyWeek: '每周',
+    everyMonth: '每月',
+    daySuffix: '号',
+    monthDayHint: '点 + 添加更多日期（如 1 号和 15 号）',
     triggerLogicLabel: '触发逻辑',
     oneShotLabel: '一次性（触发后自动删除）',
     oneShotBadge: '一次性',
@@ -1499,6 +1860,56 @@ function escapeHtml(str) {
   return div.innerHTML;
 }
 
+// JSON syntax highlighting: safe (escapes first, then wraps tokens in spans)
+function syntaxHighlight(jsonStr) {
+  const esc = escapeHtml(jsonStr);
+  return esc.replace(/("(?:\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(?:\s*:)?|\b(?:true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+-]?\d+)?)/g, (m) => {
+    let cls = 'jv-number';
+    if (m[0] === '"') {
+      cls = /:$/.test(m) ? 'jv-key' : 'jv-string';
+    } else if (/true|false/.test(m)) {
+      cls = 'jv-bool';
+    } else if (/null/.test(m)) {
+      cls = 'jv-null';
+    }
+    return '<span class="' + cls + '">' + m + '</span>';
+  });
+}
+
+// Copy raw log JSON to clipboard (sandbox iframe → use execCommand fallback)
+function copyRawLog(kind) {
+  let text = '';
+  if (kind === 'debug') {
+    text = lastDebugRaw;
+    try {
+      const ls = lastResponseRaw;
+      if (ls) text = ls;
+    } catch(e) {}
+  } else {
+    const id = document.getElementById('autoDebugSheet').dataset.automationId;
+    const a = getAutoById(id);
+    if (a) text = JSON.stringify(a, null, 2);
+  }
+  if (!text) { showToast('⚠️ ' + t('noDebugData')); return; }
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(() => showToast('✅ ' + t('copied')));
+    } else {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      showToast('✅ ' + t('copied'));
+    }
+  } catch(e) {
+    showToast('⚠️ ' + e.message);
+  }
+}
+
+let lastResponseRaw = '';
+
 function setStatus(text, ok) {
   const el = document.getElementById('statusText');
   el.textContent = text;
@@ -1606,7 +2017,7 @@ let _voiceBubbleEl = null;
 
 function startVoice(e) {
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SpeechRecognition) { alert(t('voiceNotSupported')); return; }
+  if (!SpeechRecognition) { showToast('⚠️ ' + t('voiceNotSupported')); return; }
   stopVoice();
   _voiceText = '';
   _voiceCancel = false;
@@ -1863,6 +2274,7 @@ document.getElementById('debugBtn').addEventListener('click', async () => {
     const ls = await callAPI('GET', '/api/states/' + getInstanceSensor('last_response'));
     if (ls && ls.attributes && ls.attributes.full_response) {
       freshRaw = ls.attributes.full_response;
+      lastResponseRaw = ls.attributes.full_response;
     }
   } catch(e) {}
   
@@ -1875,7 +2287,7 @@ document.getElementById('debugBtn').addEventListener('click', async () => {
       
       html += '<div class="debug-label">' + t('actions') + ' (' + steps.length + ')</div>';
       if (steps.length > 0) {
-        html += '<pre>' + escapeHtml(JSON.stringify(steps, null, 2)) + '</pre>';
+        html += '<pre>' + syntaxHighlight(JSON.stringify(steps, null, 2)) + '</pre>';
       } else {
         html += '<span style="font-size:12px;color:var(--text-tertiary);">' + t('noActionSpecified') + '</span>';
       }
@@ -1886,7 +2298,7 @@ document.getElementById('debugBtn').addEventListener('click', async () => {
           const ttsDisplay = r.tts_text || '' + t('debugSilent') + '';
           html += '<div class="debug-round-block">';
           html += '<div class="round-header">' + t('debugRound') + ' ' + r.round + '</div>';
-          html += '<div class="round-step">' + t('debugSteps') + ' ' + escapeHtml(JSON.stringify(r.steps, null, 2)) + '</div>';
+          html += '<div class="round-step">' + t('debugSteps') + ' ' + syntaxHighlight(JSON.stringify(r.steps, null, 2)) + '</div>';
           html += '<div class="round-tts">' + t('debugTts') + ' "' + escapeHtml(ttsDisplay) + '"' + (i < rounds.length - 1 ? ' ' + t('debugSilent') : '') + '</div>';
           if (r.output_device) {
             html += '<div class="round-tts">' + t('debugOutputDevice') + ' ' + escapeHtml(r.output_device) + '</div>';
@@ -1896,7 +2308,7 @@ document.getElementById('debugBtn').addEventListener('click', async () => {
       }
     } catch(e) {
       html += '<div class="debug-label">Raw</div>';
-      html += '<pre>' + escapeHtml(freshRaw) + '</pre>';
+      html += '<pre>' + syntaxHighlight(freshRaw) + '</pre>';
     }
   } else {
     html += '<span>' + t('noDebugData') + '</span>';
@@ -1915,7 +2327,13 @@ document.getElementById('debugBtn').addEventListener('click', async () => {
   sheet.classList.add('open');
 });
 document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape') document.getElementById('debugSheet').classList.remove('open');
+  if (e.key === 'Escape') {
+    document.getElementById('debugSheet').classList.remove('open');
+    document.getElementById('autoDebugSheet').classList.remove('open');
+    document.getElementById('addSheet').classList.remove('open');
+    document.getElementById('editSheet').classList.remove('open');
+    document.getElementById('confirmSheet').classList.remove('open');
+  }
 });
 
 // Resolve the sensor entity_id for the currently selected instance.
@@ -2119,12 +2537,24 @@ document.addEventListener('pointerdown', (e) => {
 });
 
 // Automations
-function triggerLabel(t) {
-  if (t && t.type === 'time') {
-    return '<code>time</code> <span>' + escapeHtml(t.time || '') + '</span>';
+function triggerLabel(trig) {
+  if (trig && trig.type === 'time') {
+    const sched = trig.schedule || (trig.datetime ? 'once' : 'daily');
+    if (sched === 'once') {
+      return '<code>time</code> <span>' + escapeHtml(trig.datetime || trig.time || '') + '</span>';
+    }
+    if (sched === 'weekly') {
+      const wd = (trig.weekdays || []).map(w => WEEKDAY_NAMES[w - 1] || w).join('、');
+      return '<code>time</code> <span>' + t('everyWeek') + (wd || t('everyDay')) + ' ' + escapeHtml(trig.time || '') + '</span>';
+    }
+    if (sched === 'monthly') {
+      const d = (trig.days_of_month || []).join('、');
+      return '<code>time</code> <span>' + t('everyMonth') + escapeHtml(d) + t('daySuffix') + ' ' + escapeHtml(trig.time || '') + '</span>';
+    }
+    return '<code>time</code> <span>' + t('everyDay') + ' ' + escapeHtml(trig.time || '') + '</span>';
   }
-  const eid = t && t.entity_id ? escapeHtml(t.entity_id) : '';
-  const cond = t && t.condition ? escapeHtml(t.condition) : '';
+  const eid = trig && trig.entity_id ? escapeHtml(trig.entity_id) : '';
+  const cond = trig && trig.condition ? escapeHtml(trig.condition) : '';
   return '<code>' + eid + '</code> <span>' + cond + '</span>';
 }
 
@@ -2165,7 +2595,9 @@ async function refreshAutomations() {
       }
       const promptEsc = (a.prompt || '').replace(/'/g, "\\'");
       const descEsc = (a.description || '').replace(/'/g, "\\'");
-      const actionSummary = a.description || a.prompt || t('noActionSpecified');
+      // Show the full action prompt (same value as the edit sheet's action
+      // field); description is only a fallback (it may be a truncated copy).
+      const actionSummary = a.prompt || a.description || t('noActionSpecified');
       const oneShotBadge = a.one_shot ? '<span class="auto-card-oneshot">' + t('oneShotBadge') + '</span>' : '';
       card.innerHTML = `
           <div class="auto-card-header">
@@ -2178,9 +2610,9 @@ async function refreshAutomations() {
           </div>
           <div class="auto-card-action"><span class="alabel">Action:</span><span class="avalue">${escapeHtml(actionSummary)}</span></div>
           <div class="auto-card-footer">
-            <button class="edit-btn" onclick="showEditSheet('${id}')">${t('edit')}</button>
-            <button class="delete-btn" onclick="showDeleteConfirm('${id}')">${t('delete')}</button>
-            <button class="debug-btn" onclick="showAutomationDebug('${id}')" title="${t('debugBtnTitle')}">🔧</button>
+            <button class="ac-debug" onclick="showAutomationDebug('${id}')" title="${t('debugBtnTitle')}">🔧 ${t('debug')}</button>
+            <button class="ac-neutral" onclick="showEditSheet('${id}')">✏️ ${t('edit')}</button>
+            <button class="ac-delete" onclick="showDeleteConfirm('${id}')">🗑 ${t('delete')}</button>
           </div>
       `;
       // Store full automation object for edit/debug
@@ -2234,26 +2666,183 @@ async function toggleAutomation(id) {
 let _addTriggerCount = 0;
 let _editTriggerCount = 0;
 
-function addTriggerRow(mode) {
+// Global entity index for autocomplete (entity_id → friendly name)
+let _entityIndex = [];
+
+async function ensureEntityIndex() {
+  if (_entityIndex.length > 0) return;
+  try {
+    const res = await callAPI('GET', '/api/states');
+    if (Array.isArray(res)) {
+      _entityIndex = res.map(s => ({
+        eid: s.entity_id,
+        name: (s.attributes && s.attributes.friendly_name) || ''
+      })).filter(x => x.eid);
+    }
+  } catch(e) {}
+}
+
+function setRowType(row, type) {
+  row.dataset.type = type;
+  const sched = row.querySelector('.trig-sched');
+  const deviceFields = row.querySelector('.trig-device-fields');
+  const btns = row.querySelectorAll('.trig-type-switch button');
+  btns.forEach(b => b.classList.toggle('active', b.dataset.tt === type));
+  if (sched) sched.style.display = type === 'time' ? 'block' : 'none';
+  if (deviceFields) deviceFields.style.display = type === 'device' ? 'flex' : 'none';
+}
+
+// ── Schedule-aware time row ────────────────────────────────────────────────
+const WEEKDAY_NAMES = ['一', '二', '三', '四', '五', '六', '日'];
+
+function syncSchedDisplay(row) {
+  const sel = row.querySelector('.sched-type-select');
+  const sched = sel ? sel.value : 'daily';
+  const timeWrap = row.querySelector('.sched-time-wrap');
+  const dtWrap = row.querySelector('.sched-datetime-wrap');
+  const wdWrap = row.querySelector('.sched-weekdays');
+  const mdWrap = row.querySelector('.sched-monthdays-wrap');
+  if (timeWrap) timeWrap.style.display = sched === 'once' ? 'none' : 'flex';
+  if (dtWrap) dtWrap.style.display = sched === 'once' ? 'flex' : 'none';
+  if (wdWrap) wdWrap.style.display = sched === 'weekly' ? 'flex' : 'none';
+  if (mdWrap) mdWrap.style.display = sched === 'monthly' ? 'block' : 'none';
+}
+
+function onSchedTypeChange(sel) {
+  syncSchedDisplay(sel.closest('.trig-sched').parentElement);
+}
+
+function toggleWdChip(btn) {
+  btn.classList.toggle('active');
+}
+
+function addMonthDay(row) {
+  const input = row.querySelector('.md-input');
+  const val = parseInt(input.value, 10);
+  if (!val || val < 1 || val > 31) { input.value = ''; return; }
+  const chips = row.querySelector('.md-chips');
+  const existing = [...chips.querySelectorAll('.md-chip')].map(c => parseInt(c.dataset.d, 10));
+  if (existing.includes(val)) { input.value = ''; return; }
+  const chip = document.createElement('span');
+  chip.className = 'md-chip';
+  chip.dataset.d = val;
+  chip.innerHTML = val + '<span class="md-x" onclick="this.parentElement.remove()">✕</span>';
+  chips.appendChild(chip);
+  input.value = '';
+  input.focus();
+}
+
+function addTriggerRow(mode, type) {
   const box = document.getElementById(mode + 'TriggersBox');
   if (!box) return;
   const countKey = mode + 'TriggerCount';
   const idx = window[countKey]++;
   const row = document.createElement('div');
   row.className = 'trigger-row';
+  row.dataset.type = type || 'device';
+  const tt = type || 'device';
   row.innerHTML = `
-      <span class="trig-index" data-idx="${idx}">${idx}</span>
-      <input class="sheet-input trig-entity" data-idx="${idx}" placeholder="${t('labelTriggerEntity')}" style="flex:1;min-width:0;">
-      <input class="sheet-input trig-cond" data-idx="${idx}" placeholder="${t('placeholderCondition')} e.g. >30" style="width:90px;flex-shrink:0;">
-      <button type="button" class="sheet-btn trig-del" onclick="this.closest('.trigger-row').remove()" style="flex-shrink:0;padding:4px 8px;">✕</button>
+      <div class="trig-row-head">
+        <span class="trig-index" data-idx="${idx}">${idx}</span>
+        <div class="trig-type-switch">
+          <button type="button" data-tt="time" class="${tt === 'time' ? 'active' : ''}" onclick="setRowType(this.closest('.trigger-row'),'time')">${t('trigTypeTime')}</button>
+          <button type="button" data-tt="device" class="${tt === 'device' ? 'active' : ''}" onclick="setRowType(this.closest('.trigger-row'),'device')">${t('trigTypeDevice')}</button>
+        </div>
+        <button type="button" class="trig-del" onclick="this.closest('.trigger-row').remove()">✕</button>
+      </div>
+      <div class="trig-sched" style="${tt === 'time' ? '' : 'display:none'}">
+        <div class="sched-top-row">
+          <select class="sched-type-select" onchange="onSchedTypeChange(this)">
+            <option value="once">${t('schedOnce')}</option>
+            <option value="daily">${t('schedDaily')}</option>
+            <option value="weekly">${t('schedWeekly')}</option>
+            <option value="monthly">${t('schedMonthly')}</option>
+          </select>
+          <input type="time" step="1" class="sched-time-input sched-time-wrap" placeholder="HH:MM:SS">
+          <input type="datetime-local" step="1" class="sched-datetime-input sched-datetime-wrap" style="display:none">
+        </div>
+        <div class="sched-weekdays" style="display:none">
+          ${WEEKDAY_NAMES.map((n, i) => `<button type="button" class="wd-chip" data-w="${i + 1}" onclick="toggleWdChip(this)">${n}</button>`).join('')}
+        </div>
+        <div class="sched-monthdays-wrap" style="display:none">
+          <div class="sched-monthdays">
+            <input type="number" class="md-input" min="1" max="31" placeholder="1-31">
+            <button type="button" class="md-add-btn" onclick="addMonthDay(this.closest('.trig-sched'))">+</button>
+          </div>
+          <div class="md-chips"></div>
+          <div class="sched-hint">${t('monthDayHint')}</div>
+        </div>
+      </div>
+      <div class="trig-device-fields" style="${tt === 'device' ? '' : 'display:none'}">
+        <div class="ent-autocomplete">
+          <input class="sheet-input trig-entity" data-idx="${idx}" placeholder="${t('labelTriggerEntity')}" autocomplete="off" oninput="onEntityInput(this)" onfocus="onEntityInput(this)" onblur="hideEntityList(this)">
+          <div class="ent-ac-list"></div>
+        </div>
+        <input class="sheet-input trig-cond" data-idx="${idx}" placeholder="${t('placeholderCondition')} e.g. >30">
+      </div>
   `;
   box.appendChild(row);
+  syncSchedDisplay(row);
+  return row;
+}
+
+function onEntityInput(input) {
+  ensureEntityIndex().then(() => {
+    const list = input.parentElement.querySelector('.ent-ac-list');
+    const q = (input.value || '').toLowerCase().trim();
+    if (!q) { list.classList.remove('show'); return; }
+    const matches = _entityIndex
+      .filter(x => x.eid.includes(q) || (x.name || '').toLowerCase().includes(q))
+      .slice(0, 8);
+    if (matches.length === 0) { list.classList.remove('show'); return; }
+    list.innerHTML = matches.map(m =>
+      `<div class="ent-ac-item" onmousedown="event.preventDefault();pickEntity(this)" data-eid="${escapeHtml(m.eid)}"><span><span class="eid">${escapeHtml(m.eid)}</span>${m.name ? '<span class="ename">' + escapeHtml(m.name) + '</span>' : ''}</span><span class="ac-pick">${t('acPick')}</span></div>`
+    ).join('');
+    list.classList.add('show');
+  });
+}
+
+function pickEntity(item) {
+  const input = item.closest('.ent-autocomplete').querySelector('.trig-entity');
+  input.value = item.dataset.eid;
+  const list = item.closest('.ent-ac-list');
+  if (list) list.classList.remove('show');  // hide immediately
+  const next = input.closest('.trigger-row').querySelector('.trig-cond');
+  if (next) next.focus();
+}
+
+function hideEntityList(input) {
+  const list = input && input.parentElement ? input.parentElement.querySelector('.ent-ac-list') : null;
+  if (list) setTimeout(() => list.classList.remove('show'), 120);
 }
 
 function collectTriggers(mode) {
   const box = document.getElementById(mode + 'TriggersBox');
   const triggers = [];
   box.querySelectorAll('.trigger-row').forEach(row => {
+    if (row.dataset.type === 'time') {
+      const sched = row.querySelector('.sched-type-select').value;
+      const timeVal = (row.querySelector('.sched-time-input').value || '').trim();
+      const dtVal = (row.querySelector('.sched-datetime-input').value || '').trim();
+      if (sched === 'once') {
+        if (dtVal) triggers.push({ type: 'time', schedule: 'once', datetime: dtVal.replace(/:00$/, '') });
+        return;
+      }
+      if (!timeVal) return;
+      // Normalize: drop trailing ":00" seconds for readability
+      const normTime = timeVal.replace(/:00$/, '');
+      const trig = { type: 'time', schedule: sched, time: normTime };
+      if (sched === 'weekly') {
+        const wd = [...row.querySelectorAll('.wd-chip.active')].map(c => parseInt(c.dataset.w, 10));
+        if (wd.length) trig.weekdays = wd;
+      }
+      if (sched === 'monthly') {
+        const md = [...row.querySelectorAll('.md-chip')].map(c => parseInt(c.dataset.d, 10));
+        if (md.length) trig.days_of_month = md;
+      }
+      triggers.push(trig);
+      return;
+    }
     const ent = row.querySelector('.trig-entity').value.trim();
     const cond = row.querySelector('.trig-cond').value.trim();
     if (ent && cond) {
@@ -2269,36 +2858,75 @@ function renderTriggerRows(mode, triggers) {
   box.innerHTML = '';
   window[mode + 'TriggerCount'] = 0;
   (triggers || []).forEach(trig => {
+    const row = addTriggerRow(mode, trig.type === 'time' ? 'time' : 'device');
     if (trig.type === 'time') {
-      // Time trigger row
-      const row = document.createElement('div');
-      row.className = 'trigger-row';
-      row.innerHTML = `
-          <input class="sheet-input trig-time" placeholder="${t('timeTrigger')}" value="${escapeHtml(trig.time || '')}" style="flex:1;min-width:0;">
-          <button type="button" class="sheet-btn trig-del" onclick="this.closest('.trigger-row').remove()" style="flex-shrink:0;padding:4px 8px;">✕</button>
-      `;
-      box.appendChild(row);
+      const sched = trig.schedule || (trig.datetime ? 'once' : 'daily');
+      row.querySelector('.sched-type-select').value = sched;
+      if (sched === 'once') {
+        // Keep seconds if present (YYYY-MM-DDTHH:MM:SS)
+        const dt = trig.datetime || '';
+        row.querySelector('.sched-datetime-input').value = dt.length > 19 ? dt.substring(0, 19) : dt;
+      } else {
+        row.querySelector('.sched-time-input').value = trig.time || '';
+      }
+      if (sched === 'weekly') {
+        (trig.weekdays || []).forEach(w => {
+          const btn = row.querySelector('.wd-chip[data-w="' + w + '"]');
+          if (btn) btn.classList.add('active');
+        });
+      }
+      if (sched === 'monthly') {
+        (trig.days_of_month || []).forEach(d => {
+          const chip = document.createElement('span');
+          chip.className = 'md-chip';
+          chip.dataset.d = d;
+          chip.innerHTML = d + '<span class="md-x" onclick="this.parentElement.remove()">✕</span>';
+          row.querySelector('.md-chips').appendChild(chip);
+        });
+      }
+      syncSchedDisplay(row);
     } else {
-      addTriggerRow(mode);
-      const rows = box.querySelectorAll('.trigger-row');
-      const row = rows[rows.length - 1];
       row.querySelector('.trig-entity').value = trig.entity_id || '';
       row.querySelector('.trig-cond').value = trig.condition || '';
     }
   });
-  if ((triggers || []).length === 0) addTriggerRow(mode);
+  if ((triggers || []).length === 0) addTriggerRow(mode, 'device');
+}
+
+// Advanced options collapsible
+function toggleAdv(mode) {
+  const btn = document.getElementById(mode + 'AdvToggle');
+  const body = document.getElementById(mode + 'AdvBody');
+  const open = body.classList.toggle('open');
+  btn.classList.toggle('open', open);
+}
+
+// Trigger logic hint (shown below the select, not inline in the option)
+function updateLogicHint(mode) {
+  const sel = document.getElementById(mode + 'LogicInput');
+  const hint = document.getElementById(mode + 'LogicHint');
+  if (!sel || !hint) return;
+  hint.textContent = sel.value === 'and' ? t('andOption') : t('orOption');
 }
 
 // Add automation bottom sheet
 function showAddSheet() {
   document.getElementById('addPromptInput').value = '';
-  document.getElementById('addLogicInput').value = 'or';
-  document.getElementById('addOneShotInput').checked = false;
+  document.getElementById('addLogicInput').value = 'and';
+  const os = document.getElementById('addOneShotInput');
+  os.classList.remove('on');
+  os.setAttribute('aria-checked', 'false');
   document.getElementById('addExpressionInput').value = '';
+  const advBody = document.getElementById('addAdvBody');
+  const advBtn = document.getElementById('addAdvToggle');
+  advBody.classList.remove('open');
+  advBtn.classList.remove('open');
   renderTriggerRows('add', [{ entity_id: '', condition: '' }]);
+  ensureEntityIndex();
   document.getElementById('addSheet').classList.add('open');
-  const first = document.querySelector('#addTriggersBox .trig-entity');
-  if (first) setTimeout(() => first.focus(), 100);
+  // Note: no auto-focus — focusing an empty entity input is fine, but focusing
+  // a pre-filled one would pop the autocomplete dropdown unexpectedly.
+  updateLogicHint('add');
 }
 
 async function confirmAdd() {
@@ -2306,22 +2934,25 @@ async function confirmAdd() {
   const triggers = collectTriggers('add');
   const prompt = document.getElementById('addPromptInput').value.trim();
   const logic = document.getElementById('addLogicInput').value;
-  const oneShot = document.getElementById('addOneShotInput').checked;
+  const oneShot = document.getElementById('addOneShotInput').classList.contains('on');
   const expression = document.getElementById('addExpressionInput').value.trim();
+  if (triggers.length === 0) {
+    showToast('⚠️ ' + t('needTrigger'));
+    return;
+  }
   sheet.classList.remove('open');
-  if (triggers.length === 0) return;
   const body = {
     triggers: triggers,
     trigger_logic: logic,
     one_shot: oneShot,
     prompt: prompt || t('noActionSpecified'),
-    description: prompt ? prompt.substring(0, 60) : t('autoPrefix') + triggers.map(x => x.entity_id).join('+')
+    description: prompt ? prompt.substring(0, 60) : t('autoPrefix') + triggers.map(x => x.entity_id || x.time).join('+')
   };
   if (expression) body.expression = expression;
   try {
     await callAPI('POST', '/api/services/llm_smart_assistant/create_automation', body);
     refreshAutomations();
-  } catch(e) { alert(t('errorPrefix') + e.message); }
+  } catch(e) { showToast('⚠️ ' + e.message); }
 }
 
 function cancelAdd() {
@@ -2344,12 +2975,21 @@ function showEditSheet(id) {
   const triggers = (a && a.triggers) || [{ entity_id: a && a.entity_id, condition: a && a.condition }];
   renderTriggerRows('edit', triggers);
   document.getElementById('editLogicInput').value = (a && a.trigger_logic) || 'or';
-  document.getElementById('editOneShotInput').checked = !!(a && a.one_shot);
+  const os = document.getElementById('editOneShotInput');
+  if (a && a.one_shot) { os.classList.add('on'); os.setAttribute('aria-checked', 'true'); }
+  else { os.classList.remove('on'); os.setAttribute('aria-checked', 'false'); }
   document.getElementById('editInput').value = (a && a.prompt) || '';
   document.getElementById('editExpressionInput').value = (a && a.expression) || '';
+  const advBody = document.getElementById('editAdvBody');
+  const advBtn = document.getElementById('editAdvToggle');
+  // Auto-open advanced when an expression is present
+  if (a && a.expression) { advBody.classList.add('open'); advBtn.classList.add('open'); }
+  else { advBody.classList.remove('open'); advBtn.classList.remove('open'); }
+  ensureEntityIndex();
   sheet.classList.add('open');
-  const first = document.querySelector('#editTriggersBox .trig-entity');
-  if (first) setTimeout(() => first.focus(), 100);
+  // No auto-focus on edit: the entity input already has a value, so focusing
+  // it would immediately pop the autocomplete dropdown.
+  updateLogicHint('edit');
 }
 
 async function confirmEdit() {
@@ -2357,11 +2997,14 @@ async function confirmEdit() {
   const id = sheet.dataset.automationId;
   const triggers = collectTriggers('edit');
   const logic = document.getElementById('editLogicInput').value;
-  const oneShot = document.getElementById('editOneShotInput').checked;
+  const oneShot = document.getElementById('editOneShotInput').classList.contains('on');
   const newPrompt = document.getElementById('editInput').value.trim();
   const expression = document.getElementById('editExpressionInput').value.trim();
+  if (triggers.length === 0 && !newPrompt) {
+    showToast('⚠️ ' + t('needTrigger'));
+    return;
+  }
   sheet.classList.remove('open');
-  if (triggers.length === 0 && !newPrompt) return;
   const body = { automation_id: id, trigger_logic: logic, one_shot: oneShot };
   if (triggers.length > 0) body.triggers = triggers;
   if (newPrompt) body.prompt = newPrompt;
@@ -2369,7 +3012,7 @@ async function confirmEdit() {
   try {
     await callAPI('POST', '/api/services/llm_smart_assistant/update_automation', body);
     refreshAutomations();
-  } catch(e) { alert(t('errorPrefix') + e.message); }
+  } catch(e) { showToast('⚠️ ' + e.message); }
 }
 
 function cancelEdit() {
@@ -2389,7 +3032,7 @@ async function confirmDelete() {
   try {
     await callAPI('POST', '/api/services/llm_smart_assistant/remove_automation', { automation_id: id });
     refreshAutomations();
-  } catch(e) { alert(t('errorPrefix') + e.message); }
+  } catch(e) { showToast('⚠️ ' + e.message); }
 }
 
 // ── Automation-specific debug sheet ─────────────────────────────────────────
@@ -2397,6 +3040,7 @@ async function showAutomationDebug(id) {
   const sheet = document.getElementById('autoDebugSheet');
   const content = document.getElementById('autoDebugContent');
   const a = getAutoById(id);
+  sheet.dataset.automationId = id;
   if (!a) { content.innerHTML = '<span>' + t('noDebugData') + '</span>'; sheet.classList.add('open'); return; }
   
   const triggers = a.triggers || [{ entity_id: a.entity_id, condition: a.condition }];
@@ -2407,9 +3051,9 @@ async function showAutomationDebug(id) {
     trigHtml = expr.replace(/\b(\d+)\b/g, (m) => {
       const idx = parseInt(m, 10);
       return triggers[idx] ? triggerLabel(triggers[idx]) : m;
-    }).replace(/\band\b/gi, '<b>AND</b>').replace(/\bor\b/gi, '<b>OR</b>');
+    }).replace(/\band\b/gi, '<b style="color:var(--accent);">AND</b>').replace(/\bor\b/gi, '<b style="color:var(--accent);">OR</b>');
   } else {
-    trigHtml = triggers.map(triggerLabel).join(logic === 'AND' ? ' <b>&amp;</b> ' : ' <b>|</b> ');
+    trigHtml = triggers.map(triggerLabel).join(logic === 'AND' ? ' <b style="color:var(--accent);">&amp;</b> ' : ' <b style="color:var(--accent);">|</b> ');
   }
   
   let html = '';

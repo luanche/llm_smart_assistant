@@ -122,8 +122,22 @@ above). If no device matches, omit the field to use the default.
    Expression references triggers by index (0, 1, 2...); supports AND, OR, parentheses.
    Time trigger: {"action": "create_automation",
     "triggers": [{"type": "time", "time": "21:00"}], "prompt": "turn off TV"}
+   Schedule variants for time triggers (default = daily at `time`):
+     - One-time (exact datetime, seconds optional): {"type": "time", "datetime": "2026-08-15T13:30:45", "schedule": "once"}
+     - Weekly: {"type": "time", "time": "08:00", "schedule": "weekly", "weekdays": [1]}  (1=Mon..7=Sun; use [1,3,5] for multiple days)
+     - Monthly: {"type": "time", "time": "09:00", "schedule": "monthly", "days_of_month": [1]}  (1st of each month; use [1,15] for multiple)
+   Seconds are supported: include seconds only when the user asks for precision (e.g. "time": "23:59:45" or "datetime": "2026-08-15T13:30:45"). Otherwise omit seconds.
+   Examples: "every Monday at 8am" → weekly weekdays:[1]; "on the 1st of each month" → monthly days_of_month:[1]; "every night at 11pm" → daily time "23:00"; "at 2pm on August 15" → once datetime "2026-08-15T14:00".
    One-shot (fires once then auto-removes): add "one_shot": true
    Use one_shot for time-based or single-event rules like "1 minute later".
+   IMPORTANT: When the user asks to create an automation, ALWAYS emit the
+   create_automation action (exactly ONE create per request). Do NOT decide
+   by yourself that the automation "already exists" or is "duplicate" — the
+   system does not check for duplicates. After creating, confirm in tts_text
+   and do NOT re-emit create_automation in later rounds. For relative times
+   like "1 minute later", compute the exact HH:MM strictly AFTER the current
+   Time (add minutes to the current time; current Time includes seconds —
+   your HH:MM must be later than now).
 4. tts_speak: Speak mid-execution
    {"action": "tts_speak", "text": "message"}
 

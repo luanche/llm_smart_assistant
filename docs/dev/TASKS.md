@@ -140,6 +140,41 @@
   - dev 环境: 新增 7 个 input_boolean + 3 个 input_number + 3 个 template sensor（烟雾/CO2/窗户开度），dashboard 增加"传感器(新)/环境"卡片与自动化调试板块
   - 测试覆盖: OR one-shot 自毁 ✓、AND 条件全满足才触发 ✓、时间触发准时+每日重复 ✓、执行记录持久化 ✓、旧格式兼容 ✓、LLM 端到端多触发创建 ✓、复合表达式 `(0 and 1) or 2` 三分支触发 ✓、UI 全流程（创建/编辑/调试弹窗/一次性自毁）✓
 
+### Task 7b: 自动化完整回归测试 + 缺陷修复（2026-08-01）
+- **类型**: fix | **产物**: `docs/dev/AUTOMATION_TEST_PLAN.md`（用例计划）、`docs/dev/TEST_REPORT.md`（报告）、`.pi/skills/llm-test/automation_test_suite.py`（可执行套件）
+- **覆盖**: 72 用例全过（A 创建 14 / B 触发 15 / C 一次性 5 / D 管理 14 / E LLM 创建 7 / F 持久化 5 / G UI 12）
+- **修复的产品 Bug（3）**:
+  1. 纯 time 触发永不触发——`_evaluate_all_entity_triggers` 对 time-only 自动化返回 False（time trigger 在 `_trigger_satisfied` 恒 False）；修复：无 entity trigger 时直接返回 True
+  2. LLM "一分钟后"生成过去时间（忽略秒）→ 定时排到明天；修复：HARDCODED prompt 强调相对时间必须严格晚于当前 Time
+  3. LLM 幻觉"自动化已存在"（据 `sensor.llm_last_input` 推断）拒绝创建；修复：prompt 明确"用户要求创建时必须输出 create_automation，系统不查重"
+- **修复的 UI 缺陷（3）**:
+  4. `collectTriggers` 不处理 time 行 → 编辑 time 自动化崩溃；修复：time 行检测分支
+  5. 添加表单无 time 触发器入口；修复：`addTimeTriggerRow()` + "⏰ 添加定时触发"按钮（add/edit）
+  6. `alert()` 在 sandbox iframe 被忽略（allow-modals 未设置）→ 校验/错误提示不可见；修复：全部改用 `showToast()`，校验失败不关闭表单
+- **测试工具**: `automation_test_suite.py` 支持 `python3 ... A,B,C` 分组运行；WS auth 不带 id（HA 2026.7）；reset 用 stop→清空→start（防 shutdown 写回）
+- **状态**: ✅ 已完成（并入 v1.8.1 待发）
+
+### Task 7c: 定时计划扩展——完整时间 + 周期性任务（2026-08-01）
+- **类型**: feat | **分支**: `feat/schedule-time-triggers`（并入 v1.8.1 待发）
+- **功能**: time trigger 支持 `schedule`（once/daily/weekly/monthly）：
+  - **once**（一次性）：`datetime` 字段 "YYYY-MM-DDTHH:MM[:SS]"（年月日时分秒），触发后不再重复；无 schedule 但带 datetime 时自动推断为 once
+  - **daily**（每天）：`time` HH:MM，默认行为（向后兼容）
+  - **weekly**（每周）：`time` + `weekdays` [1=周一..7=周日]，多选（[1,3,5] = 每周一三五）
+  - **monthly**（每月）：`time` + `days_of_month` [1..31]，多选（[1,15] = 每月1号和15号）；无效日期（如31号在短月）自动顺延跳过
+- **实现**: `_compute_next_fire(trigger, now)` 计算下一次触发（weekly 扫描 7 天 / monthly 扫描 62 天边界）；`_register_time_trigger` 触发后按 schedule 重注册；无未来时间则停止（"schedule complete"）
+- **LLM prompt**: HARDCODED 增加 4 种 schedule 示例（"每个星期一早上8点"→weekly weekdays:[1] 等），DeepSeek 实测正确生成 weekly/monthly/daily
+- **UI**: 定时行加 schedule 选择器（一次性/每天/每周/每月）；每周显示 7 个星期 chips（一~日）；每月显示日期添加器（1-31 + chips）；一次性显示 datetime-local 原生选择器；卡片显示 "每周一 08:00" / "每月1号 09:00" / "每天 23:00" / 具体时间
+- **秒级精度**: time/datetime 输入加 `step=1`（原生控件支持秒选择）；`_compute_next_fire` 解析 `time` 的 "HH:MM:SS" 或独立 `second` 字段（0-59 校验）；once 的 datetime 支持秒；秒为 00 时自动裁剪（"23:00" 而非 "23:00:00"）；LLM prompt 注明仅用户要求精确秒时才输出秒；端到端验证 13:55:10.000 秒级触发 ✓
+- **UI 精修 v5**: 实体自动补全下拉独立层级（z-index 90 + blur(24px) + 双层阴影 + 选项"选择"提示 + 点击后立即隐藏）；原生 time/datetime 输入 `color-scheme: light dark`（暗黑主题原生 picker 跟随）；一次性标签改软胶囊 pill（10px / font-weight 400 / rounded-full / 琥珀色 bg 10% + text + border 30%）
+- **定时提醒（Task 7d）**: "1分钟后提醒我出门" 等提醒类请求 → once one-shot 自动化 + 触发时 LLM TTS 播报（"时间到了，该出门了！"）；增强：
+  1. LLM 偶发把 `one_shot` 放进 trigger 内 → 创建时提升到自动化顶层
+  2. LLM 输出 `time+schedule:once`（无 datetime）→ 按最近 HH:MM 触发一次（容错），once 永不重注册
+  3. ReAct 循环重复 create → 后端去重（同 triggers+prompt+description 复用已有 id，实测 8 个→1 个）
+  4. 提醒兜底：LLM 无动作且无 TTS 时把 prompt 作为提醒播报（`_clean_reminder_text` 净化"提醒我"前缀）
+  5. prompt 注明"每次请求只创建一次，创建后确认不重复创建"
+- **修复**: `async_create_automation` 触发器过滤遗漏 `datetime` 字段（once 创建被拒）；`triggerLabel(t)` 参数名遮蔽全局 i18n `t()`（time 分支报错）
+- **测试**: `_compute_next_fire` 单元测试 14 场景全过（daily 今天/明天、weekly 周几+今天、monthly 跨月+31号短月、once 未来/已过/今天）；once 端到端触发（13:43 准时 + schedule complete）；LLM 创建三种周期自动化 ✓；UI 表单各 schedule 模式 + 编辑回填 ✓；回归 29/29 ✓
+
 ---
 
 ## ⚙️ 配置与多实例

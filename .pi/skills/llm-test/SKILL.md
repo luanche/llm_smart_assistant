@@ -144,6 +144,46 @@ curl -s -X POST "http://localhost:8123/api/services/input_select/select_option" 
 
 ---
 
+## 1.5️⃣ 自动化完整测试套件
+
+> 用例计划: `docs/dev/AUTOMATION_TEST_PLAN.md` | 报告: `docs/dev/TEST_REPORT.md`
+
+```bash
+# 分组运行（A 创建 / B 触发 / C 一次性 / D 管理 / E LLM 创建 / F 持久化）
+python3 .pi/skills/llm-test/automation_test_suite.py A,B,C,D
+python3 .pi/skills/llm-test/automation_test_suite.py E    # 含 stop→清空→start 重置，~5 分钟
+python3 .pi/skills/llm-test/automation_test_suite.py F    # 含重启，~1 分钟
+
+# 全部
+python3 .pi/skills/llm-test/automation_test_suite.py A,B,C,D,E,F
+```
+
+要点：
+- **E 组前必须清空 history**（LLM 会记住之前的"创建自动化"请求并拒绝重复——脚本内自动处理）
+- 清空 storage 用 `docker compose stop → 改文件 → start`，不能用 restart（coordinator shutdown 会把内存 history 写回）
+- WS auth 消息不带 `id` 字段（HA 2026.7 要求）
+- UI 层（G 组）用 Playwright 手测：`/llm-chat` → 自动化 tab → 添加/编辑/删除/🔧 debug/开关
+
+### 定时计划（schedule）测试要点
+
+time trigger 支持 4 种 schedule（Task 7c，v1.8.1）：
+
+| schedule | 字段 | 示例 |
+|----------|------|------|
+| once（一次性） | `datetime` "YYYY-MM-DDTHH:MM" | `{"type":"time","datetime":"2026-08-15T13:30"}` |
+| daily（每天） | `time` "HH:MM" | `{"type":"time","time":"23:00"}`（默认） |
+| weekly（每周） | `time` + `weekdays` [1=周一..7=周日] | `{"time":"08:00","schedule":"weekly","weekdays":[1]}` |
+| monthly（每月） | `time` + `days_of_month` [1..31] | `{"time":"09:00","schedule":"monthly","days_of_month":[1]}` |
+
+- LLM 自然语言："每个星期一早上8点启动扫地机器人" → weekly；"每月1号上午9点打开车库门" → monthly；"每天晚上11点关闭空调" → daily
+- once 已过时间不注册（日志 `no future occurrence`）；once 触发后不重复（`no next occurrence, schedule complete`）
+- **秒级精度**：`time` 支持 "HH:MM:SS" 或独立 `second` 字段；`datetime` 支持秒；UI 输入 `step=1` 可选秒；秒为 00 自动裁剪
+- **定时提醒**："1分钟后提醒我出门" → once one-shot + 触发时 TTS 播报；LLM 可能把 `one_shot` 放 trigger 内（自动提升顶层）、生成 `time+schedule:once` 无 datetime（按最近 HH:MM 触发一次）、ReAct 循环重复 create（后端去重）
+- monthly 31 号在短月自动顺延跳过（扫描 62 天）
+- 前端表单：定时行 schedule 选择器 + 星期 chips + 日期添加器 + datetime-local
+
+---
+
 ## 2️⃣ Dashboard
 
 路径: `http://localhost:8123/llm-devices`
