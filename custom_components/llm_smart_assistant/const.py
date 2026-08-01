@@ -25,13 +25,16 @@ CONF_TTS_MUTE_AFTER: Final = "tts_mute_after"
 CONF_TTS_MUTE_ENTITY_ID: Final = "tts_mute_entity_id"
 CONF_DOMAINS_WHITELIST: Final = "domains_whitelist"
 CONF_ENTITIES_WHITELIST: Final = "entities_whitelist"
-CONF_HISTORY_MODE: Final = "history_mode"  # "count" or "time"
+CONF_HISTORY_MODE: Final = "history_mode"  # legacy, migrated to count/time switches
 CONF_HISTORY_COUNT: Final = "history_count"
 CONF_HISTORY_TIME_WINDOW: Final = "history_time_window"  # in minutes
+CONF_HISTORY_COUNT_ENABLED: Final = "history_count_enabled"
+CONF_HISTORY_TIME_ENABLED: Final = "history_time_enabled"
 CONF_IGNORE_DUPLICATE: Final = "ignore_duplicate"
 CONF_ALLOW_AUTOMATION: Final = "allow_automation"
 CONF_HISTORY_ENABLED: Final = "history_enabled"
 CONF_DISABLED_AUTOMATIONS: Final = "disabled_automations"
+CONF_SHOW_PANEL: Final = "show_panel"
 
 # Default values
 DEFAULT_API_BASE_URL: Final = "https://api.openai.com/v1"
@@ -39,11 +42,14 @@ DEFAULT_MODEL_NAME: Final = "gpt-4o-mini"
 DEFAULT_TEMPERATURE: Final = 0.7
 DEFAULT_MAX_TOKENS: Final = 4096
 DEFAULT_HISTORY_ENABLED: Final = True
-DEFAULT_HISTORY_MODE: Final = "count"
+DEFAULT_HISTORY_MODE: Final = "count"  # legacy
 DEFAULT_HISTORY_COUNT: Final = 10
 DEFAULT_HISTORY_TIME_WINDOW: Final = 60  # 1 hour
+DEFAULT_HISTORY_COUNT_ENABLED: Final = True
+DEFAULT_HISTORY_TIME_ENABLED: Final = True
 DEFAULT_IGNORE_DUPLICATE: Final = True
 DEFAULT_ALLOW_AUTOMATION: Final = True
+DEFAULT_SHOW_PANEL: Final = True
 DEFAULT_TTS_SPEAK_VOLUME: Final = 0.5
 DEFAULT_TTS_MUTE_AFTER: Final = True
 

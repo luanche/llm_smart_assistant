@@ -23,8 +23,10 @@ from .const import (
     CONF_DOMAINS_WHITELIST,
     CONF_ENTITIES_WHITELIST,
     CONF_HISTORY_COUNT,
+    CONF_HISTORY_COUNT_ENABLED,
     CONF_HISTORY_ENABLED,
     CONF_HISTORY_MODE,
+    CONF_HISTORY_TIME_ENABLED,
     CONF_HISTORY_TIME_WINDOW,
     CONF_IGNORE_DUPLICATE,
     CONF_INPUT_ENTITIES,
@@ -32,6 +34,7 @@ from .const import (
     CONF_MODEL_NAME,
     CONF_PROMPT_AUTOMATION,
     CONF_PROMPT_DEFAULT,
+    CONF_SHOW_PANEL,
     CONF_TEMPERATURE,
     CONF_TTS_CUSTOM_TEMPLATE,
     CONF_TTS_ENTITY_ID,
@@ -42,14 +45,17 @@ from .const import (
     DEFAULT_ALLOW_AUTOMATION,
     DEFAULT_API_BASE_URL,
     DEFAULT_HISTORY_COUNT,
+    DEFAULT_HISTORY_COUNT_ENABLED,
     DEFAULT_HISTORY_ENABLED,
     DEFAULT_HISTORY_MODE,
+    DEFAULT_HISTORY_TIME_ENABLED,
     DEFAULT_HISTORY_TIME_WINDOW,
     DEFAULT_IGNORE_DUPLICATE,
     DEFAULT_MAX_TOKENS,
     DEFAULT_MODEL_NAME,
     DEFAULT_PROMPT_AUTOMATION,
     DEFAULT_PROMPT_DEFAULT,
+    DEFAULT_SHOW_PANEL,
     DEFAULT_TEMPERATURE,
     DEFAULT_TTS_SPEAK_VOLUME,
     DEFAULT_TTS_MUTE_AFTER,
@@ -204,8 +210,19 @@ class LLMSmartAssistantOptionsFlow(config_entries.OptionsFlow):
             self._data.update(user_input)
             return self.async_create_entry(title="", data=self._data)
 
-        cur = self.config_entry.options
-        dat = self.config_entry.data
+        cur = dict(self.config_entry.options)
+        dat = dict(self.config_entry.data)
+
+        # Migrate legacy history_mode selector ("count" / "time") to the new
+        # independent count/time switches: keep both enabled by default.
+        if CONF_HISTORY_MODE in cur and CONF_HISTORY_COUNT_ENABLED not in cur:
+            legacy_mode = cur.get(CONF_HISTORY_MODE, HISTORY_MODE_COUNT)
+            if legacy_mode == HISTORY_MODE_COUNT:
+                cur[CONF_HISTORY_COUNT_ENABLED] = True
+                cur[CONF_HISTORY_TIME_ENABLED] = False
+            elif legacy_mode == HISTORY_MODE_TIME:
+                cur[CONF_HISTORY_COUNT_ENABLED] = False
+                cur[CONF_HISTORY_TIME_ENABLED] = True
 
         # Build domain list for whitelist
         domains = set([
@@ -313,20 +330,27 @@ class LLMSmartAssistantOptionsFlow(config_entries.OptionsFlow):
                 selector.BooleanSelector(),
 
                 # ── Conversation History ──
+                # Two independent switches (count / time) can be toggled separately
                 vol.Optional(CONF_HISTORY_ENABLED,
                     default=cur.get(CONF_HISTORY_ENABLED, DEFAULT_HISTORY_ENABLED)):
                 selector.BooleanSelector(),
-                vol.Optional(CONF_HISTORY_MODE,
-                    default=cur.get(CONF_HISTORY_MODE, DEFAULT_HISTORY_MODE)):
-                selector.SelectSelector(selector.SelectSelectorConfig(
-                    options=[HISTORY_MODE_COUNT, HISTORY_MODE_TIME],
-                )),
+                vol.Optional(CONF_HISTORY_COUNT_ENABLED,
+                    default=cur.get(CONF_HISTORY_COUNT_ENABLED, DEFAULT_HISTORY_COUNT_ENABLED)):
+                selector.BooleanSelector(),
                 vol.Optional(CONF_HISTORY_COUNT,
                     default=cur.get(CONF_HISTORY_COUNT, DEFAULT_HISTORY_COUNT)):
                 selector.NumberSelector(selector.NumberSelectorConfig(min=1, max=100, step=1, mode=selector.NumberSelectorMode.BOX)),
+                vol.Optional(CONF_HISTORY_TIME_ENABLED,
+                    default=cur.get(CONF_HISTORY_TIME_ENABLED, DEFAULT_HISTORY_TIME_ENABLED)):
+                selector.BooleanSelector(),
                 vol.Optional(CONF_HISTORY_TIME_WINDOW,
                     default=cur.get(CONF_HISTORY_TIME_WINDOW, DEFAULT_HISTORY_TIME_WINDOW)):
                 selector.NumberSelector(selector.NumberSelectorConfig(min=1, max=1440, step=1, mode=selector.NumberSelectorMode.BOX, unit_of_measurement="minutes")),
+
+                # ── AI Chat Panel ──
+                vol.Optional(CONF_SHOW_PANEL,
+                    default=cur.get(CONF_SHOW_PANEL, DEFAULT_SHOW_PANEL)):
+                selector.BooleanSelector(),
 
                 # ── Dynamic Automations ──
                 vol.Optional(CONF_DISABLED_AUTOMATIONS,

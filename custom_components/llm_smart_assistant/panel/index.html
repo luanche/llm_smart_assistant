@@ -1717,7 +1717,7 @@ document.getElementById('debugBtn').addEventListener('click', async () => {
   // Fetch latest response data from the sensor API (more reliable than lastDebugRaw)
   let freshRaw = lastDebugRaw;
   try {
-    const ls = await callAPI('GET', '/api/states/sensor.llm_last_response');
+    const ls = await callAPI('GET', '/api/states/' + getInstanceSensor('last_response'));
     if (ls && ls.attributes && ls.attributes.full_response) {
       freshRaw = ls.attributes.full_response;
     }
@@ -1758,7 +1758,7 @@ document.getElementById('debugBtn').addEventListener('click', async () => {
   
   // Show prompt LAST (less frequently needed)
   try {
-    const ds = await callAPI('GET', '/api/states/sensor.llm_debug_raw');
+    const ds = await callAPI('GET', '/api/states/' + getInstanceSensor('debug_raw'));
     if (ds && ds.attributes && ds.attributes.prompt) {
       html += '<div class="debug-label">Prompt</div>';
       html += '<pre>' + escapeHtml(ds.attributes.prompt) + '</pre>';
@@ -1772,11 +1772,38 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') document.getElementById('debugSheet').classList.remove('open');
 });
 
+// Resolve the sensor entity_id for the currently selected instance.
+// Falls back to legacy single-instance entity_ids when no injection data.
+function getInstanceSensor(role) {
+  if (window.CONFIGURED_INSTANCES && window.CONFIGURED_INSTANCES.length > 0) {
+    const found = window.CONFIGURED_INSTANCES.find(i => i.entry_id === currentInstanceId)
+      || window.CONFIGURED_INSTANCES[0];
+    if (found && found[role]) return found[role];
+  }
+  return role === 'debug_raw' ? 'sensor.llm_debug_raw' : 'sensor.llm_last_response';
+}
+
 // ── Instance discovery & custom dropdown ──
 async function discoverInstances() {
   try {
     const allEntries = await callAPI('GET', '/api/config/config_entries/entry');
-    const configs = allEntries.filter(e => e.domain === 'llm_smart_assistant');
+    let configs = allEntries.filter(e => e.domain === 'llm_smart_assistant');
+
+    // Filter out instances whose show_panel option is disabled (they are not
+    // meant to appear in the chat panel's instance dropdown).
+    // The config entries API does not expose options, so use the injected
+    // CONFIGURED_INSTANCES data when available.
+    if (window.CONFIGURED_INSTANCES && window.CONFIGURED_INSTANCES.length > 0) {
+      const hiddenIds = new Set(
+        window.CONFIGURED_INSTANCES
+          .filter(i => i.show_panel === false)
+          .map(i => i.entry_id)
+      );
+      if (hiddenIds.size > 0) {
+        configs = configs.filter(e => !hiddenIds.has(e.entry_id));
+      }
+    }
+
     const dropdown = document.getElementById('instanceDropdown');
     const menu = document.getElementById('instanceMenu');
     const nameEl = document.getElementById('instanceName');
@@ -2098,7 +2125,7 @@ async function sendMessage(fromVoice) {
     };
 
     // Subscribe FIRST so we don't miss state changes
-    subscribeEntity('sensor.llm_last_response', handleState);
+    subscribeEntity(getInstanceSensor('last_response'), handleState);
 
     // Small delay to let WS connect, THEN call the API
     await new Promise(r => setTimeout(r, 300));

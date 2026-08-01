@@ -44,16 +44,18 @@
           "domains_whitelist": "Allowed Domains",
           "entities_whitelist": "Allowed Entities",
           "allow_automation": "Allow Dynamic Automations",
-          "history_mode": "History Truncation Mode",
+          "history_enabled": "Enable Conversation History",
+          "history_count_enabled": "Limit by Message Count",
           "history_count": "Max Conversation Turns",
+          "history_time_enabled": "Limit by Time Window",
+          "history_time_window": "Time Window (minutes)",
+          "show_panel": "Show AI Chat panel in the sidebar",
           "temperature": "Temperature (0.0=precise, 2.0=creative)",
           "max_tokens": "Max Tokens (response length)",
-          "history_time_window": "Time Window (minutes)",
           "api_base_url": "api_base_url",
           "api_key": "api_key",
           "disabled_automations": "disabled_automations",
           "access_token": "AI Chat Access Token",
-          "history_enabled": "history_enabled",
           "model_name": "model_name"
         }
       }
@@ -65,12 +67,6 @@
         "standard": "Standard (TTS/Media Player)",
         "xiaomi_miot": "Xiaomi MIoT",
         "custom": "Custom Template"
-      }
-    },
-    "history_mode": {
-      "options": {
-        "count": "By Number of Messages",
-        "time": "By Time Window"
       }
     }
   },

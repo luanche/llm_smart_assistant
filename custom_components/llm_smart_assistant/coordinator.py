@@ -36,8 +36,10 @@ from .const import (
     CONF_DOMAINS_WHITELIST,
     CONF_ENTITIES_WHITELIST,
     CONF_HISTORY_COUNT,
+    CONF_HISTORY_COUNT_ENABLED,
     CONF_HISTORY_ENABLED,
     CONF_HISTORY_MODE,
+    CONF_HISTORY_TIME_ENABLED,
     CONF_HISTORY_TIME_WINDOW,
     CONF_IGNORE_DUPLICATE,
     CONF_INPUT_ENTITIES,
@@ -45,6 +47,7 @@ from .const import (
     CONF_MODEL_NAME,
     CONF_PROMPT_AUTOMATION,
     CONF_PROMPT_DEFAULT,
+    CONF_SHOW_PANEL,
     CONF_TEMPERATURE,
     CONF_TTS_CUSTOM_TEMPLATE,
     CONF_TTS_ENTITY_ID,
@@ -54,6 +57,9 @@ from .const import (
     CONF_TTS_MUTE_ENTITY_ID,
     DEFAULT_PROMPT_AUTOMATION,
     DEFAULT_PROMPT_DEFAULT,
+    DEFAULT_HISTORY_COUNT_ENABLED,
+    DEFAULT_HISTORY_TIME_ENABLED,
+    DEFAULT_SHOW_PANEL,
     DEFAULT_TTS_SPEAK_VOLUME,
     DEFAULT_TTS_MUTE_AFTER,
     HARDCODED_AUTOMATION_PROMPT,
@@ -331,8 +337,18 @@ class LLMSmartAssistantCoordinator:
         return self._options.get(CONF_HISTORY_ENABLED, True)
 
     @property
-    def history_mode(self) -> str:
-        return self._options.get(CONF_HISTORY_MODE, HISTORY_MODE_COUNT)
+    def history_count_enabled(self) -> bool:
+        # Legacy migration: if old history_mode selector is present and the new
+        # switches were never set, honor the legacy mode selection.
+        if CONF_HISTORY_MODE in self._options and CONF_HISTORY_COUNT_ENABLED not in self._options:
+            return self._options.get(CONF_HISTORY_MODE) == HISTORY_MODE_COUNT
+        return self._options.get(CONF_HISTORY_COUNT_ENABLED, DEFAULT_HISTORY_COUNT_ENABLED)
+
+    @property
+    def history_time_enabled(self) -> bool:
+        if CONF_HISTORY_MODE in self._options and CONF_HISTORY_TIME_ENABLED not in self._options:
+            return self._options.get(CONF_HISTORY_MODE) == HISTORY_MODE_TIME
+        return self._options.get(CONF_HISTORY_TIME_ENABLED, DEFAULT_HISTORY_TIME_ENABLED)
 
     @property
     def history_count(self) -> int:
@@ -341,6 +357,17 @@ class LLMSmartAssistantCoordinator:
     @property
     def history_time_window(self) -> int:
         return int(self._options.get(CONF_HISTORY_TIME_WINDOW, 60))
+
+    @property
+    def show_panel(self) -> bool:
+        """Whether the AI Chat sidebar panel should be shown for this instance."""
+        return self._options.get(CONF_SHOW_PANEL, DEFAULT_SHOW_PANEL)
+
+    @property
+    def title(self) -> str:
+        """Human-readable title of this config entry (instance name)."""
+        entry = self.hass.config_entries.async_get_entry(self._entry_id)
+        return entry.title if entry else ""
 
     @property
     def disabled_automations(self) -> list:
@@ -767,18 +794,23 @@ class LLMSmartAssistantCoordinator:
         )
 
     def _truncate_history(self) -> None:
-        """Truncate history: apply BOTH count AND time constraints."""
+        """Truncate history: apply enabled constraints independently.
+
+        - count_enabled + time_enabled (default): both constraints apply
+        - only one enabled: only that constraint applies
+        - both disabled: no truncation (keep full history)
+        """
         if not self.history_enabled:
             self._history = self._history[-1:]  # keep only current turn
             return
-        # Always apply count constraint
-        max_count = max(self.history_count, 1)
-        if len(self._history) > max_count:
-            self._history = self._history[-max_count:]
-        # Always apply time constraint
-        window_minutes = max(self.history_time_window, 1)
-        cutoff = dt_util.utcnow() - timedelta(minutes=window_minutes)
-        self._history = [m for m in self._history if m.timestamp >= cutoff]
+        if self.history_count_enabled:
+            max_count = max(self.history_count, 1)
+            if len(self._history) > max_count:
+                self._history = self._history[-max_count:]
+        if self.history_time_enabled:
+            window_minutes = max(self.history_time_window, 1)
+            cutoff = dt_util.utcnow() - timedelta(minutes=window_minutes)
+            self._history = [m for m in self._history if m.timestamp >= cutoff]
 
     def _build_messages_for_llm(
         self,
