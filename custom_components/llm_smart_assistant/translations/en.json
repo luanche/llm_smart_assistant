@@ -36,6 +36,7 @@
           "input_entities": "Input Sensor Entities",
           "ignore_duplicate": "Ignore Duplicate Inputs",
           "tts_entity_id": "TTS Target Entity",
+          "tts_entities": "Output Devices (multi-device routing)",
           "tts_mode": "TTS Mode",
           "tts_custom_template": "Custom TTS Template",
           "tts_speak_volume": "Speak Volume",

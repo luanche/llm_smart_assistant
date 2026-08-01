@@ -17,6 +17,20 @@ process_input:
       required: false
       selector:
         text:
+    source:
+      name: Input Source
+      description: "Input source marker ('voice' for chat UI voice input, '' otherwise)."
+      required: false
+      example: "voice"
+      selector:
+        text:
+    source_entity:
+      name: Source Device
+      description: "Entity ID of the device the user is speaking from (e.g. a microphone sensor). Used to route the TTS reply to the nearest output device."
+      required: false
+      example: "sensor.living_room_mic"
+      selector:
+        entity:
 
 create_automation:
   name: Create Automation

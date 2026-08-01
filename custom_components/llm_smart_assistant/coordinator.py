@@ -50,7 +50,9 @@ from .const import (
     CONF_SHOW_PANEL,
     CONF_TEMPERATURE,
     CONF_TTS_CUSTOM_TEMPLATE,
+    CONF_TTS_ENTITIES,
     CONF_TTS_ENTITY_ID,
+    CONF_TTS_INPUT_ENTITY,
     CONF_TTS_MODE,
     CONF_TTS_SPEAK_VOLUME,
     CONF_TTS_MUTE_AFTER,
@@ -457,8 +459,30 @@ class LLMSmartAssistantCoordinator:
         return self._options.get(CONF_IGNORE_DUPLICATE, True)
 
     @property
+    def tts_entities(self) -> list[str]:
+        """All configured output devices (Task 4b: multi-device routing).
+        Falls back to the legacy single tts_entity_id for backward compat."""
+        multi = self._options.get(CONF_TTS_ENTITIES, [])
+        if multi:
+            return [e for e in multi if e]
+        legacy = (
+            self._options.get(CONF_TTS_ENTITY_ID, "")
+            or self._data.get(CONF_TTS_ENTITY_ID, "")
+        )
+        return [legacy] if legacy else []
+
+    @property
     def tts_entity_id(self) -> str:
-        return self._options.get(CONF_TTS_ENTITY_ID, "")
+        """Default output device (first configured, else legacy single)."""
+        devices = self.tts_entities
+        if devices:
+            return devices[0]
+        return self._options.get(CONF_TTS_ENTITY_ID, "") or self._data.get(CONF_TTS_ENTITY_ID, "")
+
+    @property
+    def tts_input_entity(self) -> str:
+        """Input device currently speaking (for TTS routing)."""
+        return self._options.get(CONF_TTS_INPUT_ENTITY, "")
 
     @property
     def tts_mode(self) -> str:
@@ -692,11 +716,13 @@ class LLMSmartAssistantCoordinator:
         # Gather HA context
         now = dt_util.now()
         exposed_entities = self._get_exposed_entities_info()
+        output_devices = self._build_output_devices_info()
 
         context = {
             "time": now.strftime("%H:%M:%S"),
             "date": now.strftime("%Y-%m-%d"),
             "exposed_entities": exposed_entities,
+            "output_devices": output_devices,
             **kwargs,
         }
 
@@ -754,13 +780,58 @@ class LLMSmartAssistantCoordinator:
 
         return "\n".join(lines)
 
-    @staticmethod
-    def _get_area_name(entity_id: str) -> str:
-        """Get the area name for an entity, if available."""
-        # Area lookup requires registry access; return empty for now
-        # HA stores area in entity registry, accessible via:
-        # hass.data['entity_registry'].async_get(entity_id)?.area_id
-        return ""
+    def _get_area_name(self, entity_id: str) -> str:
+        """Get the area name for an entity, if available.
+
+        Uses the entity registry to resolve area_id, then the area registry
+        to get the human-readable area name."""
+        try:
+            registry = self.hass.data.get("entity_registry")
+            if registry is None:
+                return ""
+            entry = registry.async_get(entity_id)
+            if entry is None or not entry.area_id:
+                return ""
+            area_registry = self.hass.data.get("area_registry")
+            if area_registry is None:
+                return ""
+            area = area_registry.async_get_area(entry.area_id)
+            if area is None:
+                return ""
+            return area.name or ""
+        except Exception as exc:  # never break entity CSV building
+            _LOGGER.debug("area lookup failed for %s: %s", entity_id, exc)
+            return ""
+
+    def _build_output_devices_info(self) -> str:
+        """Build a compact list of configured output (TTS) devices with location.
+
+        Format: entity_id, friendly_name, area
+        Used to let the model pick the best device based on input location."""
+        devices = self.tts_entities
+        if not devices:
+            return "(none configured)"
+        lines = ["entity_id,name,area"]
+        for entity_id in devices:
+            state_obj = self.hass.states.get(entity_id)
+            friendly = ""
+            if state_obj:
+                friendly = state_obj.attributes.get("friendly_name", "")
+            area = self._get_area_name(entity_id)
+            lines.append(f"{entity_id},{friendly or entity_id},{area}")
+        return "\n".join(lines)
+
+    def _build_input_source_info(self, entity_id: str) -> str:
+        """Describe where the current user input comes from (device + area)."""
+        if not entity_id or entity_id in ("service_call", "chat_ui"):
+            return "AI Chat panel / API call"
+        area = self._get_area_name(entity_id)
+        state_obj = self.hass.states.get(entity_id)
+        friendly = ""
+        if state_obj:
+            friendly = state_obj.attributes.get("friendly_name", "")
+        label = friendly or entity_id
+        return f"{label} ({entity_id}) in area '{area}'" if area else f"{label} ({entity_id})"
 
     async def _async_query_llm_raw(
         self,
@@ -1053,6 +1124,9 @@ class LLMSmartAssistantCoordinator:
 
         # Expose entities list for system context
         exposed = self._build_exposed_entities_list()
+        # Task 4b: describe the input source (device + area) so the model can
+        # route the TTS reply to the most appropriate output device.
+        input_source = self._build_input_source_info(entity_id)
 
         # Multi-step reasoning loop
         iteration = 0
@@ -1064,6 +1138,7 @@ class LLMSmartAssistantCoordinator:
             max_iterations=max_iterations,
             timeout=timeout,
             exposed_entities=exposed,
+            input_source=input_source,
         )
         # Store for debug display
         self.last_prompt_messages = current_messages
@@ -1119,6 +1194,7 @@ class LLMSmartAssistantCoordinator:
                 "round": iteration,
                 "tts_text": tts_text,
                 "steps": steps,
+                "output_device": response.get("output_device", ""),
             })
 
             # If no steps, we're done
@@ -1268,8 +1344,10 @@ class LLMSmartAssistantCoordinator:
         should_tts = True
         if entity_id in ("service_call", "chat_ui"):
             should_tts = False
+        # Task 4b: route to the output device the LLM chose (if any).
+        output_device = self._output_device_from_rounds(all_rounds)
         if final_tts and should_tts:
-            await self._async_speak_tts(final_tts)
+            await self._async_speak_tts(final_tts, output_device=output_device)
 
         # Add only the FINAL assistant response to history (not intermediate rounds)
         self._add_to_history(
@@ -1299,6 +1377,18 @@ class LLMSmartAssistantCoordinator:
             "Reasoning completed: %d rounds, %d total steps, tts='%s'",
             iteration, len(all_steps_ever), final_tts[:100]
         )
+
+    def _output_device_from_rounds(self, rounds: list[dict]) -> str:
+        """Extract the output_device chosen by the LLM from reasoning rounds.
+
+        Returns the last non-empty output_device the model requested, or ""
+        if none was specified (fall back to the default device)."""
+        chosen = ""
+        for rnd in rounds:
+            dev = rnd.get("output_device") or ""
+            if dev and dev in self.tts_entities:
+                chosen = dev
+        return chosen
 
     def _build_exposed_entities_list(self) -> str:
         """Build a summary of available entities for the system prompt."""
@@ -1413,7 +1503,9 @@ class LLMSmartAssistantCoordinator:
 
         # Speak TTS if text is present
         if tts_text:
-            await self._async_speak_tts(tts_text)
+            await self._async_speak_tts(
+                tts_text, output_device=response.get("output_device", "")
+            )
 
         # Record execution for debug UI
         record["result"] = record["result"] or tts_text or (
@@ -1807,17 +1899,28 @@ class LLMSmartAssistantCoordinator:
                              "target": {"entity_id": s_obj.entity_id}}]
         return []
 
-    async def _async_speak_tts(self, text: str) -> None:
+    async def _async_speak_tts(self, text: str, output_device: str = "") -> None:
         """Speak text via the configured TTS mechanism.
+
+        Args:
+            text: The text to speak.
+            output_device: Optional entity_id of the target speaker
+                (Task 4b multi-device routing). Defaults to the first
+                configured device when empty.
+
         Tries to prevent speaker self-triggering (抢答) via:
         1. User-configured mute entity (media_player for volume control)
         2. Auto-detected DND switch
         3. Auto-detected sleep mode switch (fallback)
         """
-        if not text or not self.tts_entity_id:
-            return
+        # Resolve the target device: explicit routing wins, else default
+        if output_device and output_device in self.tts_entities:
+            tts_entity = output_device
+        else:
+            tts_entity = self.tts_entity_id
 
-        tts_entity = self.tts_entity_id
+        if not text or not tts_entity:
+            return
         media_domain = tts_entity.split(".")[0]
 
         # Collect mute mechanisms (only if user enabled anti-echo)

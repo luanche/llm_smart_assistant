@@ -92,6 +92,33 @@ template:
       - name: "室内湿度"                 # 随机 45~65%
 ```
 
+### 虚拟扬声器（TTS 多设备路由测试）
+
+> 本地 dev 集成（**不提交仓库**，已在 .gitignore）：`custom_components/virtual_speakers/`，在 `configuration.yaml` 用 `media_player: - platform: virtual_speakers` 加载。
+
+生成 3 个 media_player：
+
+| entity_id | 名称 | 建议区域 |
+|-----------|------|---------|
+| `media_player.ke_ting_yin_xiang` | 客厅音箱 | 客厅 (`ke_ting`) |
+| `media_player.wo_shi_yin_xiang` | 卧室音箱 | 卧室 (`wo_shi`) |
+| `media_player.chu_fang_yin_xiang` | 厨房音箱 | 厨房 (`chu_fang`) |
+
+每个实体接受 `play_media`（记录 `spoken_text` 属性，2 秒后回 idle），用于验证 Task 4b 多设备 TTS 路由：
+
+```bash
+# 给实体分配区域（WS API，id 必须递增）
+# config/entity_registry/update, entity_id=media_player.wo_shi_yin_xiang, area_id=wo_shi
+
+# 带来源设备调用（LLM 应选择同区域音箱）
+curl -s -X POST "http://localhost:8123/api/services/llm_smart_assistant/process_input" \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"text": "现在几点了", "source_entity": "sensor.test_voice_input", "entry_id": "<entry_id>"}'
+
+# 检查 TTS 落点
+docker logs hass-dev --since 60s 2>&1 | grep "TTS spoken"
+```
+
 ### 设备控制 API
 
 ```bash

@@ -42,6 +42,7 @@
           "input_entities": "输入传感器实体",
           "ignore_duplicate": "忽略重复输入",
           "tts_entity_id": "TTS 目标实体",
+          "tts_entities": "输出设备（多设备路由）",
           "tts_mode": "TTS 模式",
           "tts_custom_template": "自定义 TTS 模板",
           "tts_speak_volume": "播报音量",
