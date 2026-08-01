@@ -129,6 +129,7 @@ iframe 通过多个回退通道获取 HA 认证令牌：
 | `showAddSheet()`              | 打开添加自动化底部弹窗        |
 | `showEditSheet()`             | 打开编辑底部弹窗（实体/条件/动作）        |
 | `showDeleteConfirm()`         | 打开删除确认底部弹窗        |
+| `initHistory()`               | 加载聊天历史（recorder API，滚动到顶懒加载） |
 
 ---
 
@@ -207,3 +208,6 @@ python3 .pi/skills/i18n-audit/check.py --diff
 | WebSocket 订阅替代轮询                  | 实时推送 LLM 渐进回复，降低延迟与请求开销            |
 | LLM 格式使用 entity_id/condition/prompt | 简单、对 LLM 友好的结构                              |
 | 禁用移除监听器                          | 不同于标记检查，这能真正停止事件触发                 |
+| 历史记录读 HA recorder（不缓存）        | 重启后历史仍在；所有输入来源统一由 `sensor.llm_last_input` 记录（聊天面板/服务调用/语音传感器），与回复 sensor 合并成时间线 |
+| 历史过滤跳过中间轮次                    | recorder 对相同 state 去重，最终回复可能与上轮相同；用相邻去重而非 in_progress 过滤 |
+| 历史懒加载用 before 游标                | 时间倒序 + 游标分页，滚动到顶加载更早记录；游标需 URL 编码（`+` → 空格） |

@@ -1,6 +1,9 @@
 {
   "domain": "llm_smart_assistant",
   "name": "LLM Smart Assistant",
+  "after_dependencies": [
+    "recorder"
+  ],
   "codeowners": [
     "@luanche"
   ],

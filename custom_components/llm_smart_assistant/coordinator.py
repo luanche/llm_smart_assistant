@@ -157,6 +157,9 @@ class LLMSmartAssistantCoordinator:
     last_prompt_messages: list[dict[str, str]] = []
     in_progress: bool = False
     current_round: int = 0
+    last_input: str = ""
+    last_input_entity: str = ""
+    last_input_time: str = ""
 
     def __init__(
         self,
@@ -871,6 +874,18 @@ class LLMSmartAssistantCoordinator:
             user_text[:100],
         )
 
+        # Record the last user input (for sensor attributes / history display)
+        self.last_input = user_text
+        self.last_input_entity = entity_id
+        self.last_input_time = dt_util.now().isoformat()
+        # Mark processing as started and clear the previous response BEFORE
+        # notifying, otherwise the panel would see the stale last_response with
+        # in_progress=False and display the PREVIOUS reply as the new answer.
+        self.in_progress = True
+        self.current_round = 0
+        self.last_response = None
+        self._async_notify_listeners()
+
         start_time = asyncio.get_running_loop().time()
         max_iterations = MAX_REASONING_ITERATIONS
         timeout = REASONING_TIMEOUT
@@ -880,10 +895,6 @@ class LLMSmartAssistantCoordinator:
 
         # Expose entities list for system context
         exposed = self._build_exposed_entities_list()
-
-        # Set in_progress flag for sensor updates
-        self.in_progress = True
-        self.current_round = 0
 
         # Multi-step reasoning loop
         iteration = 0

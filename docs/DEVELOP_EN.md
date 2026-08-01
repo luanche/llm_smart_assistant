@@ -129,6 +129,7 @@ The iframe gets the HA auth token through multiple fallback channels:
 | `showAddSheet()`              | Open add-automation bottom sheet           |
 | `showEditSheet()`             | Open edit bottom sheet (entity, condition, action)        |
 | `showDeleteConfirm()`         | Open delete confirmation bottom sheet        |
+| `initHistory()`               | Load chat history (recorder API, lazy-loads older entries on scroll-to-top) |
 
 ---
 
@@ -206,3 +207,6 @@ Other services (`create_automation`, `remove_automation`, `get_automations`, `up
 | WebSocket subscription instead of polling        | Pushes progressive LLM replies in real time; lower latency, fewer requests  |
 | LLM format uses `entity_id`/`condition`/`prompt` | Simple, LLM-friendly structure for `create_automation`                      |
 | Disable removes listener                         | Unlike a flag check, this actually stops the event system from firing       |
+| History reads HA recorder (no cache)             | History survives restarts; all input sources recorded via `sensor.llm_last_input` (chat panel / service calls / voice sensors), merged with the response sensor into one timeline |
+| History skips intermediate rounds                | Recorder dedupes identical states, so the final reply may equal the last round; use consecutive-dedup instead of in_progress filtering |
+| History lazy-loads via `before` cursor           | Newest-first with cursor pagination; scroll-to-top loads older entries; cursor must be URL-encoded (`+` → space) |

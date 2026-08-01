@@ -1454,6 +1454,53 @@ function subscribeEntity(entityId, onChange, onDone) {
   return close;
 }
 
+// Subscribe to MULTIPLE entities over one WS connection.
+// onEvent(entityId, newState) fires for every matching state change.
+function subscribeEntities(entityIds, onEvent, onDone) {
+  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const wsUrl = protocol + '//' + window.location.host + '/api/websocket';
+  let ws, closed = false, subId = 0;
+
+  function close() {
+    closed = true;
+    if (ws) try { ws.close(); } catch(e) {}
+    ws = null;
+  }
+
+  if (!accessToken) {
+    if (onDone) onDone();
+    return close;
+  }
+
+  const entitySet = new Set(entityIds);
+  ws = new WebSocket(wsUrl);
+  ws.onmessage = (event) => {
+    if (closed) return;
+    try {
+      const msg = JSON.parse(event.data);
+      if (msg.type === 'auth_required') {
+        ws.send(JSON.stringify({ type: 'auth', access_token: accessToken }));
+      } else if (msg.type === 'auth_ok') {
+        subId = Date.now();
+        ws.send(JSON.stringify({ id: subId, type: 'subscribe_events', event_type: 'state_changed' }));
+      } else if (msg.type === 'result' && msg.id === subId) {
+        if (!msg.success) { close(); if (onDone) onDone(); }
+      } else if (msg.type === 'event' && msg.id === subId) {
+        const ev = msg.event;
+        if (ev && ev.data && ev.data.new_state && entitySet.has(ev.data.entity_id)) {
+          onEvent(ev.data.entity_id, ev.data.new_state);
+        }
+      }
+    } catch(e) {}
+  };
+  ws.onerror = () => {};
+  ws.onclose = () => {
+    if (!closed && onDone) onDone();
+  };
+
+  return close;
+}
+
 // Voice input - hold to speak (press & hold to record, release to send)
 let _voiceText = '';
 let _voiceStartY = 0;
@@ -1783,6 +1830,94 @@ function getInstanceSensor(role) {
   return role === 'debug_raw' ? 'sensor.llm_debug_raw' : 'sensor.llm_last_response';
 }
 
+// ── Chat history (lazy-loaded from HA recorder via /history API) ──
+let historyBefore = '';       // ISO cursor for the next (older) page
+let historyHasMore = false;
+let historyLoading = false;
+let historyLoaded = false;
+
+function initHistory() {
+  const container = document.getElementById('chatContainer');
+  if (!container) return;
+  loadHistoryPage('');
+  // Lazy-load older history when scrolled to the top
+  container.addEventListener('scroll', () => {
+    if (container.scrollTop < 30 && historyHasMore && !historyLoading && historyLoaded) {
+      loadHistoryPage(historyBefore);
+    }
+  });
+}
+
+async function loadHistoryPage(before) {
+  if (historyLoading) return;
+  historyLoading = true;
+  const container = document.getElementById('chatContainer');
+  const prevHeight = container ? container.scrollHeight : 0;
+  const prevTop = container ? container.scrollTop : 0;
+  try {
+    const inst = currentInstanceId || '';
+    const q = '/api/llm_smart_assistant/history?entry_id=' + encodeURIComponent(inst)
+      + '&limit=20' + (before ? '&before=' + encodeURIComponent(before) : '');
+    const data = await callAPI('GET', q);
+    const items = (data && data.items) || [];
+    historyHasMore = !!(data && data.has_more);
+    if (items.length > 0) {
+      historyBefore = items[items.length - 1].time; // oldest of this page
+      renderHistoryItems(items, before ? 'prepend' : 'append');
+    } else {
+      historyHasMore = false;
+    }
+    historyLoaded = true;
+    // Keep scroll position when prepending (user is at the top)
+    if (before && container) {
+      container.scrollTop = container.scrollHeight - prevHeight + prevTop;
+    }
+  } catch(e) {
+    historyHasMore = false;
+  } finally {
+    historyLoading = false;
+  }
+}
+
+function renderHistoryItems(items, mode) {
+  const container = document.getElementById('chatContainer');
+  if (!container) return;
+  const es = document.getElementById('emptyState');
+  if (es) es.style.display = 'none';
+
+  // items are newest-first; render in chronological order
+  const frag = document.createDocumentFragment();
+  for (let i = items.length - 1; i >= 0; i--) {
+    const it = items[i];
+    const div = document.createElement('div');
+    div.className = 'msg ' + it.role + ' history-msg';
+    const p = document.createElement('div');
+    p.className = 'msg-text';
+    p.textContent = it.text || t('noResponse');
+    div.appendChild(p);
+    const tm = document.createElement('div');
+    tm.className = 'msg-time';
+    tm.textContent = fmtTime(it.time);
+    div.appendChild(tm);
+    frag.appendChild(div);
+  }
+  if (mode === 'prepend') {
+    container.insertBefore(frag, container.firstChild);
+  } else {
+    container.appendChild(frag);
+    container.scrollTop = container.scrollHeight;
+  }
+}
+
+function fmtTime(iso) {
+  try {
+    const d = new Date(iso);
+    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  } catch(e) {
+    return '';
+  }
+}
+
 // ── Instance discovery & custom dropdown ──
 async function discoverInstances() {
   try {
@@ -1856,6 +1991,17 @@ function selectInstance(entryId, name) {
   });
   closeInstanceMenu();
   loadSuggestions();
+  // Reset and reload chat history for the newly selected instance
+  const container = document.getElementById('chatContainer');
+  if (container) {
+    container.querySelectorAll('.history-msg').forEach(el => el.remove());
+  }
+  historyBefore = '';
+  historyHasMore = false;
+  historyLoaded = false;
+  loadHistoryPage('');
+  // Resubscribe live updates for the newly selected instance
+  startGlobalSubscription();
 }
 
 function closeInstanceMenu() {
@@ -2046,6 +2192,58 @@ function suggest(text) {
   sendMessage();
 }
 
+// ── Global live subscription: show external inputs (voice sensors, service
+//    calls) and their replies in real time, without requiring a page refresh ──
+let _globalSubClose = null;
+let _globalLastInput = '';
+let _globalLastResp = '';
+// True while sendMessage() is awaiting the API (panel's own input already
+// renders its own user bubble, so the global handler must not duplicate it)
+let _sendingFromPanel = false;
+
+function startGlobalSubscription() {
+  // Tear down any previous subscription (e.g. when switching instances)
+  if (_globalSubClose) { try { _globalSubClose(); } catch(e) {} _globalSubClose = null; }
+  _globalLastInput = '';
+  _globalLastResp = '';
+
+  const respSensor = getInstanceSensor('last_response');
+  const inputSensor = getInstanceSensor('last_input');
+
+  _globalSubClose = subscribeEntities([respSensor, inputSensor], (entityId, state) => {
+    try {
+      const text = (state.state || '').trim();
+      if (!text || text === 'unavailable' || text === 'unknown') return;
+
+      if (entityId === inputSensor) {
+        // External user input (voice sensor, service call from elsewhere)
+        if (text !== _globalLastInput && !_sendingFromPanel) {
+          _globalLastInput = text;
+          hideLoad();
+          addMsg('user', text);
+        }
+      } else if (entityId === respSensor) {
+        const ip = state.attributes.in_progress !== false;
+        // Only show completed replies (and avoid re-showing while the panel
+        // itself is sending — sendMessage renders its own bubble)
+        if (!ip && text !== _globalLastResp && !_sendingFromPanel) {
+          _globalLastResp = text;
+          hideLoad();
+          const existing = document.getElementById('progMsg');
+          if (existing) {
+            const tp = existing.querySelector('.msg-text');
+            if (tp) tp.textContent = text;
+            existing.id = '';
+          } else {
+            addMsg('assistant', text);
+          }
+          setStatus(t('connected'));
+        }
+      }
+    } catch(e) {}
+  });
+}
+
 // Main send
 async function sendMessage(fromVoice) {
   const input = document.getElementById('inputField');
@@ -2062,6 +2260,7 @@ async function sendMessage(fromVoice) {
   addMsg('user', text);
   showLoad();
   setStatus(t('thinkingText'));
+  _sendingFromPanel = true;
 
   try {
     const inst = currentInstanceId;
@@ -2125,7 +2324,8 @@ async function sendMessage(fromVoice) {
     };
 
     // Subscribe FIRST so we don't miss state changes
-    subscribeEntity(getInstanceSensor('last_response'), handleState);
+    // Subscribe FIRST so we don't miss state changes
+    const closeSub = subscribeEntity(getInstanceSensor('last_response'), handleState);
 
     // Small delay to let WS connect, THEN call the API
     await new Promise(r => setTimeout(r, 300));
@@ -2137,6 +2337,7 @@ async function sendMessage(fromVoice) {
 
   loading = false;
   btn.disabled = false;
+  _sendingFromPanel = false;
 }
 
 // Apply i18n to all elements with data-i18n attribute
@@ -2226,6 +2427,9 @@ function applyI18n() {
     discoverInstances();
     loadSuggestions();
     initSwipe();
+    initHistory();
+    // Live updates for external inputs (voice sensors, service calls)
+    setTimeout(() => startGlobalSubscription(), 800);
     return;
   }
   
@@ -2237,6 +2441,8 @@ function applyI18n() {
     discoverInstances();
     loadSuggestions();
     initSwipe();
+    initHistory();
+    setTimeout(() => startGlobalSubscription(), 800);
   } else {
     document.getElementById('statusText').textContent = t('noToken');
     setStatus(t('tokenRequired'), false);

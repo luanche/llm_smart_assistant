@@ -32,10 +32,48 @@ async def async_setup_entry(
         async_add_entities([
             LLMLastResponseSensor(coordinator, config_entry.entry_id, title),
             LLMDebugRawSensor(coordinator, config_entry.entry_id, title),
+            LLMLastInputSensor(coordinator, config_entry.entry_id, title),
         ])
         _LOGGER.info("LLM Smart Assistant sensors added successfully")
     else:
         _LOGGER.error("Coordinator not found for entry %s", config_entry.entry_id)
+
+
+class LLMLastInputSensor(SensorEntity):
+    """Sensor showing the last user input text.
+
+    Updated whenever the coordinator processes any user input (chat panel,
+    service call, or voice input sensor). Its state history in the recorder is
+    the source for chat history user messages.
+    """
+
+    _attr_has_entity_name = True
+
+    def __init__(self, coordinator, entry_id: str, title: str = "") -> None:
+        """Initialize the sensor."""
+        self.coordinator = coordinator
+        self._attr_unique_id = f"{entry_id}_last_input"
+        self._attr_name = f"LLM Last Input ({title})" if title else "LLM Last Input"
+        self._attr_icon = "mdi:keyboard-outline"
+
+    async def async_added_to_hass(self) -> None:
+        """Register coordinator callback for automatic updates."""
+        self.async_on_remove(
+            self.coordinator.async_add_listener(self.async_write_ha_state)
+        )
+
+    @property
+    def state(self) -> str:
+        """Return the last user input text."""
+        return self.coordinator.last_input
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Return input source metadata."""
+        return {
+            "source_entity": self.coordinator.last_input_entity,
+            "input_time": self.coordinator.last_input_time,
+        }
 
 
 class LLMLastResponseSensor(SensorEntity):
@@ -74,6 +112,9 @@ class LLMLastResponseSensor(SensorEntity):
         attrs = {
             "in_progress": self.coordinator.in_progress,
             "round": self.coordinator.current_round,
+            "last_input": self.coordinator.last_input,
+            "last_input_entity": self.coordinator.last_input_entity,
+            "last_input_time": self.coordinator.last_input_time,
         }
         if self.coordinator.last_response:
             steps = self.coordinator.last_response.get("steps", [])

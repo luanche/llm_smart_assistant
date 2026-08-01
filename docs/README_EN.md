@@ -113,6 +113,7 @@ The built-in web UI provides:
 - **Instance Selector** — Custom dropdown to switch between multiple configured instances.
 - **Automations Tab** — View, create, edit, enable/disable, and delete automations (optimistic UI with instant feedback).
 - **Voice Input** — Hold 🎤 to speak, slide up to cancel.
+- **Chat History** — Automatically loads recent conversations on open (from HA recorder); scroll up to lazy-load older entries.
 - **Mobile Friendly** — Responsive layout, swipe left/right to switch tabs, one-tap copy link.
 
 ---
