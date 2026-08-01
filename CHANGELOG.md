@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.8.0
+
+- feat(tts): multi-device I/O routing — LLM picks nearest output device by input location
+
+
 ## v1.7.0
 
 - feat(automation): multi-trigger automations with boolean expressions, one-shot, execution records
