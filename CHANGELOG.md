@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.7.0
+
+- feat(automation): multi-trigger automations with boolean expressions, one-shot, execution records
+
+
 ## v1.6.0
 
 - fix: sort manifest keys alphabetically (hassfest)
