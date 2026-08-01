@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.10.0
+
+- style: trigger sheet grid layout, dark picker fix, invisible calendar overlay (v8)
+
+
 ## v1.9.0
 
 - feat: scheduled time triggers with reminders, mobile UX polish (v4/v5), automation test suite
