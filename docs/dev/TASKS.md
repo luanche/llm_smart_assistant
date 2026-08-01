@@ -209,6 +209,12 @@
 
 > 🎉 **全部 roadmap 任务已完成**，不再有剩余开放任务。后续需求以新 issue / 新 roadmap 形式提出。
 
+### 额外修复：HACS 商店图标缺失（brand/）
+- **现象**: HACS 商店里显示 "icon not available"——根目录缺 `brand/icon.png`
+- **原因**: HA 品牌 API 用 `custom_components/llm_smart_assistant/brand/`，而 HACS 商店从**仓库根目录** `brand/icon.png` 读图；根目录从未建过 brand 目录
+- **修复**: 从 integration 内 512px PNG 缩放生成根目录 `brand/icon.png`（128×128）+ `icon@2x.png`（256）+ `logo.png`（256）+ `logo@2x.png`（512）
+- **状态**: ✅ 完成（待发）
+
 | 顺序 | Task | 理由 |
 |------|------|------|
 | — | 全部任务已完成 | — |
