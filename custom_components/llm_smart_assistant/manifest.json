@@ -1,15 +1,15 @@
 {
   "domain": "llm_smart_assistant",
   "name": "LLM Smart Assistant",
+  "after_dependencies": [
+    "recorder"
+  ],
   "codeowners": [
     "@luanche"
   ],
   "config_flow": true,
   "dependencies": [
     "http"
-  ],
-  "after_dependencies": [
-    "recorder"
   ],
   "documentation": "https://github.com/luanche/llm_smart_assistant",
   "integration_type": "hub",
