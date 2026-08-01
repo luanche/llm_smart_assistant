@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.10.1
+
+- fix: add brand/icon.png at repo root so HACS store shows the icon
+
+
 ## v1.10.0
 
 - style: trigger sheet grid layout, dark picker fix, invisible calendar overlay (v8)
