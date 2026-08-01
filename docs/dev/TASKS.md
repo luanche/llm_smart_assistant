@@ -166,6 +166,12 @@
 - **UI**: 定时行加 schedule 选择器（一次性/每天/每周/每月）；每周显示 7 个星期 chips（一~日）；每月显示日期添加器（1-31 + chips）；一次性显示 datetime-local 原生选择器；卡片显示 "每周一 08:00" / "每月1号 09:00" / "每天 23:00" / 具体时间
 - **秒级精度**: time/datetime 输入加 `step=1`（原生控件支持秒选择）；`_compute_next_fire` 解析 `time` 的 "HH:MM:SS" 或独立 `second` 字段（0-59 校验）；once 的 datetime 支持秒；秒为 00 时自动裁剪（"23:00" 而非 "23:00:00"）；LLM prompt 注明仅用户要求精确秒时才输出秒；端到端验证 13:55:10.000 秒级触发 ✓
 - **UI 精修 v5**: 实体自动补全下拉独立层级（z-index 90 + blur(24px) + 双层阴影 + 选项"选择"提示 + 点击后立即隐藏）；原生 time/datetime 输入 `color-scheme: light dark`（暗黑主题原生 picker 跟随）；一次性标签改软胶囊 pill（10px / font-weight 400 / rounded-full / 琥珀色 bg 10% + text + border 30%）
+- **UI 精修 v8（多条件 Sheet 布局）**: 纯 CSS/JS 视觉层，零功能改动；
+  1. time/datetime 输入强制 `color-scheme: dark` + `appearance: none`（原生 picker 契合暗色、去除移动端默认外边框挤压）
+  2. 触发卡片内部全部改 grid：头部 `auto 1fr auto`（序号/类型切换/删除）、设备字段 `minmax(0,1fr) 96px`（条件框固定 96px 不再挤压）、sched 顶行 `auto 1fr`、星期 chips `repeat(7, 1fr)` 七列等宽（实测 56px×7）、月日行 `80px auto 1fr`
+  3. 自动补全下拉 z-index 90→120 + 阴影加深（0 20px 48px + 0 6px 16px）浮在所有卡片与按钮之上
+  4. 添加触发条件按钮改极简虚线（1px dashed + 透明底 + hover 蓝色边框）；标签统一 12px
+  5. 修 2 处行内 `style.display='flex'` 覆盖 grid（syncSchedDisplay 星期行、setRowType 设备字段）→ 改 'grid'；i18n-audit allowlist 加 'grid'
 - **定时提醒（Task 7d）**: "1分钟后提醒我出门" 等提醒类请求 → once one-shot 自动化 + 触发时 LLM TTS 播报（"时间到了，该出门了！"）；增强：
   1. LLM 偶发把 `one_shot` 放进 trigger 内 → 创建时提升到自动化顶层
   2. LLM 输出 `time+schedule:once`（无 datetime）→ 按最近 HH:MM 触发一次（容错），once 永不重注册
