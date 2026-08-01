@@ -59,7 +59,11 @@ ALLOWED_HARDCODED = {
     "cancel-approaching", "cancel-state", "instance-option",
     "slide-auto", "slide-chat", "voice-bubble",
     # CSS / events
-    "block", "show", "pointerdown", "touchend", "touchstart",
+    "block", "show", "pointerdown", "touchend", "touchstart", "scroll",
+    # HA state values
+    "unavailable", "unknown",
+    # DOM insert modes (JS string args, not UI text)
+    "append", "prepend",
     # CSS classes / state values
     "disabled",
     # WebSocket protocol message types

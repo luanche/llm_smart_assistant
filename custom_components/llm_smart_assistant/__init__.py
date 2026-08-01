@@ -11,6 +11,7 @@ import hashlib
 import json
 import logging
 import pathlib
+from datetime import timedelta
 from typing import Any
 
 import voluptuous as vol
@@ -21,6 +22,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant, SupportsResponse
 from homeassistant.helpers import config_validation as cv
+from homeassistant.util import dt as dt_util
 from homeassistant.helpers.entity_registry import async_get as async_get_entity_registry
 
 from .const import DOMAIN, CONF_TEMPERATURE, CONF_MAX_TOKENS, CONF_API_BASE_URL, CONF_API_KEY, CONF_MODEL_NAME
@@ -475,11 +477,13 @@ async def _async_register_chat_panel(
                                 continue
                             last_resp = er.async_get_entity_id("sensor", DOMAIN, f"{eid}_last_response")
                             debug_raw = er.async_get_entity_id("sensor", DOMAIN, f"{eid}_debug_raw")
+                            last_input = er.async_get_entity_id("sensor", DOMAIN, f"{eid}_last_input")
                             instances.append({
                                 "entry_id": eid,
                                 "title": getattr(coord, 'title', '') or '',
                                 "last_response": last_resp or "",
                                 "debug_raw": debug_raw or "",
+                                "last_input": last_input or "",
                                 "show_panel": getattr(coord, 'show_panel', True),
                             })
                         if instances:
@@ -608,6 +612,169 @@ async def _async_register_chat_panel(
 
                 # Register main suggestions endpoint
                 hass.http.register_view(ChatSuggestionsView)
+
+                # Chat history API — reads HA recorder history for the selected
+                # instance's last-response sensor + input sensors, merged into a
+                # unified timeline. Lazy-paginated via the `before` cursor.
+                class ChatHistoryView(HomeAssistantView):
+                    """Serve merged chat history for the selected instance."""
+                    url = "/api/llm_smart_assistant/history"
+                    name = "api:llm_smart_assistant:history"
+                    requires_auth = False
+
+                    async def get(self, request):
+                        entry_id = request.query.get("entry_id", "")
+                        before_raw = request.query.get("before", "")
+                        try:
+                            limit = min(int(request.query.get("limit", "20")), 50)
+                        except ValueError:
+                            limit = 20
+
+                        # Resolve coordinator
+                        coordinator = None
+                        if entry_id and entry_id in hass.data.get(DOMAIN, {}):
+                            coordinator = hass.data[DOMAIN][entry_id]
+                        else:
+                            for eid, coord in hass.data.get(DOMAIN, {}).items():
+                                if hasattr(coord, 'access_token'):
+                                    coordinator = coord
+                                    entry_id = eid
+                                    break
+                        if not coordinator:
+                            return web.json_response({"items": [], "has_more": False})
+
+                        # Parse before cursor (ISO string, default now)
+                        end_time = dt_util.now()
+                        if before_raw:
+                            parsed = dt_util.parse_datetime(before_raw)
+                            if parsed:
+                                # Subtract a tiny epsilon so the boundary record
+                                # (same timestamp as the cursor) is not repeated
+                                end_time = parsed - timedelta(microseconds=1)
+                            else:
+                                # Unparseable cursor: return empty to avoid loops
+                                return web.json_response({"items": [], "has_more": False})
+                        start_time = end_time - timedelta(days=7)
+
+                        # Entity IDs to query: last-response sensor + last-input
+                        # sensor (covers ALL input sources: chat panel, service
+                        # calls, and voice input sensors)
+                        try:
+                            er = async_get_entity_registry(hass)
+                            resp_sensor = er.async_get_entity_id(
+                                "sensor", DOMAIN, f"{entry_id}_last_response"
+                            )
+                            input_sensor = er.async_get_entity_id(
+                                "sensor", DOMAIN, f"{entry_id}_last_input"
+                            )
+                        except Exception:
+                            resp_sensor = None
+                            input_sensor = None
+                        if not resp_sensor:
+                            resp_sensor = "sensor.llm_last_response"
+                        if not input_sensor:
+                            input_sensor = "sensor.llm_last_input"
+                        entity_ids = [resp_sensor, input_sensor]
+
+                        items: list[dict[str, Any]] = []
+                        try:
+                            from homeassistant.components.recorder import get_instance
+                            from homeassistant.components.recorder.history import get_significant_states
+
+                            _LOGGER.debug(
+                                "History query: entities=%s start=%s end=%s",
+                                entity_ids, start_time.isoformat(), end_time.isoformat(),
+                            )
+                            rows = await get_instance(hass).async_add_executor_job(
+                                get_significant_states,
+                                hass,
+                                start_time,
+                                end_time,
+                                entity_ids,
+                                None,  # filters
+                                False,  # include_start_time_state: skip initial snapshot
+                            )
+                            _LOGGER.debug("History rows: %s", {k: len(v) for k, v in (rows or {}).items()})
+                            raw_items: list[dict[str, Any]] = []
+                            for ent_id, states in (rows or {}).items():
+                                states_sorted = sorted(states, key=lambda s: s.last_changed)
+                                for st in states_sorted:
+                                    text = (st.state or "").strip()
+                                    if not text or text in ("unavailable", "unknown"):
+                                        continue
+                                    raw_items.append({
+                                        "role": "assistant" if ent_id == resp_sensor else "user",
+                                        "text": text,
+                                        "time": st.last_changed,
+                                        "entity": ent_id,
+                                        # Every assistant reply records the user input
+                                        # it responded to — use it as the grouping key
+                                        "reply_to": (st.attributes.get("last_input") or "").strip()
+                                        if ent_id == resp_sensor else "",
+                                    })
+
+                            # Merge into a clean conversation: group assistant rounds by
+                            # the user message they replied to (using the reply_to
+                            # attribute), then keep only the LAST distinct text of each
+                            # group. This is robust against timestamp skew between the
+                            # user-input sensor and the reply sensor.
+                            raw_items.sort(key=lambda x: x["time"])
+                            _LOGGER.debug(
+                                "History raw: %s",
+                                [(r["role"], r["text"][:15], r["time"].strftime("%H:%M:%S.%f")) for r in raw_items],
+                            )
+                            merged: list[dict[str, Any]] = []
+                            # map: user_text -> final assistant record of that group
+                            assistant_by_input: dict[str, dict[str, Any]] = {}
+                            for r in raw_items:
+                                if r["role"] == "user":
+                                    merged.append(r)
+                                else:
+                                    key = r["reply_to"] or r["text"]
+                                    prev = assistant_by_input.get(key)
+                                    if prev is None:
+                                        assistant_by_input[key] = dict(r)
+                                    elif r["text"] != prev["text"]:
+                                        assistant_by_input[key] = dict(r)
+
+                            # Insert each assistant reply right after its user message
+                            final: list[dict[str, Any]] = []
+                            for m in merged:
+                                final.append(m)
+                                if m["role"] == "user":
+                                    reply = assistant_by_input.pop(m["text"], None)
+                                    if reply:
+                                        final.append(reply)
+                            # Any assistant replies without a matching user message in
+                            # this window (e.g. history started mid-conversation)
+                            for reply in assistant_by_input.values():
+                                final.append(reply)
+                            merged = final
+
+                            _LOGGER.debug(
+                                "History merged: %s",
+                                [(m["role"], m["text"][:20], m["time"].strftime("%H:%M:%S.%f")) for m in merged],
+                            )
+
+                            items = [
+                                {
+                                    "role": m["role"],
+                                    "text": m["text"],
+                                    "time": m["time"].isoformat(),
+                                    "entity": m["entity"],
+                                }
+                                for m in merged
+                            ]
+                        except Exception as exc:
+                            _LOGGER.debug("History query failed: %s", exc)
+
+                        # Newest first, then page
+                        items.sort(key=lambda x: x["time"], reverse=True)
+                        page = items[:limit]
+                        has_more = len(items) > limit
+                        return web.json_response({"items": page, "has_more": has_more})
+
+                hass.http.register_view(ChatHistoryView)
 
 
 

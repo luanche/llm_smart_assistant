@@ -97,11 +97,17 @@
 ### Task 6: 历史聊天记录显示
 - **类型**: feat | **分支**: `feat/chat-history-panel`
 - **包含**:
-  - [ ] 生成的实体除了 LLM Last Response，也记录最后一次输入内容
-  - [ ] AI Chat 显示历史聊天记录——用 HA recorder 的 sensor 历史（不要缓存），多个输入设备 + AI Chat 的记录都显示，懒加载分页
-- **分析**: 第 1 点是第 2 点的基础（先做）；历史数据源用 HA recorder 的 `history/period` API 读 `sensor.llm_last_response` + 输入 sensor 的状态变化，按时间线合并；懒加载用时间游标向上翻页
-- **依赖**: Task 8（多实例 sensor 独立，才能区分不同中枢的历史）
-- **状态**: ⬜ 未开始
+  - [x] 生成的实体除了 LLM Last Response，也记录最后一次输入内容（`last_input` / `last_input_entity` / `last_input_time` 属性）
+  - [x] AI Chat 显示历史聊天记录——用 HA recorder 的 sensor 历史（不缓存），多个输入设备 + AI Chat 的记录都显示，懒加载分页
+- **实现方案**（v1.6.0）:
+  1. **后端 `coordinator.py`**: `_async_process_user_input` 记录 `last_input` / `last_input_entity` / `last_input_time`（dt_util.now().isoformat()）
+  2. **`sensor.py`**: 新增 `LLMLastInputSensor`（`sensor.llm_last_input_<实例>`，unique_id `{entry_id}_last_input`，state=last_input，attributes 含 source_entity/input_time）——**所有来源的用户输入**（聊天面板 service_call、语音输入 sensor）都会写入它，recorder 记录其状态历史作为聊天历史的 user 消息来源；`LLMLastResponseSensor.extra_state_attributes` 暴露三个 last_input 属性方便 dashboard 查看
+  3. **后端 `__init__.py`**: 新增 `ChatHistoryView`（`GET /api/llm_smart_assistant/history?entry_id=&before=&limit=`）——用 HA recorder 的 `get_significant_states` 读取本实例 last_response sensor（assistant 消息）+ last_input sensor（user 消息）；assistant 消息跳过中间轮次（相邻重复文本合并，recorder 对相同 state 去重导致最终回复可能缺失，所以不依赖 in_progress 过滤）；按时间倒序 + `before` 游标分页（`limit` 默认 20 最大 50，7 天窗口）
+  4. **前端 `index.html`**: `initHistory()` 首次加载最近 20 条渲染在聊天区；滚动到顶（scrollTop<30）时用 `historyBefore` 游标懒加载更早记录并 prepend；切换实例时清空重载；历史消息带 `.history-msg` class 便于样式区分；**全局实时订阅** `startGlobalSubscription()`（subscribeEntities 监听 last_input + last_response）——外部输入（语音传感器、服务调用）实时显示 user 气泡和 assistant 回复，无需刷新；`_sendingFromPanel` 标志避免与面板自身发送重复显示
+  5. **边界处理**: before 游标 URL 编码（`+` 会被解析为空格需 encodeURIComponent）；无法解析的游标返回空避免死循环；epsilon 微秒偏移避免边界重复
+  6. **时序修复**（合入前补充）: ① `_async_process_user_input` 设置 last_input 后立即 `_async_notify_listeners()`，否则 last_input sensor 要等 LLM 首轮响应才更新，导致 user 消息时间戳错误（晚于真实输入）；② 历史合并不再依赖时间顺序/`in_progress` 属性（recorder 会去重最终回复），改用每条 assistant 记录的 `last_input` 属性作为分组键——assistant 按"它响应的用户输入"分组，每组保留最后一条不同文本，然后插到对应 user 消息之后；无 last_input 属性的旧记录作为 orphan 按时间排序；③ **面板显示旧回复 bug**：立即 notify 时 last_response 还是上一轮的（in_progress=False），前端 WS 会误判完成而显示上次回复——修复为 notify 前先置 `in_progress=True` + `last_response=None`，新消息发送后 sensor 立即清空，前端只显示新回复
+- **分析**: 数据源用 HA recorder（持久化，重启后历史仍可读）；多个输入设备 + AI Chat 的记录统一按时间线合并；懒加载用时间游标向上翻页
+- **状态**: ⬜ 待合入（分支 `feat/chat-history-panel` 已推送）
 
 ---
 
@@ -145,7 +151,6 @@
 
 | 顺序 | Task | 理由 |
 |------|------|------|
-| 1 | Task 8（配置/多实例）| Task 6 的前置 |
-| 2 | Task 6（聊天历史）| 依赖 Task 8 |
-| 3 | Task 7（自动化引擎 v2）| 最大改动，放后面 |
-| 4 | Task 4b（多设备路由）| 依赖架构成熟后做 |
+| 1 | Task 6（聊天历史）| 已实现，待合入 |
+| 2 | Task 7（自动化引擎 v2）| 最大改动，放后面 |
+| 3 | Task 4b（多设备路由）| 依赖架构成熟后做 |
