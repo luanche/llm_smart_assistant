@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.6.0
+
+- fix: sort manifest keys alphabetically (hassfest)
+- fix: declare recorder in after_dependencies (hassfest validation)
+- feat(chat-history): chat history panel with lazy-load, live external input display
+
+
 ## v1.5.0
 
 - feat(config): independent history switches, per-instance sensors, panel toggle
