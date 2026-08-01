@@ -21,6 +21,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant, SupportsResponse
 from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers.entity_registry import async_get as async_get_entity_registry
 
 from .const import DOMAIN, CONF_TEMPERATURE, CONF_MAX_TOKENS, CONF_API_BASE_URL, CONF_API_KEY, CONF_MODEL_NAME
 from .coordinator import LLMSmartAssistantCoordinator
@@ -92,14 +93,52 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     hass.data[DOMAIN].pop(entry.entry_id, None)
 
-    # Remove chat panel only when the last instance is removed
-    if not hass.data.get(DOMAIN):
-        try:
-            frontend.async_remove_panel(hass, "llm-chat")
-        except Exception:
-            pass
+    # Sync sidebar panel: remove it when no instance shows it anymore
+    await _async_sync_chat_panel(hass)
 
     return True
+
+
+async def _async_sync_chat_panel(hass: HomeAssistant) -> None:
+    """Register or remove the AI Chat sidebar panel based on all instances.
+
+    Panel is shown if ANY instance has show_panel enabled; removed only when
+    every instance disables it. Keeps the panel registered exactly once even
+    with multiple config entries.
+    """
+    any_show = any(
+        getattr(coord, "show_panel", True)
+        for coord in hass.data.get(DOMAIN, {}).values()
+    )
+    try:
+        panel_exists = frontend.async_panel_exists(hass, "llm-chat")
+    except Exception:
+        panel_exists = False
+
+    if any_show and not panel_exists:
+        try:
+            await panel_custom.async_register_panel(
+                hass=hass,
+                frontend_url_path="llm-chat",
+                webcomponent_name="llm-chat-panel",
+                sidebar_title="AI Chat",
+                sidebar_icon="mdi:robot",
+                module_url="/api/llm_smart_assistant/chat_js",
+                require_admin=True,
+                config={},
+            )
+            _LOGGER.info("AI Chat panel registered in sidebar at /llm-chat")
+        except Exception as panel_err:
+            _LOGGER.warning(
+                "Sidebar panel registration failed (you can still open the chat directly): %s",
+                panel_err,
+            )
+    elif not any_show and panel_exists:
+        try:
+            frontend.async_remove_panel(hass, "llm-chat")
+            _LOGGER.info("AI Chat panel removed from sidebar (all instances disabled)")
+        except Exception:
+            pass
 
 
 async def _async_update_listener(hass: HomeAssistant, entry: ConfigEntry) -> None:
@@ -131,6 +170,9 @@ async def _async_update_listener(hass: HomeAssistant, entry: ConfigEntry) -> Non
             new_options=dict(entry.options),
         )
         _LOGGER.debug("Configuration updated for LLM Smart Assistant")
+
+    # Sync sidebar panel visibility (show_panel option may have changed)
+    await _async_sync_chat_panel(hass)
 
 
 async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
@@ -423,6 +465,32 @@ async def _async_register_chat_panel(
                     if access_token:
                         script = f'<script>window.CONFIGURED_ACCESS_TOKEN={json.dumps(access_token)};</script>'
                         current_html = current_html.replace("</head>", script + "</head>")
+                    # Inject per-instance info: title + sensor entity_ids so the
+                    # panel can subscribe to the right sensors for multi-instance setups
+                    try:
+                        er = async_get_entity_registry(hass)
+                        instances = []
+                        for eid, coord in hass.data.get(DOMAIN, {}).items():
+                            if not hasattr(coord, 'access_token'):
+                                continue
+                            last_resp = er.async_get_entity_id("sensor", DOMAIN, f"{eid}_last_response")
+                            debug_raw = er.async_get_entity_id("sensor", DOMAIN, f"{eid}_debug_raw")
+                            instances.append({
+                                "entry_id": eid,
+                                "title": getattr(coord, 'title', '') or '',
+                                "last_response": last_resp or "",
+                                "debug_raw": debug_raw or "",
+                                "show_panel": getattr(coord, 'show_panel', True),
+                            })
+                        if instances:
+                            inst_script = (
+                                '<script>window.CONFIGURED_INSTANCES='
+                                + json.dumps(instances, ensure_ascii=False)
+                                + ';</script>'
+                            )
+                            current_html = current_html.replace("</head>", inst_script + "</head>")
+                    except Exception:
+                        _LOGGER.debug("Failed to inject instance info", exc_info=True)
                     return web.Response(
                         text=current_html,
                         content_type="text/html",
@@ -543,19 +611,8 @@ async def _async_register_chat_panel(
 
 
 
-                # Only register the sidebar panel once (on first entry)
-                if not hass.data.get(DOMAIN) or len(hass.data[DOMAIN]) <= 1:
-                    await panel_custom.async_register_panel(
-                        hass=hass,
-                        frontend_url_path="llm-chat",
-                        webcomponent_name="llm-chat-panel",
-                        sidebar_title="AI Chat",
-                        sidebar_icon="mdi:robot",
-                        module_url="/api/llm_smart_assistant/chat_js",
-                        require_admin=True,
-                        config={},
-                    )
-                    _LOGGER.info("AI Chat panel registered in sidebar at /llm-chat")
+                # Register the sidebar panel based on all instances' show_panel settings
+                await _async_sync_chat_panel(hass)
             except Exception as panel_err:
                 _LOGGER.warning(
                     "Sidebar panel registration failed (you can still open the chat directly): %s",

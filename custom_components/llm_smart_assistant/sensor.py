@@ -28,9 +28,10 @@ async def async_setup_entry(
     """Set up the LLM Smart Assistant sensor platform."""
     coordinator = hass.data[DOMAIN].get(config_entry.entry_id)
     if coordinator:
+        title = coordinator.title or config_entry.title or ""
         async_add_entities([
-            LLMLastResponseSensor(coordinator, config_entry.entry_id),
-            LLMDebugRawSensor(coordinator, config_entry.entry_id),
+            LLMLastResponseSensor(coordinator, config_entry.entry_id, title),
+            LLMDebugRawSensor(coordinator, config_entry.entry_id, title),
         ])
         _LOGGER.info("LLM Smart Assistant sensors added successfully")
     else:
@@ -45,11 +46,13 @@ class LLMLastResponseSensor(SensorEntity):
 
     _attr_has_entity_name = True
 
-    def __init__(self, coordinator, entry_id: str) -> None:
+    def __init__(self, coordinator, entry_id: str, title: str = "") -> None:
         """Initialize the sensor."""
         self.coordinator = coordinator
         self._attr_unique_id = f"{entry_id}_last_response"
-        self._attr_name = "LLM Last Response"
+        # Include the instance title so multi-instance sensors get distinct
+        # entity_ids instead of colliding (sensor.llm_last_response_2, ...)
+        self._attr_name = f"LLM Last Response ({title})" if title else "LLM Last Response"
         self._attr_icon = "mdi:robot-happy"
 
     async def async_added_to_hass(self) -> None:
@@ -87,11 +90,11 @@ class LLMDebugRawSensor(SensorEntity):
 
     _attr_has_entity_name = True
 
-    def __init__(self, coordinator, entry_id: str) -> None:
+    def __init__(self, coordinator, entry_id: str, title: str = "") -> None:
         """Initialize the sensor."""
         self.coordinator = coordinator
         self._attr_unique_id = f"{entry_id}_debug_raw"
-        self._attr_name = "LLM Debug Raw"
+        self._attr_name = f"LLM Debug Raw ({title})" if title else "LLM Debug Raw"
         self._attr_icon = "mdi:code-json"
 
     async def async_added_to_hass(self) -> None:
