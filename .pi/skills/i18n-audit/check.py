@@ -32,6 +32,7 @@ ALLOWED_HARDCODED = {
     "Bearer ", "GET", "POST", "Authorization", "Content-Type",
     "application/json",
     "flex", "none", "fixed", "blur", "padding", "cover",
+    "grid",
     "transform", "opacity", "inherit", "important",
     "active", "inline-block",
     "click", "keydown",

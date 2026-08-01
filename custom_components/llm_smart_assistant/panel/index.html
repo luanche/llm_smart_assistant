@@ -670,18 +670,25 @@
       width: fit-content;
     }
     .trigger-row {
-      display: flex; gap: 6px; align-items: center;
+      display: flex; gap: 6px; align-items: stretch;
       margin-bottom: 10px;
-      flex-wrap: wrap;
+      flex-wrap: nowrap;
+      flex-direction: column;
       background: var(--surface-alt);
       border: 1px solid var(--border);
       border-radius: 14px;
       padding: 10px;
+      min-width: 0;
+      max-width: 100%;
+      overflow: hidden;
     }
     .trigger-row .sheet-input { padding: 10px 12px; }
-    /* Row header: index + type segmented + delete */
+    /* Row header: index + type segmented + delete (grid keeps equal spacing) */
     .trig-row-head {
-      display: flex; align-items: center; gap: 6px;
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 8px;
       width: 100%; margin-bottom: 8px;
     }
     .trig-index {
@@ -742,12 +749,24 @@
     }
     .trig-time-field:focus { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-glow); }
     .trig-time-field::-webkit-calendar-picker-indicator { filter: none; opacity: 0.6; }
-    .trig-device-fields { display: flex; gap: 6px; width: 100%; }
-    .trig-device-fields .trig-entity { flex: 1; min-width: 0; }
-    .trig-device-fields .trig-cond { width: 96px; flex-shrink: 0; }
+    .trig-device-fields {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 96px;
+      gap: 6px; width: 100%; min-width: 0;
+      align-items: center;
+    }
+    .trig-device-fields .trig-entity { min-width: 0; width: 100%; }
+    .trig-device-fields .trig-cond {
+      width: 96px; min-width: 96px; flex-shrink: 0;
+      text-align: center;
+    }
     /* Schedule-aware time row */
-    .trig-sched { width: 100%; }
-    .sched-top-row { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
+    .trig-sched { width: 100%; min-width: 0; }
+    .sched-top-row {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr);
+      gap: 8px; align-items: center; margin-bottom: 8px;
+    }
     .sched-type-select {
       flex-shrink: 0;
       border: 1px solid var(--border);
@@ -761,7 +780,8 @@
     }
     .sched-type-select:focus { border-color: var(--accent); }
     .sched-time-input {
-      flex: 1; min-width: 0;
+      flex: 1; min-width: 0; width: 100%; max-width: 100%;
+      position: relative;
       border: 1px solid var(--border);
       border-radius: 10px;
       padding: 8px 10px;
@@ -771,13 +791,17 @@
       color: var(--text-primary);
       outline: none;
       font-family: 'SF Mono', Menlo, monospace;
-      /* Native picker follows the panel theme (dark mode fix) */
-      color-scheme: light dark;
-      -webkit-color-scheme: light dark;
+      /* Force the native picker to follow the dark theme and strip the
+         default mobile border/badge (v8) */
+      color-scheme: dark;
+      -webkit-color-scheme: dark;
+      appearance: none;
+      -webkit-appearance: none;
     }
     .sched-time-input:focus { border-color: var(--accent); }
     .sched-datetime-input {
-      flex: 1; min-width: 0;
+      flex: 1; min-width: 0; width: 100%; max-width: 100%;
+      position: relative;
       border: 1px solid var(--border);
       border-radius: 10px;
       padding: 8px 10px;
@@ -786,24 +810,48 @@
       color: var(--text-primary);
       outline: none;
       font-family: inherit;
-      /* Native picker follows the panel theme (dark mode fix) */
-      color-scheme: light dark;
-      -webkit-color-scheme: light dark;
+      /* Force the native picker to follow the dark theme (v8) */
+      color-scheme: dark;
+      -webkit-color-scheme: dark;
+      appearance: none;
+      -webkit-appearance: none;
     }
     .sched-datetime-input:focus { border-color: var(--accent); }
-    /* Weekday chips */
-    .sched-weekdays { display: flex; gap: 6px; margin-bottom: 8px; }
+    /* Hide the Webkit native picker icon and turn the whole input into a
+       tappable surface: the indicator becomes an invisible full-size overlay,
+       so a narrow container can never push the icon out / clip it (v8). */
+    .sched-time-input::-webkit-calendar-picker-indicator,
+    .sched-datetime-input::-webkit-calendar-picker-indicator {
+      background: transparent;
+      bottom: 0;
+      color: transparent;
+      cursor: pointer;
+      height: auto;
+      left: 0;
+      margin: 0;
+      opacity: 0;
+      position: absolute;
+      right: 0;
+      top: 0;
+      width: auto;
+    }
+    /* Weekday chips: 7 equal columns, no wrap/squeeze */
+    .sched-weekdays {
+      display: grid;
+      grid-template-columns: repeat(7, minmax(0, 1fr));
+      gap: 6px; margin-bottom: 8px;
+    }
     .wd-chip {
-      flex: 1;
       border: 1px solid var(--border);
       background: var(--surface-alt);
       color: var(--text-secondary);
       border-radius: 9px;
       padding: 8px 0;
-      font-size: 13px; font-weight: 600;
+      font-size: 12px; font-weight: 600;
       font-family: inherit;
       cursor: pointer;
       transition: var(--transition);
+      min-width: 0;
     }
     .wd-chip.active {
       background: var(--accent);
@@ -811,13 +859,17 @@
       color: #fff;
     }
     /* Month days chips (add/remove) */
-    .sched-monthdays { display: flex; gap: 6px; align-items: center; margin-bottom: 4px; }
+    .sched-monthdays {
+      display: grid;
+      grid-template-columns: 80px auto 1fr;
+      gap: 6px; align-items: center; margin-bottom: 4px;
+    }
     .md-input {
-      width: 80px; flex-shrink: 0;
+      width: 80px; min-width: 0;
       border: 1px solid var(--border);
       border-radius: 10px;
       padding: 8px 10px;
-      font-size: 14px;
+      font-size: 13px;
       background: var(--surface-alt);
       color: var(--text-primary);
       outline: none;
@@ -825,15 +877,15 @@
     }
     .md-input:focus { border-color: var(--accent); }
     .md-add-btn {
-      flex-shrink: 0;
       border: 1px solid var(--border);
       background: var(--surface-alt);
       color: var(--accent);
       border-radius: 10px;
       padding: 8px 14px;
-      font-size: 13px; font-weight: 600;
+      font-size: 12px; font-weight: 600;
       font-family: inherit;
       cursor: pointer;
+      justify-self: start;
     }
     .md-add-btn:hover { background: var(--accent-subtle); }
     .md-chips { display: flex; flex-wrap: wrap; gap: 6px; }
@@ -854,6 +906,30 @@
       font-size: 11px; color: var(--text-tertiary);
       margin-top: 2px;
     }
+    /* Minimal dashed "add trigger" button (v8) */
+    .add-trigger-btn {
+      width: 100%;
+      padding: 12px;
+      margin-bottom: 12px;
+      border: 1px dashed var(--border-hover);
+      border-radius: 12px;
+      background: transparent;
+      color: var(--text-secondary);
+      font-size: 12px; font-weight: 500;
+      font-family: inherit;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      gap: 6px;
+      transition: var(--transition);
+      min-height: 44px;
+    }
+    .add-trigger-btn:hover {
+      border-color: var(--accent);
+      color: var(--text-primary);
+      background: var(--accent-subtle);
+    }
+    .add-trigger-btn:active { transform: scale(0.98); }
+
     /* Toggle switch */
     .auto-card-toggle {
       width: 44px; height: 24px;
@@ -987,14 +1063,14 @@
     }
     .ent-ac-list {
       display: none;
-      position: absolute; z-index: 90;
+      position: absolute; z-index: 120;
       top: calc(100% + 6px); left: 0; right: 0;
       background: var(--surface);
       backdrop-filter: blur(24px);
       -webkit-backdrop-filter: blur(24px);
       border: 1px solid var(--border-hover);
       border-radius: 12px;
-      box-shadow: 0 16px 40px rgba(0,0,0,0.18), 0 4px 12px rgba(0,0,0,0.10);
+      box-shadow: 0 20px 48px rgba(0,0,0,0.24), 0 6px 16px rgba(0,0,0,0.14);
       max-height: 200px; overflow-y: auto;
       padding: 4px;
     }
@@ -1330,7 +1406,7 @@
     <div class="sheet-body">
       <label data-i18n="labelTrigger"></label>
       <div id="addTriggersBox"></div>
-      <button class="sheet-btn secondary" style="width:100%;margin-bottom:12px;" onclick="addTriggerRow('add')">+ <span data-i18n="addTrigger"></span></button>
+      <button type="button" class="add-trigger-btn" onclick="addTriggerRow('add')"><span>＋</span><span data-i18n="addTrigger"></span></button>
       <button type="button" class="adv-toggle-btn" id="addAdvToggle" onclick="toggleAdv('add')">
         <span class="adv-caret">▶</span><span data-i18n="advOptions"></span>
       </button>
@@ -1397,7 +1473,7 @@
     <div class="sheet-body">
       <label data-i18n="labelTrigger"></label>
       <div id="editTriggersBox"></div>
-      <button class="sheet-btn secondary" style="width:100%;margin-bottom:12px;" onclick="addTriggerRow('edit')">+ <span data-i18n="addTrigger"></span></button>
+      <button type="button" class="add-trigger-btn" onclick="addTriggerRow('edit')"><span>＋</span><span data-i18n="addTrigger"></span></button>
       <button type="button" class="adv-toggle-btn" id="editAdvToggle" onclick="toggleAdv('edit')">
         <span class="adv-caret">▶</span><span data-i18n="advOptions"></span>
       </button>
@@ -2689,7 +2765,7 @@ function setRowType(row, type) {
   const btns = row.querySelectorAll('.trig-type-switch button');
   btns.forEach(b => b.classList.toggle('active', b.dataset.tt === type));
   if (sched) sched.style.display = type === 'time' ? 'block' : 'none';
-  if (deviceFields) deviceFields.style.display = type === 'device' ? 'flex' : 'none';
+  if (deviceFields) deviceFields.style.display = type === 'device' ? 'grid' : 'none';
 }
 
 // ── Schedule-aware time row ────────────────────────────────────────────────
@@ -2704,7 +2780,7 @@ function syncSchedDisplay(row) {
   const mdWrap = row.querySelector('.sched-monthdays-wrap');
   if (timeWrap) timeWrap.style.display = sched === 'once' ? 'none' : 'flex';
   if (dtWrap) dtWrap.style.display = sched === 'once' ? 'flex' : 'none';
-  if (wdWrap) wdWrap.style.display = sched === 'weekly' ? 'flex' : 'none';
+  if (wdWrap) wdWrap.style.display = sched === 'weekly' ? 'grid' : 'none';
   if (mdWrap) mdWrap.style.display = sched === 'monthly' ? 'block' : 'none';
 }
 
