@@ -88,7 +88,7 @@
   5. **Debug 弹窗**: 打开时先通过 API 拉 `sensor.llm_last_response` 的 `full_response` 获取最新动作数据，再拉 `sensor.llm_debug_raw` 的 `prompt` 显示在下方；避免依赖内存变量导致过期
   6. **FAB 修复**: `.fab` 默认 `display: none`，切到 Automations 页时由 `switchTab` 设为 `flex`，避免首次加载时漏出
 - **分析**: 整体过一遍 touch target（≥44px）和字号；滑动手势在内容区域做、加边缘 dead zone（左侧 ~20px 不响应）避免与 HA 侧边栏冲突
-- **状态**: ✅ 已完成（v1.4.0 待发）
+- **状态**: ✅ 已完成（v1.4.0，PR 已合并；v1.4.1 修复实例选择器——自定义下拉框替代原生 select，修复 z-index 遮挡）
 
 ---
 
@@ -141,15 +141,11 @@
 
 ## 📋 建议实施顺序
 
+> 已完成：Task 1（v1.2.2）、Task 2（v1.2.3）、Task 2b（v1.2.4）、Task 9（v1.3.4）、Task 3（v1.3.0/1.3.1）、Task 4a（v1.3.3）、Task 5（v1.4.0/1.4.1）
+
 | 顺序 | Task | 理由 |
 |------|------|------|
-| 1 | Task 1（重启重复执行）| 高危 bug |
-| 2 | Task 2（release changelog）| pipeline bug，影响每次发版 |
-| 3 | Task 9（实体 alias）| 小改动，快速收益 |
-| 4 | Task 4a（chat 不 TTS）| 小改动，体验影响大 |
-| 5 | Task 3（PTT 语音交互）| 语音体验核心 |
-| 6 | Task 5（移动端 UI）| 独立性高 |
-| 7 | Task 8（配置/多实例）| Task 6 的前置 |
-| 8 | Task 6（聊天历史）| 依赖 Task 8 |
-| 9 | Task 7（自动化引擎 v2）| 最大改动，放后面 |
-| 10 | Task 4b（多设备路由）| 依赖架构成熟后做 |
+| 1 | Task 8（配置/多实例）| Task 6 的前置 |
+| 2 | Task 6（聊天历史）| 依赖 Task 8 |
+| 3 | Task 7（自动化引擎 v2）| 最大改动，放后面 |
+| 4 | Task 4b（多设备路由）| 依赖架构成熟后做 |
