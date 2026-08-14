@@ -60,6 +60,9 @@
           "disabled_automations": "禁用的自动化（勾选以停用）"
         }
       }
+    },
+    "data": {
+      "disable_thinking": "关闭思考模式（更快，仅 DeepSeek）"
     }
   },
   "selector": {

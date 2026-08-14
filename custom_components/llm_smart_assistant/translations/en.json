@@ -28,7 +28,7 @@
         "title": "LLM Smart Assistant Settings",
         "description": "Configure prompts, input sensors, TTS, security, and history settings.",
         "data_description": {
-          "access_token": "Long-lived access token for the AI Chat panel. Generate one in your HA profile (your initials \u2192 Security \u2192 Long-Lived Access Tokens). If not set, the panel falls back to the browser's session token."
+          "access_token": "Long-lived access token for the AI Chat panel. Generate one in your HA profile (your initials → Security → Long-Lived Access Tokens). If not set, the panel falls back to the browser's session token."
         },
         "data": {
           "prompt_default": "Additional Chat Instructions (appended to built-in system prompt)",
@@ -60,6 +60,9 @@
           "model_name": "model_name"
         }
       }
+    },
+    "data": {
+      "disable_thinking": "Disable thinking mode (faster, DeepSeek only)"
     }
   },
   "selector": {
