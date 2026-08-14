@@ -58,7 +58,8 @@
           "disabled_automations": "disabled_automations",
           "access_token": "AI Chat Access Token",
           "model_name": "model_name",
-          "disable_thinking": "Disable thinking mode (faster, DeepSeek only)"
+          "disable_thinking": "Disable thinking mode (faster, DeepSeek only)",
+          "suggestions_refresh_days": "Suggestions refresh interval (days)"
         }
       }
     }
