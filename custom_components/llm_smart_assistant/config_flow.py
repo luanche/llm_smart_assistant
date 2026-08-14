@@ -20,6 +20,7 @@ from .const import (
     CONF_API_BASE_URL,
     CONF_API_KEY,
     CONF_DISABLED_AUTOMATIONS,
+    CONF_DISABLE_THINKING,
     CONF_DOMAINS_WHITELIST,
     CONF_ENTITIES_WHITELIST,
     CONF_HISTORY_COUNT,
@@ -52,6 +53,7 @@ from .const import (
     DEFAULT_HISTORY_TIME_ENABLED,
     DEFAULT_HISTORY_TIME_WINDOW,
     DEFAULT_IGNORE_DUPLICATE,
+    DEFAULT_DISABLE_THINKING,
     DEFAULT_MAX_TOKENS,
     DEFAULT_MODEL_NAME,
     DEFAULT_PROMPT_AUTOMATION,
@@ -169,6 +171,7 @@ class LLMSmartAssistantConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                         CONF_MODEL_NAME: model_name,
                         CONF_TEMPERATURE: DEFAULT_TEMPERATURE,
                         CONF_MAX_TOKENS: DEFAULT_MAX_TOKENS,
+                        CONF_DISABLE_THINKING: DEFAULT_DISABLE_THINKING,
                     },
                 )
         return self.async_show_form(
@@ -279,6 +282,9 @@ class LLMSmartAssistantOptionsFlow(config_entries.OptionsFlow):
                 vol.Optional(CONF_MAX_TOKENS,
                     default=int(cur.get(CONF_MAX_TOKENS, dat.get(CONF_MAX_TOKENS, DEFAULT_MAX_TOKENS)))):
                 selector.NumberSelector(selector.NumberSelectorConfig(min=64, max=32768, step=1, mode=selector.NumberSelectorMode.BOX)),
+                vol.Optional(CONF_DISABLE_THINKING,
+                    default=cur.get(CONF_DISABLE_THINKING, dat.get(CONF_DISABLE_THINKING, DEFAULT_DISABLE_THINKING))):
+                selector.BooleanSelector(),
 
                 # ── System Prompts ──
                 # (migration of old full prompts happens before the schema)

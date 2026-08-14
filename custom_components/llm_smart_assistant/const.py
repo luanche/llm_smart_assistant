@@ -37,6 +37,7 @@ CONF_ALLOW_AUTOMATION: Final = "allow_automation"
 CONF_HISTORY_ENABLED: Final = "history_enabled"
 CONF_DISABLED_AUTOMATIONS: Final = "disabled_automations"
 CONF_SHOW_PANEL: Final = "show_panel"
+CONF_DISABLE_THINKING: Final = "disable_thinking"  # DeepSeek thinking mode off for speed
 
 # Default values
 DEFAULT_API_BASE_URL: Final = "https://api.openai.com/v1"
@@ -52,6 +53,7 @@ DEFAULT_HISTORY_TIME_ENABLED: Final = True
 DEFAULT_IGNORE_DUPLICATE: Final = True
 DEFAULT_ALLOW_AUTOMATION: Final = True
 DEFAULT_SHOW_PANEL: Final = True
+DEFAULT_DISABLE_THINKING: Final = True  # DeepSeek: disable thinking mode (faster, sufficient for HA control)
 DEFAULT_TTS_SPEAK_VOLUME: Final = 0.5
 DEFAULT_TTS_MUTE_AFTER: Final = True
 
@@ -95,7 +97,8 @@ Time: {{ time }} {{ date }}  Max rounds: {{ max_iterations }}
 
 ## Output format: raw JSON, no markdown
 {"tts_text": "reply to user", "steps": [{"action": "...", ...}]}
-Set tts_text to "" when steps NOT empty.
+tts_text can be non-empty WITH steps (it's the final reply once actions run).
+Set tts_text="" only when you must observe get_states results first.
 Optional: add "output_device": "<entity_id>" to speak through a specific
 output device instead of the default. The user speaks from the "Input source"
 area; pick the output device in that same area (see "## Output devices"
@@ -142,13 +145,18 @@ above). If no device matches, omit the field to use the default.
    {"action": "tts_speak", "text": "message"}
 
 ## Rules
-1. Check states first (get_states), then act (call_service), then finish (steps: []).
-2. tts_text="" when steps has actions. Only speak when done.
-3. Final reply: one short sentence when steps: []. No repeats.
+1. The entity list above already shows current states — read it directly.
+   Only call get_states if you need a state NOT in the list or a fresh check.
+2. You MAY include tts_text alongside steps (e.g. "已为您打开客厅灯" + call_service).
+   When steps are actions (not get_states), no follow-up round is needed —
+   include your final reply in tts_text.
+3. Final reply: one short sentence. No repeats.
 4. Use ONLY entity_ids from the list. Never invent entities.
-5. Already in target state? Skip action, finish.
+5. Already in target state? Skip action, reply directly (steps: [], tts_text).
 6. Service failed? Skip, explain in final tts_text.
 7. Need user input? Ask via tts_text, set steps: [], wait for reply.
+8. For simple actions (turn on/off), emit call_service + tts_text in ONE round.
+   Do NOT add an empty confirmation round after actions succeed.
 """
 
 # Hardcoded automation trigger prompt core (NOT user-modifiable)

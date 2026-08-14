@@ -6,6 +6,7 @@ Enforces domain/entity whitelisting and blocks restricted operations.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from typing import Any
 
@@ -150,13 +151,19 @@ class ServicesExecutor:
             if full_svc and "." in full_svc:
                 domain, service = full_svc.split(".", 1)
 
-        # Handle "data: {entity_id: ...}" format (from automation triggers)
+        # Merge service data from "service_data" and/or "data" keys.
+        # LLMs use both conventions; "data" may also carry entity_id.
         if not target and service_data:
             target = {"entity_id": service_data.get("entity_id", "")}
-        if not target and step.get("data"):
-            target = {"entity_id": step["data"].get("entity_id", "")}
-            # Also merge any other data
-            service_data = {k: v for k, v in step["data"].items() if k != "entity_id"}
+            service_data = {k: v for k, v in service_data.items() if k != "entity_id"}
+        if step.get("data"):
+            step_data = step["data"]
+            if not target:
+                target = {"entity_id": step_data.get("entity_id", "")}
+            # Merge remaining data keys (value, option, etc.) into service_data
+            for k, v in step_data.items():
+                if k != "entity_id":
+                    service_data[k] = v
 
         if not domain or not service:
             raise ValueError(f"call_service requires 'domain' and 'service' fields (got: {step})")
@@ -301,13 +308,21 @@ class ServicesExecutor:
         # Enforce whitelist (same as call_service)
         self._validate_get_states(entities)
 
+        _gs_t0 = asyncio.get_running_loop().time()
+
         # Get all HA services grouped by domain (to show available services per entity)
         all_services = self.hass.services.async_services()
         # Get service descriptions from HA (richer info including field descriptions)
         all_service_descriptions = {}
         try:
             from homeassistant.helpers.service import async_get_all_descriptions
+            _desc_t0 = asyncio.get_running_loop().time()
             all_service_descriptions = await async_get_all_descriptions(self.hass)
+            _desc_dt = asyncio.get_running_loop().time() - _desc_t0
+            _LOGGER.info(
+                "get_states: async_get_all_descriptions %.3fs (%d domains, querying %d entities)",
+                _desc_dt, len(all_service_descriptions), len(entities),
+            )
         except Exception:
             pass
 
@@ -372,4 +387,9 @@ class ServicesExecutor:
                 })
 
         _LOGGER.debug("Observed states: %s", observed)
+        _gs_dt = asyncio.get_running_loop().time() - _gs_t0
+        _LOGGER.info(
+            "get_states total: %.3fs (%d entities, %d observed)",
+            _gs_dt, len(entities), len(observed),
+        )
         return {"observed": observed}

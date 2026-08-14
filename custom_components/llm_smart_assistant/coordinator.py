@@ -33,6 +33,7 @@ from .const import (
     CONF_API_BASE_URL,
     CONF_API_KEY,
     CONF_DISABLED_AUTOMATIONS,
+    CONF_DISABLE_THINKING,
     CONF_DOMAINS_WHITELIST,
     CONF_ENTITIES_WHITELIST,
     CONF_HISTORY_COUNT,
@@ -61,6 +62,7 @@ from .const import (
     DEFAULT_PROMPT_DEFAULT,
     DEFAULT_HISTORY_COUNT_ENABLED,
     DEFAULT_HISTORY_TIME_ENABLED,
+    DEFAULT_DISABLE_THINKING,
     DEFAULT_SHOW_PANEL,
     DEFAULT_TTS_SPEAK_VOLUME,
     DEFAULT_TTS_MUTE_AFTER,
@@ -431,6 +433,15 @@ class LLMSmartAssistantCoordinator:
         return int(val)
 
     @property
+    def disable_thinking(self) -> bool:
+        """Disable DeepSeek thinking mode for faster responses on simple tasks.
+        Has no effect on non-DeepSeek APIs (the param is simply ignored)."""
+        val = self._data.get(CONF_DISABLE_THINKING)
+        if val is None:
+            val = self._options.get(CONF_DISABLE_THINKING, DEFAULT_DISABLE_THINKING)
+        return bool(val)
+
+    @property
     def prompt_default(self) -> str:
         """Full system prompt: hardcoded core + user customization.
         If the saved prompt already contains the hardcoded core (old format),
@@ -750,6 +761,9 @@ class LLMSmartAssistantCoordinator:
         entity_ids = self.entities_whitelist
         registry = self.hass.data.get("entity_registry")
 
+        _csv_t0 = asyncio.get_running_loop().time()
+        _area_lookups = 0
+
         for state_obj in self.hass.states.async_all():
             entity_id = state_obj.entity_id
             domain = entity_id.split(".")[0]
@@ -768,6 +782,7 @@ class LLMSmartAssistantCoordinator:
             friendly = attrs.get("friendly_name", entity_id).replace(",", " ")
             state_val = state_obj.state.replace(",", " ")
             area = self._get_area_name(entity_id)
+            _area_lookups += 1
             aliases_str = ""
             if registry is not None:
                 entry = registry.async_get(entity_id)
@@ -778,7 +793,13 @@ class LLMSmartAssistantCoordinator:
 
             lines.append(f"{entity_id},{friendly},{state_val},{area},{aliases_str}")
 
-        return "\n".join(lines)
+        result = "\n".join(lines)
+        _csv_dt = asyncio.get_running_loop().time() - _csv_t0
+        _LOGGER.info(
+            "Entity CSV built: %.3fs (%d entities, %d area lookups, %d chars)",
+            _csv_dt, len(lines) - 1, _area_lookups, len(result),
+        )
+        return result
 
     def _get_area_name(self, entity_id: str) -> str:
         """Get the area name for an entity, if available.
@@ -850,6 +871,8 @@ class LLMSmartAssistantCoordinator:
             "temperature": self.temperature,
             "max_tokens": max_tokens,
         }
+        if self.disable_thinking:
+            payload["thinking"] = {"type": "disabled"}
         try:
             async with aiohttp.ClientSession() as session:
                 async with session.post(
@@ -898,8 +921,17 @@ class LLMSmartAssistantCoordinator:
         # Supported by OpenAI, DeepSeek, and most compatible APIs
         payload["response_format"] = {"type": "json_object"}
 
+        # DeepSeek thinking mode: disable for faster responses on simple HA
+        # control tasks (saves ~1-2s by skipping the reasoning chain).
+        # Non-DeepSeek APIs ignore this param. Configurable per instance.
+        if self.disable_thinking:
+            payload["thinking"] = {"type": "disabled"}
+
         max_retries = 2
         last_error = None
+        # Perf: measure LLM API round-trip (the usual bottleneck)
+        _api_t0 = asyncio.get_running_loop().time()
+        _prompt_chars = sum(len(m.get("content", "")) for m in messages)
 
         for attempt in range(max_retries + 1):
             if attempt > 0:
@@ -949,6 +981,12 @@ class LLMSmartAssistantCoordinator:
                     continue
 
                 _LOGGER.info("LLM raw response received (%d chars): %s", len(content), content[:200])
+
+                _api_dt = asyncio.get_running_loop().time() - _api_t0
+                _LOGGER.info(
+                    "LLM API timing: %.2fs (prompt %d chars / ~%d tokens, response %d chars, attempt %d)",
+                    _api_dt, _prompt_chars, _prompt_chars // 4, len(content), attempt + 1,
+                )
 
                 # Try to parse as JSON (handle extra text after JSON)
                 parsed = None
@@ -1103,6 +1141,8 @@ class LLMSmartAssistantCoordinator:
             user_text[:100],
         )
 
+        _total_t0 = asyncio.get_running_loop().time()
+
         # Record the last user input (for sensor attributes / history display)
         self.last_input = user_text
         self.last_input_entity = entity_id
@@ -1123,10 +1163,13 @@ class LLMSmartAssistantCoordinator:
         self._add_to_history(LLMChatMessage(role="user", content=user_text))
 
         # Expose entities list for system context
+        _ctx_t0 = asyncio.get_running_loop().time()
         exposed = self._build_exposed_entities_list()
         # Task 4b: describe the input source (device + area) so the model can
         # route the TTS reply to the most appropriate output device.
         input_source = self._build_input_source_info(entity_id)
+        _ctx_dt = asyncio.get_running_loop().time() - _ctx_t0
+        _LOGGER.info("Context build (exposed entities + input source): %.3fs", _ctx_dt)
 
         # Multi-step reasoning loop
         iteration = 0
@@ -1160,7 +1203,9 @@ class LLMSmartAssistantCoordinator:
             )
 
             # Call LLM
+            _round_t0 = asyncio.get_running_loop().time()
             response = await self._async_query_llm(current_messages)
+            _llm_dt = asyncio.get_running_loop().time() - _round_t0
 
             if response is None:
                 _LOGGER.error("LLM returned None on round %d", iteration)
@@ -1180,12 +1225,14 @@ class LLMSmartAssistantCoordinator:
             steps = response.get("steps", [])
 
             _LOGGER.info(
-                "Round %d: tts_text='%s', steps=%s",
-                iteration, str(tts_text)[:100], str(steps)[:200]
+                "Round %d: tts_text='%s', steps=%s (LLM %.2fs, %d steps)",
+                iteration, str(tts_text)[:100], str(steps)[:200], _llm_dt, len(steps)
             )
 
             # Accumulate TTS only when task is fully complete (no more steps)
             # If LLM speaks but still has actions, delay the speech to final round
+            # — UNLESS all steps are actions (no get_states): the LLM already knows
+            # the outcome, so its tts_text is the final reply.
             if tts_text and not steps:
                 cumulative_tts.append(tts_text)
 
@@ -1207,17 +1254,35 @@ class LLMSmartAssistantCoordinator:
 
             all_steps_ever.extend(steps)
 
+            # Optimization: if all steps are actions that don't need observation
+            # (call_service / create_automation / tts_speak) and the LLM already
+            # provided tts_text, execute and finish WITHOUT another LLM round.
+            # Only get_states needs a follow-up round (the LLM must observe results).
+            needs_observation = any(
+                s.get("action") in (ACTION_GET_STATES, ACTION_INSPECT)
+                for s in steps
+            )
+
             # Execute steps and collect results for feedback
             step_feedback = []
             if self.executor:
+                _exec_t0 = asyncio.get_running_loop().time()
                 step_results = await self.executor.async_execute_steps(steps)
+                _exec_dt = asyncio.get_running_loop().time() - _exec_t0
+                _LOGGER.info(
+                    "Steps executed: %.3fs (%d steps)",
+                    _exec_dt, len(steps),
+                )
                 for result in step_results:
                     action = result.get("action", "unknown")
                     success = result.get("success", False)
                     step_result_data = result.get("result", {})
 
                     if action in (ACTION_GET_STATES, ACTION_INSPECT):
-                        # get_states: feed back observed states + available services
+                        # get_states: feed back observed states + service names (compact).
+                        # Skip per-service descriptions/fields — the system prompt
+                        # already documents common services, and full field details
+                        # bloat the context (1777+ chars per get_states round).
                         obs = step_result_data.get("observed", [])
                         for o in obs:
                             ent_id = o.get("entity_id", "?")
@@ -1229,33 +1294,8 @@ class LLMSmartAssistantCoordinator:
                             services = o.get("services", [])
                             line = f"  - {label}: {val}"
                             if services:
-                                svc_lines = []
-                                for svc in services:
-                                    if isinstance(svc, dict):
-                                        svc_name = svc.get("name", "?")
-                                        desc = svc.get("description", "")
-                                        fields = svc.get("fields", [])
-                                        if desc:
-                                            svc_str = f"      {svc_name}: {desc}"
-                                        else:
-                                            svc_str = f"      {svc_name}"
-                                        if fields:
-                                            field_strs = []
-                                            for f in fields[:5]:
-                                                fn = f.get("name", "")
-                                                fd = f.get("description", "")
-                                                req = "必填" if f.get("required") else "可选"
-                                                if fd:
-                                                    field_strs.append(f"{fn}({req}): {fd}")
-                                                else:
-                                                    field_strs.append(f"{fn}({req})")
-                                            if len(fields) > 5:
-                                                field_strs.append(f"...还有{len(fields)-5}个字段")
-                                            svc_str += " [" + "; ".join(field_strs) + "]"
-                                        svc_lines.append(svc_str)
-                                    else:
-                                        svc_lines.append(f"      {svc}")
-                                line += "\n    Available services:\n" + "\n".join(svc_lines)
+                                svc_names = [s.get("name", "?") for s in services if isinstance(s, dict)]
+                                line += f" [services: {', '.join(svc_names)}]"
                             step_feedback.append(line)
 
                     elif action == ACTION_CALL_SERVICE:
@@ -1310,6 +1350,20 @@ class LLMSmartAssistantCoordinator:
 
             # If there's any feedback, feed it back to the LLM
             if step_feedback:
+                # Optimization: if no step needs observation (no get_states),
+                # the LLM doesn't need to see the results — finish now.
+                # This saves one full LLM API round-trip (4-6s) for simple
+                # action requests like "turn on the light".
+                if not needs_observation:
+                    _LOGGER.info(
+                        "Action-only steps executed (no observation needed), "
+                        "finishing after %d rounds (saved 1 LLM round)",
+                        iteration,
+                    )
+                    # Capture the LLM's tts_text from this round as the final reply
+                    if tts_text:
+                        cumulative_tts.append(tts_text)
+                    break
                 feedback_text = "步骤执行结果:\n" + "\n".join(step_feedback)
                 _LOGGER.debug("Step feedback:\n%s", feedback_text)
 
@@ -1377,6 +1431,11 @@ class LLMSmartAssistantCoordinator:
             "Reasoning completed: %d rounds, %d total steps, tts='%s'",
             iteration, len(all_steps_ever), final_tts[:100]
         )
+        _total_dt = asyncio.get_running_loop().time() - _total_t0
+        _LOGGER.info(
+            "TOTAL processing time: %.2fs (context %.2fs + %d rounds, input '%s')",
+            _total_dt, _ctx_dt, iteration, user_text[:60],
+        )
 
     def _output_device_from_rounds(self, rounds: list[dict]) -> str:
         """Extract the output_device chosen by the LLM from reasoning rounds.
@@ -1391,7 +1450,16 @@ class LLMSmartAssistantCoordinator:
         return chosen
 
     def _build_exposed_entities_list(self) -> str:
-        """Build a summary of available entities for the system prompt."""
+        """Build a summary of available entities for the system prompt.
+
+        Compact one-line-per-entity format. Skips internal/noise entities that
+        the LLM should never control (sun, backup, llm_* sensors, etc.).
+        """
+        # Domains/entities that are noise for the LLM (never actionable)
+        _SKIP_PREFIXES = (
+            "sensor.sun_", "sensor.backup_", "sensor.llm_",
+            "sensor.zone_", "sensor.time_",
+        )
         lines = []
         # Read entity registry for aliases
         registry = self.hass.data.get("entity_registry")
@@ -1400,16 +1468,19 @@ class LLMSmartAssistantCoordinator:
             allowed = self.domains_whitelist
             if allowed and domain not in allowed:
                 continue
-            friendly = state_obj.attributes.get("friendly_name", state_obj.entity_id)
+            eid = state_obj.entity_id
+            if eid.startswith(_SKIP_PREFIXES):
+                continue
+            friendly = state_obj.attributes.get("friendly_name", eid)
             # Append aliases if any (only user-configured strings, not HA internal enums)
             aliases_str = ""
             if registry is not None:
-                entry = registry.async_get(state_obj.entity_id)
+                entry = registry.async_get(eid)
                 if entry and entry.aliases:
                     str_aliases = [a for a in entry.aliases if isinstance(a, str)]
                     if str_aliases:
                         aliases_str = " [" + ", ".join(str_aliases) + "]"
-            lines.append(f"  - {state_obj.entity_id} ({friendly}{aliases_str}): {state_obj.state}")
+            lines.append(f"  - {eid} ({friendly}{aliases_str}): {state_obj.state}")
         return "\n".join(lines)
 
     async def _async_process_automation_trigger(
