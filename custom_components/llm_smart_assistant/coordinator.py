@@ -49,6 +49,7 @@ from .const import (
     CONF_PROMPT_AUTOMATION,
     CONF_PROMPT_DEFAULT,
     CONF_SHOW_PANEL,
+    CONF_SUGGESTIONS_REFRESH_DAYS,
     CONF_TEMPERATURE,
     CONF_TTS_CUSTOM_TEMPLATE,
     CONF_TTS_ENTITIES,
@@ -63,6 +64,7 @@ from .const import (
     DEFAULT_HISTORY_COUNT_ENABLED,
     DEFAULT_HISTORY_TIME_ENABLED,
     DEFAULT_DISABLE_THINKING,
+    DEFAULT_SUGGESTIONS_REFRESH_DAYS,
     DEFAULT_SHOW_PANEL,
     DEFAULT_TTS_SPEAK_VOLUME,
     DEFAULT_TTS_MUTE_AFTER,
@@ -558,6 +560,14 @@ class LLMSmartAssistantCoordinator:
     def show_panel(self) -> bool:
         """Whether the AI Chat sidebar panel should be shown for this instance."""
         return self._options.get(CONF_SHOW_PANEL, DEFAULT_SHOW_PANEL)
+
+    @property
+    def suggestions_refresh_days(self) -> int:
+        """TTL in days for the chat suggestions cache."""
+        val = self._data.get(CONF_SUGGESTIONS_REFRESH_DAYS)
+        if val is None:
+            val = self._options.get(CONF_SUGGESTIONS_REFRESH_DAYS, DEFAULT_SUGGESTIONS_REFRESH_DAYS)
+        return int(val)
 
     @property
     def title(self) -> str:
@@ -1112,6 +1122,13 @@ class LLMSmartAssistantCoordinator:
         # Current user input
         messages.append({"role": "user", "content": user_input})
 
+        # Perf/debug: log how much history is being sent
+        hist_count = len(self._history)
+        hist_chars = sum(len(m.content) for m in self._history)
+        _LOGGER.info(
+            "Messages built: %d total (%d system + %d history + 1 user), history %d msgs / %d chars",
+            len(messages), 1, hist_count, hist_count, hist_chars,
+        )
         return messages
 
     # ------------------------------------------------------------------
@@ -1410,6 +1427,7 @@ class LLMSmartAssistantCoordinator:
                 content=final_tts,
             )
         )
+        _LOGGER.info("Added to history: assistant='%s' (total %d msgs)", final_tts[:80], len(self._history))
 
         # Update last_response with aggregated data for UI display
         self.last_response = {

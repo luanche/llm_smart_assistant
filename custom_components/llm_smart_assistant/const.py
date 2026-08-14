@@ -38,6 +38,7 @@ CONF_HISTORY_ENABLED: Final = "history_enabled"
 CONF_DISABLED_AUTOMATIONS: Final = "disabled_automations"
 CONF_SHOW_PANEL: Final = "show_panel"
 CONF_DISABLE_THINKING: Final = "disable_thinking"  # DeepSeek thinking mode off for speed
+CONF_SUGGESTIONS_REFRESH_DAYS: Final = "suggestions_refresh_days"  # TTL for suggestions cache
 
 # Default values
 DEFAULT_API_BASE_URL: Final = "https://api.openai.com/v1"
@@ -54,6 +55,7 @@ DEFAULT_IGNORE_DUPLICATE: Final = True
 DEFAULT_ALLOW_AUTOMATION: Final = True
 DEFAULT_SHOW_PANEL: Final = True
 DEFAULT_DISABLE_THINKING: Final = True  # DeepSeek: disable thinking mode (faster, sufficient for HA control)
+DEFAULT_SUGGESTIONS_REFRESH_DAYS: Final = 7  # regenerate suggestions every N days
 DEFAULT_TTS_SPEAK_VOLUME: Final = 0.5
 DEFAULT_TTS_MUTE_AFTER: Final = True
 

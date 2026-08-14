@@ -173,6 +173,9 @@ async def _async_update_listener(hass: HomeAssistant, entry: ConfigEntry) -> Non
         )
         _LOGGER.debug("Configuration updated for LLM Smart Assistant")
 
+    # Clear suggestions cache so new config (whitelist, refresh days) takes effect
+    _SUGGESTIONS_CACHE.pop(entry.entry_id, None)
+
     # Sync sidebar panel visibility (show_panel option may have changed)
     await _async_sync_chat_panel(hass)
 
@@ -608,8 +611,16 @@ async def _async_register_chat_panel(
                             ("".join(domains) + "|" + "".join(entities)).encode()
                         ).hexdigest()[:16]
 
+                        # TTL: regenerate suggestions after N days (configurable).
+                        # Also regenerates immediately if the entity/domain whitelist changed.
+                        refresh_days = coordinator.suggestions_refresh_days
+                        cache_ttl = timedelta(days=max(refresh_days, 1))
                         cached = _SUGGESTIONS_CACHE.get(entry_id, {})
-                        if cached.get("hash") == cache_key:
+                        cache_age = dt_util.now() - cached["time"] if cached.get("time") else None
+                        cache_expired = cache_age is None or cache_age > cache_ttl
+                        cache_hash_match = cached.get("hash") == cache_key
+
+                        if cache_hash_match and not cache_expired:
                             return web.json_response({
                                 "suggestions": cached["suggestions"],
                                 "hash": cache_key,
@@ -641,6 +652,7 @@ async def _async_register_chat_panel(
                                 _SUGGESTIONS_CACHE[entry_id] = {
                                     "hash": cache_key,
                                     "suggestions": result,
+                                    "time": dt_util.now(),
                                 }
                                 return web.json_response({
                                     "suggestions": result,

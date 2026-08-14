@@ -36,6 +36,7 @@ from .const import (
     CONF_PROMPT_AUTOMATION,
     CONF_PROMPT_DEFAULT,
     CONF_SHOW_PANEL,
+    CONF_SUGGESTIONS_REFRESH_DAYS,
     CONF_TEMPERATURE,
     CONF_TTS_CUSTOM_TEMPLATE,
     CONF_TTS_ENTITIES,
@@ -59,6 +60,7 @@ from .const import (
     DEFAULT_PROMPT_AUTOMATION,
     DEFAULT_PROMPT_DEFAULT,
     DEFAULT_SHOW_PANEL,
+    DEFAULT_SUGGESTIONS_REFRESH_DAYS,
     DEFAULT_TEMPERATURE,
     DEFAULT_TTS_SPEAK_VOLUME,
     DEFAULT_TTS_MUTE_AFTER,
@@ -371,6 +373,9 @@ class LLMSmartAssistantOptionsFlow(config_entries.OptionsFlow):
                 vol.Optional(CONF_SHOW_PANEL,
                     default=cur.get(CONF_SHOW_PANEL, DEFAULT_SHOW_PANEL)):
                 selector.BooleanSelector(),
+                vol.Optional(CONF_SUGGESTIONS_REFRESH_DAYS,
+                    default=int(cur.get(CONF_SUGGESTIONS_REFRESH_DAYS, dat.get(CONF_SUGGESTIONS_REFRESH_DAYS, DEFAULT_SUGGESTIONS_REFRESH_DAYS)))):
+                selector.NumberSelector(selector.NumberSelectorConfig(min=1, max=90, step=1, mode=selector.NumberSelectorMode.BOX, unit_of_measurement="days")),
 
                 # ── Dynamic Automations ──
                 vol.Optional(CONF_DISABLED_AUTOMATIONS,
