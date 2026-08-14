@@ -13,7 +13,7 @@ description: |
 - 凭证: `agent` / `password`
 - Token 位置: `.user/credentials.json` 的 `ha_token` 字段（相对项目根目录，gitignored）
 - 日志: `config/home-assistant.log`（相对项目根目录）
-- 存储: `config/.storage/llm_smart_assistant.storage`（相对项目根目录）
+- 存储: `config/.storage/llm_smart_assistant.storage_{entry_id}`（per-instance，相对项目根目录）
 - 配置: `configuration.yaml` 中的虚拟设备
 
 ## 初始化
@@ -23,10 +23,10 @@ description: |
 # 详见 ha-api skill 的 Authentication 章节
 TOKEN=$(python3 -c "import json;print(json.load(open('.user/credentials.json'))['ha_token'])")
 
-# 清空对话历史（每次测试前建议清理）
+# 清空对话历史（每次测试前建议清理；storage 是 per-instance，替换 <entry_id>）
 python3 << 'PYEOF'
 import json
-path = 'config/.storage/llm_smart_assistant.storage'
+path = 'config/.storage/llm_smart_assistant.storage_<entry_id>'
 d = json.load(open(path))
 d['data']['history'] = []
 d['data']['automations'] = []
@@ -366,9 +366,11 @@ domain/entity 白名单（`domains_whitelist`、`entities_whitelist`）。测试
 每次测试前清理 history：
 ```python
 import json
-d = json.load(open('config/.storage/llm_smart_assistant.storage'))
+# storage 是 per-instance，替换 <entry_id>
+entry_id = '<entry_id>'
+d = json.load(open(f'config/.storage/llm_smart_assistant.storage_{entry_id}'))
 d['data']['history'] = []
-json.dump(d, open(..., 'w'), ensure_ascii=False, indent=2)
+json.dump(d, open(f'config/.storage/llm_smart_assistant.storage_{entry_id}', 'w'), ensure_ascii=False, indent=2)
 ```
 
 ### Prompt 修改后不生效
