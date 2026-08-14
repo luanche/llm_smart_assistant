@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.10.4
+
+- fix: automation trigger replies in the language the user spoke when creating it
+
+
 ## v1.10.3
 
 - fix: duplicate reply in AI Chat panel
