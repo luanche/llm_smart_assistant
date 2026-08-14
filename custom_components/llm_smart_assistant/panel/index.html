@@ -2498,7 +2498,19 @@ function renderHistoryItems(items, mode) {
     container.insertBefore(frag, container.firstChild);
   } else {
     container.appendChild(frag);
-    container.scrollTop = container.scrollHeight;
+    // Scroll to bottom AFTER the browser lays out the new content.
+    // Disable smooth-scroll for the initial bulk-load so it jumps instantly
+    // to the bottom (smooth animation can be interrupted by live updates
+    // and leave the view stuck in the middle).
+    container.style.scrollBehavior = 'auto';
+    const scrollToBottom = () => { container.scrollTop = container.scrollHeight; };
+    // Double rAF ensures layout has settled; setTimeout is a safety net for
+    // iframes where rAF timing can be unreliable on first paint.
+    requestAnimationFrame(() => requestAnimationFrame(scrollToBottom));
+    setTimeout(() => {
+      scrollToBottom();
+      container.style.scrollBehavior = '';  // restore smooth for user scrolls
+    }, 100);
   }
 }
 
