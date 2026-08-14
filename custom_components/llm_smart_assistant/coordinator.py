@@ -217,6 +217,7 @@ class DynamicAutomation:
         description: str = "",
         one_shot: bool = False,
         expression: str = "",
+        language: str = "",
     ) -> None:
         self.automation_id = automation_id
         # triggers: list of {"entity_id": str, "condition": str} or
@@ -228,6 +229,10 @@ class DynamicAutomation:
         self.prompt = prompt
         self.description = description
         self.one_shot = one_shot
+        # Language the automation was created in (detected from user input).
+        # Used at trigger time so reminders reply in the same language the
+        # user spoke when creating them, regardless of the current HA config.
+        self.language = language or ""
         # Execution records (recent first), kept in-memory + persisted
         self.records: list[dict] = []
 
@@ -271,6 +276,7 @@ class DynamicAutomation:
             "prompt": self.prompt,
             "description": self.description,
             "one_shot": self.one_shot,
+            "language": self.language,
             "records": self.records[-30:],  # ring buffer, recent 30
         }
 
@@ -291,6 +297,7 @@ class DynamicAutomation:
             description=data.get("description", ""),
             one_shot=bool(data.get("one_shot", False)),
             expression=data.get("expression", ""),
+            language=data.get("language", ""),
         )
         auto.records = data.get("records", []) or []
         return auto
@@ -339,6 +346,11 @@ class LLMSmartAssistantCoordinator:
 
         # Conversation history
         self._history: list[LLMChatMessage] = []
+
+        # Language detected from the most recent user input (used so that
+        # automations created in this request reply in the same language when
+        # triggered later). Falls back to HA config language when empty.
+        self._current_input_lang: str = ""
 
         # Registered state listeners (input sensors)
         self._state_listeners: list[callable] = []
@@ -834,6 +846,42 @@ class LLMSmartAssistantCoordinator:
             _LOGGER.debug("area lookup failed for %s: %s", entity_id, exc)
             return ""
 
+    @staticmethod
+    def _detect_language(text: str) -> str:
+        """Detect the language of a user input string.
+
+        Lightweight heuristic based on Unicode script ranges — no external
+        dependency. Returns a 2-letter code ("zh", "ja", "ko", "ru", "en", …).
+        CJK characters → "zh" (Japanese hiragana/katakana → "ja"); Cyrillic →
+        "ru"; otherwise defaults to the config language or "en".
+        """
+        if not text:
+            return ""
+        # Count CJK ideographs, Hiragana, Katakana, Hangul, Cyrillic
+        cjk = hira = kata = hangul = cyrillic = 0
+        for ch in text:
+            cp = ord(ch)
+            if 0x4E00 <= cp <= 0x9FFF:
+                cjk += 1
+            elif 0x3040 <= cp <= 0x309F:
+                hira += 1
+            elif 0x30A0 <= cp <= 0x30FF:
+                kata += 1
+            elif 0xAC00 <= cp <= 0xD7AF:
+                hangul += 1
+            elif 0x0400 <= cp <= 0x04FF:
+                cyrillic += 1
+        if hira or kata:
+            return "ja"
+        if hangul:
+            return "ko"
+        if cjk:
+            return "zh"
+        if cyrillic:
+            return "ru"
+        # Latin/other scripts: assume English (most common default)
+        return "en"
+
     def _build_output_devices_info(self) -> str:
         """Build a compact list of configured output (TTS) devices with location.
 
@@ -1164,6 +1212,9 @@ class LLMSmartAssistantCoordinator:
         self.last_input = user_text
         self.last_input_entity = entity_id
         self.last_input_time = dt_util.now().isoformat()
+        # Detect the input language so automations created during this request
+        # reply in the same language when triggered later (regardless of HA config).
+        self._current_input_lang = self._detect_language(user_text)
         # Mark processing as started and clear the previous response BEFORE
         # notifying, otherwise the panel would see the stale last_response with
         # in_progress=False and display the PREVIOUS reply as the new answer.
@@ -1531,10 +1582,14 @@ class LLMSmartAssistantCoordinator:
         
         action_prompt = automation.prompt or automation.description or "Execute the configured automation action"
         
-        # Determine language from HA user config
-        ha_lang = (self.hass.config.language or "en").split("-")[0]
+        # Determine language: prefer the language stored when the automation
+        # was created (detected from the user's input text), fall back to the
+        # current HA config language. This ensures a reminder created in
+        # Chinese replies in Chinese even if HA is set to English (and vice
+        # versa).
+        lang_code = automation.language or (self.hass.config.language or "en").split("-")[0]
         lang_names = {"zh": "Chinese", "en": "English", "ja": "Japanese", "fr": "French", "de": "German", "es": "Spanish", "pt": "Portuguese", "ko": "Korean", "ru": "Russian"}
-        lang_name = lang_names.get(ha_lang, "English")
+        lang_name = lang_names.get(lang_code, "English")
 
         messages = self._build_messages_for_llm(
             user_input=(
@@ -1606,8 +1661,17 @@ class LLMSmartAssistantCoordinator:
 
         # Speak TTS if text is present
         if tts_text:
+            _LOGGER.info(
+                "Automation '%s': speaking TTS: %s (output_device=%s)",
+                automation.automation_id[:8], tts_text[:80],
+                response.get("output_device", "") or "(default)",
+            )
             await self._async_speak_tts(
                 tts_text, output_device=response.get("output_device", "")
+            )
+        else:
+            _LOGGER.info(
+                "Automation '%s': no TTS text to speak", automation.automation_id[:8]
             )
 
         # Record execution for debug UI
@@ -1700,6 +1764,7 @@ class LLMSmartAssistantCoordinator:
             description=description,
             one_shot=one_shot,
             expression=expression or "",
+            language=self._current_input_lang,
         )
 
         # Register the listeners (one per entity trigger + time triggers)
@@ -2179,7 +2244,14 @@ class LLMSmartAssistantCoordinator:
         else:
             tts_entity = self.tts_entity_id
 
-        if not text or not tts_entity:
+        if not text:
+            _LOGGER.warning("_async_speak_tts: no text to speak, skipping")
+            return
+        if not tts_entity:
+            _LOGGER.warning(
+                "_async_speak_tts: no TTS device configured (tts_entity_id is empty), "
+                "cannot speak: %s", text[:80]
+            )
             return
         media_domain = tts_entity.split(".")[0]
 
