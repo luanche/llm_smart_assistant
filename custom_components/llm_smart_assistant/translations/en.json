@@ -57,12 +57,10 @@
           "api_key": "api_key",
           "disabled_automations": "disabled_automations",
           "access_token": "AI Chat Access Token",
-          "model_name": "model_name"
+          "model_name": "model_name",
+          "disable_thinking": "Disable thinking mode (faster, DeepSeek only)"
         }
       }
-    },
-    "data": {
-      "disable_thinking": "Disable thinking mode (faster, DeepSeek only)"
     }
   },
   "selector": {
