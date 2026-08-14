@@ -322,6 +322,7 @@ async def _async_register_services(
                     "description": a.description,
                     "prompt": a.prompt,
                     "one_shot": a.one_shot,
+                    "language": a.language,
                     "disabled": a.automation_id in disabled_set,
                     "records": a.records[-10:],  # recent records for debug UI
                 }
