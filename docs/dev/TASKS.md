@@ -67,14 +67,14 @@
 - **4a 实现方案**（`fix/chat-tts-browser`，v1.3.3）:
   1. **后端** `coordinator.py`: `entity_id` 为 "service_call" 或 "chat_ui" 时无条件跳过 `_async_speak_tts`（之前版本只对 text 跳过、voice 保留，现改为两者都跳过）
   2. **前端** `panel/index.html`: `sendMessage` 的 `handleState` 回调中，当 `fromVoice=true` 且收到 TTS 文本时，调用 `window.speechSynthesis.speak()` 通过浏览器播报，语音设为当前界面语言
-- **4b 实现方案**（`feat/multi-device-io-routing`，v1.8.0 待发）:
+- **4b 实现方案**（`feat/multi-device-io-routing`，v1.8.0，PR #23）:
   1. **const.py**: 新增 `CONF_TTS_ENTITIES`（多输出设备列表）、`CONF_TTS_INPUT_ENTITY`；HARDCODED prompt 增加 `## Output devices`（设备+区域 CSV）与 `## Input source`（用户输入来源+区域）段，响应 JSON 支持可选 `output_device` 字段（默认省略则用首设备）
   2. **coordinator.py**: `tts_entities` property（多设备，回退旧 `tts_entity_id`，同时查 `_data` 兼容历史存储）；`_get_area_name` 真正实现（entity registry `area_id` → area registry `async_get_area` 名称）；`_build_output_devices_info` / `_build_input_source_info` 构建 prompt 注入；`_output_device_from_rounds` 提取 LLM 选择（仅接受配置内的设备）；`_async_speak_tts(text, output_device="")` 支持显式路由，无效回退默认；自动化触发也透传 `output_device`
   3. **config_flow.py**: options 表单新增多设备选择器（`CONF_TTS_ENTITIES` multiple=True，保留旧单设备字段）；保存时同步 `tts_entity_id`=列表首个，旧单设备自动镜像进列表
   4. **__init__.py**: `process_input` 服务新增 `source_entity` 参数（输入设备，用于位置路由），schema 加 `vol.Optional("source_entity")`
   5. **前端** `panel/index.html`: debug 弹窗 round 显示 `输出设备：<entity_id>`（`debugOutputDevice` i18n key）
   6. **测试**: 卧室输入（sensor.test_voice_input area=卧室）→ LLM 选择卧室音箱并 TTS ✓；无来源 service_call → 不 TTS ✓；自动化触发 → 回退默认设备 ✓；区域解析（entity registry area_id → area 名称）✓；prompt 正确注入 Output devices / Input source ✓；debug 弹窗显示路由 ✓
-- **状态**: ✅ 已完成（v1.8.0 待发）
+- **状态**: ✅ 已完成（v1.8.0，PR #23）
 
 ---
 
@@ -114,7 +114,7 @@
   5. **边界处理**: before 游标 URL 编码（`+` 会被解析为空格需 encodeURIComponent）；无法解析的游标返回空避免死循环；epsilon 微秒偏移避免边界重复
   6. **时序修复**（合入前补充）: ① `_async_process_user_input` 设置 last_input 后立即 `_async_notify_listeners()`，否则 last_input sensor 要等 LLM 首轮响应才更新，导致 user 消息时间戳错误（晚于真实输入）；② 历史合并不再依赖时间顺序/`in_progress` 属性（recorder 会去重最终回复），改用每条 assistant 记录的 `last_input` 属性作为分组键——assistant 按"它响应的用户输入"分组，每组保留最后一条不同文本，然后插到对应 user 消息之后；无 last_input 属性的旧记录作为 orphan 按时间排序；③ **面板显示旧回复 bug**：立即 notify 时 last_response 还是上一轮的（in_progress=False），前端 WS 会误判完成而显示上次回复——修复为 notify 前先置 `in_progress=True` + `last_response=None`，新消息发送后 sensor 立即清空，前端只显示新回复
 - **分析**: 数据源用 HA recorder（持久化，重启后历史仍可读）；多个输入设备 + AI Chat 的记录统一按时间线合并；懒加载用时间游标向上翻页
-- **状态**: ⬜ 待合入（分支 `feat/chat-history-panel` 已推送）
+- **状态**: ✅ 已完成（v1.6.0，PR #21）
 
 ---
 
@@ -128,7 +128,7 @@
   - [x] Automation 的执行也要记录，方便回溯 debug
   - [x] AI Chat Automation 界面点 debug 按钮，显示该 automation 的 debug 信息而不是 chat 的
 - **分析**: 触发模型从"单实体+条件"升级为"多触发源+逻辑表达式"；一次性自动化用 `async_track_point_in_time` 或触发后自毁；执行记录存 storage（环形缓冲，保留最近 N 条），debug 弹窗按来源显示。建议拆 2 个 PR：先多触发源，再一次性功能+执行记录
-- **状态**: ✅ 已完成（v1.7.0 待发）
+- **状态**: ✅ 已完成（v1.7.0，PR #22）
 - **实现方案**:
   - `DynamicAutomation` 升级: `triggers` 数组（每项 `{entity_id, condition}` 或 `{type: time, time: HH:MM}`）+ `trigger_logic` (and/or) + `expression`（复合布尔表达式，如 `"(0 and 1) or 2"`，触发索引用数字）+ `one_shot` + `records`（环形缓冲 30 条）; 保留 `entity_id`/`condition` property 做向后兼容，旧 storage 数据自动迁移; 无 expression 时按 trigger_logic 回退（全 AND/任意 OR）
   - 监听: 每个 entity trigger 单独注册 `async_track_state_change_event`; time trigger 用 `async_track_point_in_time` 每日重复（非 one-shot/未禁用时触发后自动重注册下一天）; 表达式用安全递归下降解析器 `_TriggerExpressionParser`（无 eval，支持 AND/OR/括号/优先级），任一触发源变化时求整个表达式
@@ -152,10 +152,10 @@
   5. 添加表单无 time 触发器入口；修复：`addTimeTriggerRow()` + "⏰ 添加定时触发"按钮（add/edit）
   6. `alert()` 在 sandbox iframe 被忽略（allow-modals 未设置）→ 校验/错误提示不可见；修复：全部改用 `showToast()`，校验失败不关闭表单
 - **测试工具**: `automation_test_suite.py` 支持 `python3 ... A,B,C` 分组运行；WS auth 不带 id（HA 2026.7）；reset 用 stop→清空→start（防 shutdown 写回）
-- **状态**: ✅ 已完成（并入 v1.8.1 待发）
+- **状态**: ✅ 已完成（并入 v1.9.0，PR #24）
 
 ### Task 7c: 定时计划扩展——完整时间 + 周期性任务（2026-08-01）
-- **类型**: feat | **分支**: `feat/schedule-time-triggers`（并入 v1.8.1 待发）
+- **类型**: feat | **分支**: `feat/schedule-time-triggers`（并入 v1.9.0，PR #24）
 - **功能**: time trigger 支持 `schedule`（once/daily/weekly/monthly）：
   - **once**（一次性）：`datetime` 字段 "YYYY-MM-DDTHH:MM[:SS]"（年月日时分秒），触发后不再重复；无 schedule 但带 datetime 时自动推断为 once
   - **daily**（每天）：`time` HH:MM，默认行为（向后兼容）
@@ -188,11 +188,11 @@
 ### Task 8: 配置项改进
 - **类型**: feat | **分支**: `feat/config-improvements`
 - **包含**:
-  - [ ] 历史阶段模式的单选器改成两个独立开关（count / time 可都开、单开、都关）
-  - [ ] 配置多个中枢可在 AI Chat 切换（已支持），但各中枢的 LLM sensor 不能共用（要按实例区分）
-  - [ ] 设置里可关闭 AI Chat 侧边栏显示（默认开）
+  - [x] 历史阶段模式的单选器改成两个独立开关（count / time 可都开、单开、都关）
+  - [x] 配置多个中枢可在 AI Chat 切换（已支持），但各中枢的 LLM sensor 不能共用（要按实例区分）
+  - [x] 设置里可关闭 AI Chat 侧边栏显示（默认开）
 - **分析**: 历史开关改动小但涉及配置迁移；多实例 sensor 需要用 entry_id 区分 entity_id（如 `sensor.llm_last_response_<实例名>`）+ options flow 加 panel 开关
-- **状态**: ⬜ 未开始
+- **状态**: ✅ 已完成（v1.5.0，PR #20）
 
 ### Task 9: 实体别名传给模型
 - **现象**: 用户配置的实体 alias 也要传给模型
@@ -205,7 +205,7 @@
 
 ## 📋 建议实施顺序
 
-> 已完成：Task 1（v1.2.2）、Task 2（v1.2.3）、Task 2b（v1.2.4）、Task 9（v1.3.4）、Task 3（v1.3.0/1.3.1）、Task 4a（v1.3.3）、Task 5（v1.4.0/1.4.1）、Task 6（v1.6.0）、Task 7（v1.7.0）、Task 8（v1.5.0）、Task 4b（v1.8.0 待发）
+> 已完成：Task 1（v1.2.2）、Task 2（v1.2.3）、Task 2b（v1.2.4）、Task 9（v1.3.4）、Task 3（v1.3.0/1.3.1）、Task 4a（v1.3.3）、Task 5（v1.4.0/1.4.1）、Task 8（v1.5.0）、Task 6（v1.6.0）、Task 7（v1.7.0）、Task 4b（v1.8.0）、Task 7b/7c（v1.9.0）、UI v8（v1.10.0）、HACS 图标（v1.10.1）
 
 > 🎉 **全部 roadmap 任务已完成**，不再有剩余开放任务。后续需求以新 issue / 新 roadmap 形式提出。
 
@@ -213,7 +213,7 @@
 - **现象**: HACS 商店里显示 "icon not available"——根目录缺 `brand/icon.png`
 - **原因**: HA 品牌 API 用 `custom_components/llm_smart_assistant/brand/`，而 HACS 商店从**仓库根目录** `brand/icon.png` 读图；根目录从未建过 brand 目录
 - **修复**: 从 integration 内 512px PNG 缩放生成根目录 `brand/icon.png`（128×128）+ `icon@2x.png`（256）+ `logo.png`（256）+ `logo@2x.png`（512）
-- **状态**: ✅ 完成（待发）
+- **状态**: ✅ 完成（v1.10.1，PR #26）
 
 | 顺序 | Task | 理由 |
 |------|------|------|
