@@ -130,13 +130,15 @@ Triggered automatically when a PR is **merged to `master`** (i.e., push to maste
 - **Multi-instance**: Each HA config entry is an independent LLM instance; services use `entry_id` for routing
 - **Global services**: `process_input` and `toggle_automation` are registered once globally, not per-instance
 - **AI Chat Panel**: Vanilla HTML/JS in iframe; multi-language via `LANGUAGES` object + `t()` function + `data-i18n` attributes
-- **Dynamic Automations**: Created via LLM or UI; persisted in `.storage/llm_smart_assistant.storage`; use `async_track_state_change_event` for real-time triggers
+- **Dynamic Automations**: Created via LLM or UI; persisted in per-instance storage `.storage/llm_smart_assistant.storage_{entry_id}` (legacy shared key migrated on first load). Multi-trigger with AND/OR/parenthesized boolean expressions (`_TriggerExpressionParser`, no eval); time triggers support `schedule` (once/daily/weekly/monthly) via `_compute_next_fire`; `one_shot` auto-removes after firing; execution records ring buffer (30) per automation. Entity triggers use `async_track_state_change_event`, time triggers use `async_track_point_in_time` with per-schedule re-registration
 - **ReAct Loop**: LLM gets states → acts → observes → repeats until steps empty
 - **Security**: Domain + entity whitelist; action interceptor validates every LLM-requested action
 - **Prompt Split**: Hardcoded core (JSON format, actions, loop behavior) is NOT user-modifiable; user can only customize appended instructions
-- **TTS**: Supports Standard (media_player), Xiaomi MIoT (`intelligent_speaker`), and Custom templates; auto-mute via DND/sleep switch or configurable mute entity
+- **TTS Routing**: Multiple output devices (`CONF_TTS_ENTITIES`); LLM picks the nearest speaker by input-device area (`output_device` in response JSON, whitelist-checked, fallback to default). `process_input` accepts `source_entity` for input location. AI Chat / `service_call` never trigger HA TTS (voice replies use browser `speechSynthesis`); sensor/automation inputs use HA TTS. Supports Standard (media_player), Xiaomi MIoT (`intelligent_speaker`), and Custom templates; auto-mute via DND/sleep switch or configurable mute entity
 - **Voice Input**: Input sensors trigger `_async_process_user_input` on state change; duplicate detection with noise filtering for Xiaomi conversation sensor
 - **Brand Icons**: `brand/icon.png` + `brand/logo.png` served by HA's brands API at `/api/brands/integration/llm_smart_assistant/`
+- **Chat History**: `LLMLastInputSensor` records every user input (chat/service/sensor); `ChatHistoryView` (`/api/llm_smart_assistant/history`) reads HA recorder, merges user+assistant into a timeline, cursor-paginated (`before` param); frontend lazy-loads on scroll-to-top and live-subscribes for external inputs
+- **Per-instance Sensors**: `sensor.llm_last_response` / `sensor.llm_last_input` / `sensor.llm_debug_raw` use `unique_id={entry_id}_...` so multi-instance sensors don't collide
 - **`_OptionalEntitySelector`**: Custom `EntitySelector` subclass that accepts empty strings (used for optional entity fields)
 
 ## Language Policy

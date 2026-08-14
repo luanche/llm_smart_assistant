@@ -19,8 +19,10 @@ import urllib.request
 import urllib.error
 
 BASE = "http://localhost:8123"
-ENTRY_ID = "01KXX9DBV1H7TWJKW8NGPVVBT8"
-CRED_PATH = ".user/.ha_credentials.json"
+CRED_PATH = ".user/credentials.json"
+
+# Resolved dynamically on first use (see _entry_id())
+_ENTRY_ID_CACHE = None
 
 # ---------------------------------------------------------------------------
 # HA helpers (REST)
@@ -28,7 +30,26 @@ CRED_PATH = ".user/.ha_credentials.json"
 
 def _token() -> str:
     with open(CRED_PATH) as f:
-        return json.load(f)["dev"]["long_lived_access_token"]
+        return json.load(f)["ha_token"]
+
+
+def _entry_id() -> str:
+    """Resolve the first llm_smart_assistant config entry_id dynamically."""
+    global _ENTRY_ID_CACHE
+    if _ENTRY_ID_CACHE:
+        return _ENTRY_ID_CACHE
+    data = rest("GET", "/api/config/config_entries/entry")
+    entries = data if isinstance(data, list) else []
+    entries = [e for e in entries if e.get("domain") == "llm_smart_assistant"]
+    if not entries:
+        raise RuntimeError("No llm_smart_assistant config entry found; add the integration first")
+    _ENTRY_ID_CACHE = entries[0]["entry_id"]
+    return _ENTRY_ID_CACHE
+
+
+def _storage_path() -> str:
+    """Per-instance storage path (legacy shared key migrated on first load)."""
+    return f"config/.storage/llm_smart_assistant.storage_{_entry_id()}"
 
 
 def rest(method: str, path: str, body=None) -> dict:
@@ -361,7 +382,7 @@ def test_group_C() -> None:
     gone = wait_until(lambda: not any(a["automation_id"] == aid for a in get_automations()), timeout=15)
     check("C1b", "one-shot 触发后自毁(API)", gone)
     # C2: verify storage too
-    with open("config/.storage/llm_smart_assistant.storage") as f:
+    with open(_storage_path()) as f:
         data = json.load(f)
     stored_ids = [a["automation_id"] for a in data["data"].get("automations", [])]
     check("C2", "存储无残留", aid not in stored_ids)
@@ -460,11 +481,12 @@ def reset_history_and_restart() -> None:
     log("  ⏳ 停止 HA ...")
     subprocess.run(["docker", "compose", "stop"], capture_output=True)
     time.sleep(8)
-    with open("config/.storage/llm_smart_assistant.storage") as f:
+    path = _storage_path()
+    with open(path) as f:
         data = json.load(f)
     data["data"]["history"] = []
     data["data"]["automations"] = []
-    with open("config/.storage/llm_smart_assistant.storage", "w") as f:
+    with open(path, "w") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
     log("  ⏳ 已清空 history+automations，启动 HA ...")
     subprocess.run(["docker", "compose", "start"], capture_output=True)
@@ -478,7 +500,7 @@ def chat_retry(text: str, retries: int = 2) -> bool:
     """Send a chat message, retrying on LLM failure (blank/parse error)."""
     for attempt in range(1, retries + 1):
         call_service("llm_smart_assistant", "process_input",
-                     {"text": text, "entry_id": ENTRY_ID})
+                     {"text": text, "entry_id": _entry_id()})
         time.sleep(12)
         # If a new automation was created → success
         if len(get_automations()) > 0:
@@ -519,7 +541,7 @@ def test_group_E() -> None:
     # E2: time-based one-shot via chat ("1 minute later")
     set_state("input_boolean.tv", "off")  # tv off so the time trigger is observable
     call_service("llm_smart_assistant", "process_input",
-                 {"text": "一分钟后打开电视", "entry_id": ENTRY_ID})
+                 {"text": "一分钟后打开电视", "entry_id": _entry_id()})
     time.sleep(10)  # brief wait for LLM to create the automation
     # find time-based automation
     time_autos = [a for a in get_automations()

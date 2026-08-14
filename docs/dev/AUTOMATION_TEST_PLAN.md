@@ -6,9 +6,9 @@
 ## 测试环境
 
 - HA: `http://localhost:8123`（Docker `hass-dev`）
-- 存储: `config/.storage/llm_smart_assistant.storage`
+- 存储: `config/.storage/llm_smart_assistant.storage_{entry_id}`（per-instance）
 - 虚拟设备: `input_boolean.*` / `input_number.*` / `input_select.*` / template sensors
-- 集成 entry_id: `01KXX9DBV1H7TWJKW8NGPVVBT8`
+- 集成 entry_id: `GET /api/config/config_entries/entry/llm_smart_assistant` 获取（或看 `.storage/` 下文件名后缀）
 - 测试前: 清空 `automations`（存储 JSON 的 `data.automations = []`）+ 重启
 
 ## 测试工具

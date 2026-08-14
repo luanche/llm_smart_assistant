@@ -123,9 +123,10 @@ curl -s -X POST "http://localhost:8123/api/config/config_entries/options/flow/$F
 curl -s "http://localhost:8123/api/config/config_entries/entry" \
   -H "Authorization: Bearer $TOKEN"
 
-# Filter by domain
-curl -s "http://localhost:8123/api/config/config_entries/entry/llm_smart_assistant" \
-  -H "Authorization: Bearer $TOKEN"
+# Filter by domain (the /entry/<domain> suffix is NOT a valid endpoint; filter client-side)
+curl -s "http://localhost:8123/api/config/config_entries/entry" \
+  -H "Authorization: Bearer $TOKEN" | \
+  python3 -c "import sys,json;[print(e['entry_id'],e['title']) for e in json.load(sys.stdin) if e.get('domain')=='llm_smart_assistant']"
 ```
 
 ## HA Logs
