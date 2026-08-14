@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.10.3
+
+- fix: duplicate reply in AI Chat panel
+- feat: configurable suggestions refresh TTL + reasoning history logs
+- fix: scroll chat history to bottom on initial load
+
+
 ## v1.10.2
 
 - fix: move disable_thinking label to options.step.init.data (hassfest validation)
