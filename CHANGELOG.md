@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.10.2
+
+- fix: move disable_thinking label to options.step.init.data (hassfest validation)
+- perf: speed up LLM reasoning ~50% (skip confirmation rounds, disable thinking, fix data-field bug)
+- docs: sync stale paths/architecture with v1.10 codebase
+- docs: update TASKS.md with actual release versions (v1.5.0-v1.10.1)
+
+
 ## v1.10.1
 
 - fix: add brand/icon.png at repo root so HACS store shows the icon
