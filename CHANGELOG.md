@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.10.6
+
+- fix: treat whitespace-only LLM responses as empty (retry, not JSON parse error)
+
+
 ## v1.10.5
 
 - fix: robust LLM JSON parsing + wider timeout for intermittent live errors
