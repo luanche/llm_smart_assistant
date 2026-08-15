@@ -152,7 +152,21 @@ class LLMDebugRawSensor(SensorEntity):
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
-        """Return full raw JSON and the prompt that was sent."""
+        """Return full raw JSON and the prompt that was sent.
+
+        Truncated so the whole attribute set stays under HA's 16384-byte
+        recorder limit (otherwise attributes are silently not stored in
+        history). The full prompt can exceed that because the system prompt
+        embeds the whole exposed-entities list.
+        """
+        # Keep the total attribute payload safely under 16 KiB
+        max_raw = 8000
+        max_prompt = 7000
+
+        raw = self.coordinator.last_response_raw or ""
+        if len(raw) > max_raw:
+            raw = raw[:max_raw] + f"\n...[truncated, {len(raw) - max_raw} chars omitted]"
+
         prompt_msgs = self.coordinator.last_prompt_messages
         prompt_preview = ""
         if prompt_msgs:
@@ -161,8 +175,10 @@ class LLMDebugRawSensor(SensorEntity):
             user_msg = next((m["content"] for m in prompt_msgs if m["role"] == "user"), "")
             msg_count = len(prompt_msgs)
             prompt_preview = f"[{msg_count} messages]\n--- SYSTEM ---\n{sys_msg}\n--- USER ---\n{user_msg}"
+            if len(prompt_preview) > max_prompt:
+                prompt_preview = prompt_preview[:max_prompt] + f"\n...[truncated, {len(prompt_preview) - max_prompt} chars omitted]"
         return {
-            "raw": self.coordinator.last_response_raw,
+            "raw": raw,
             "prompt": prompt_preview,
             "in_progress": self.coordinator.in_progress,
             "round": self.coordinator.current_round,
