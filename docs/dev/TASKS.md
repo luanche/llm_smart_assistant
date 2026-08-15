@@ -222,6 +222,23 @@
   2. 单次 API 超时 60s → 90s（DeepSeek 高峰偶发慢）
   3. JSON 失败 raw 日志 500 → 1500 字符便于诊断
 - **验证**: 单元测试 12/12（标准/代码块/散文/尾逗号/嵌套/多余括号/字符串内花括号/非 JSON 拒绝）；HA 重启后端到端对话正常
+- **状态**: ✅ 完成（v1.10.5，PR #31）
+
+### live 偶发失败根因定位：`thinking` 参数导致零宽空格响应（压力测试定位）
+- **现象**: 修复 JSON 解析后仍有 `Raw:` 空白的 `JSON parse failed`——content 为**零宽空格（\u200b）/不可见字符**（`str.strip()` 不去除，isspace()=False）；另见 `Empty content` 高频重试
+- **定位过程**（本地 25 轮×多轮压力测试对照）：
+  - R1/R2/R3（json_object + `thinking:{type:disabled}`）: 失败 32-44%，65 次不可见字符重试
+  - R5（去掉两者）: 失败 4%，但 **56% 返回纯文本不执行动作** ❌（response_format 必须保留）
+  - **R6（仅 json_object，不发送 thinking）: 25/25 成功、0 失败、动作执行正常 ✅**
+  - 裸调 DeepSeek API 16 次（4 种参数组合）全部正常——短 prompt 无问题，问题只在长 system prompt × thinking 参数组合
+- **根因**: deepseek-v4-flash 对非标准 `thinking` 参数 + 超长 HA prompt 组合偶发返回零宽空格
+- **修复**（正式版）:
+  1. **payload 不再发送 `thinking` 参数**（两处请求：chat/raw）；`disable_thinking` 配置彻底移除（config_flow/translations/const/coordinator，已存 entry 残留字段无害）
+  2. `_has_visible()` 不可见字符识别（\u200b/BOM/Cf 类 → Empty content 重试路径）
+  3. 非 JSON 纯文本 prose 降级（无 `{`/`[` → 直接作 tts_text，不静默失败）
+  4. 重试 3→5 次尝试（快速失败 1/2/4/8s 退避）；重试时追加 system 提示 + temperature 微调（打破模型卡死循环）
+- **验证**: 最终版 25/25 成功、0 失败、0 prose 降级、设备类动作 7/7 执行、平均 ~4.4s
+- **A/B 确认实验（排除时段巧合）**: 同一深夜连续时段（相隔 5 分钟、同样 25 个问题）——R6 无 thinking 参数 0/25 失败；R7 加回 thinking 参数 16/25 失败（64%）、88 次空白重试、耗时 375s（vs 153s）。thinking 参数确认为唯一变量 ✅
 - **状态**: ✅ 完成（待发）
 
 | 顺序 | Task | 理由 |

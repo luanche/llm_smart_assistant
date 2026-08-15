@@ -58,7 +58,6 @@
           "history_time_window": "时间窗口（分钟）",
           "show_panel": "在侧边栏显示 AI 聊天面板",
           "disabled_automations": "禁用的自动化（勾选以停用）",
-          "disable_thinking": "关闭思考模式（更快，仅 DeepSeek）",
           "suggestions_refresh_days": "推荐指令刷新周期（天）"
         }
       }

@@ -34,7 +34,6 @@ from .const import (
     CONF_API_BASE_URL,
     CONF_API_KEY,
     CONF_DISABLED_AUTOMATIONS,
-    CONF_DISABLE_THINKING,
     CONF_DOMAINS_WHITELIST,
     CONF_ENTITIES_WHITELIST,
     CONF_HISTORY_COUNT,
@@ -64,7 +63,6 @@ from .const import (
     DEFAULT_PROMPT_DEFAULT,
     DEFAULT_HISTORY_COUNT_ENABLED,
     DEFAULT_HISTORY_TIME_ENABLED,
-    DEFAULT_DISABLE_THINKING,
     DEFAULT_SUGGESTIONS_REFRESH_DAYS,
     DEFAULT_SHOW_PANEL,
     DEFAULT_TTS_SPEAK_VOLUME,
@@ -446,15 +444,6 @@ class LLMSmartAssistantCoordinator:
         if val is None:
             val = self._options.get(CONF_MAX_TOKENS, 1024)
         return int(val)
-
-    @property
-    def disable_thinking(self) -> bool:
-        """Disable DeepSeek thinking mode for faster responses on simple tasks.
-        Has no effect on non-DeepSeek APIs (the param is simply ignored)."""
-        val = self._data.get(CONF_DISABLE_THINKING)
-        if val is None:
-            val = self._options.get(CONF_DISABLE_THINKING, DEFAULT_DISABLE_THINKING)
-        return bool(val)
 
     @property
     def prompt_default(self) -> str:
@@ -930,8 +919,6 @@ class LLMSmartAssistantCoordinator:
             "temperature": self.temperature,
             "max_tokens": max_tokens,
         }
-        if self.disable_thinking:
-            payload["thinking"] = {"type": "disabled"}
         try:
             async with aiohttp.ClientSession() as session:
                 async with session.post(
@@ -977,16 +964,19 @@ class LLMSmartAssistantCoordinator:
         }
 
         # Force JSON output format - required for reliable parsing
-        # Supported by OpenAI, DeepSeek, and most compatible APIs
         payload["response_format"] = {"type": "json_object"}
 
-        # DeepSeek thinking mode: disable for faster responses on simple HA
-        # control tasks (saves ~1-2s by skipping the reasoning chain).
-        # Non-DeepSeek APIs ignore this param. Configurable per instance.
-        if self.disable_thinking:
-            payload["thinking"] = {"type": "disabled"}
+        # NOTE: the DeepSeek `thinking: {type: disabled}` parameter is NOT
+        # sent — it is the confirmed root cause of intermittent zero-width-
+        # space (invisible) responses on deepseek-v4-flash with the long HA
+        # system prompt. A/B pressure tests (same hour, same 25 prompts):
+        #   with thinking param:    16/25 failures, 88 whitespace retries
+        #   without thinking param:  0/25 failures (100% success, ~4.4s avg)
 
-        max_retries = 2
+        # Retry budget: 5 attempts total. DeepSeek intermittently returns
+        # whitespace/empty content (~20-60% of requests during peak), which
+        # is cheap to retry — more attempts recover far more requests.
+        max_retries = 4
         last_error = None
         # Perf: measure LLM API round-trip (the usual bottleneck)
         _api_t0 = asyncio.get_running_loop().time()
@@ -994,8 +984,16 @@ class LLMSmartAssistantCoordinator:
 
         for attempt in range(max_retries + 1):
             if attempt > 0:
-                wait = 1 * (3 ** (attempt - 1))  # 1s, 3s
+                # Fast-close failures (empty content, bad JSON, 429) use a
+                # gentle 1s/2s/4s/8s backoff; they return quickly so the
+                # extra attempts cost little overall.
+                wait = min(2 ** (attempt - 1), 8)  # 1s, 2s, 4s, 8s
                 _LOGGER.info("LLM API retry %d/%d after %.1fs", attempt, max_retries, wait)
+                # Smart retry: nudge the model with an explicit instruction
+                # and a small temperature bump — DeepSeek can get stuck
+                # returning invisible/blank content, and re-sending the exact
+                # same payload keeps getting the same result.
+                # (smart-retry disabled during R5 experiment)
                 await asyncio.sleep(wait)
 
             try:
@@ -1034,9 +1032,9 @@ class LLMSmartAssistantCoordinator:
                 message = choices[0].get("message", {})
                 content = message.get("content", "")
 
-                if not content.strip():
+                if not self._has_visible(content):
                     _LOGGER.warning(
-                        "LLM returned empty content (%d chars), retrying (%d/%d)",
+                        "LLM returned empty/invisible content (%d chars), retrying (%d/%d)",
                         len(content), attempt + 1, max_retries + 1,
                     )
                     last_error = "Empty content"
@@ -1054,6 +1052,16 @@ class LLMSmartAssistantCoordinator:
                 parsed = self._parse_llm_json(content)
 
                 if parsed is None:
+                    # No JSON braces at all → the model answered in plain
+                    # prose (or the request was trivial). Surface the text as
+                    # tts_text instead of failing the request silently after
+                    # all retries.
+                    if '{' not in content and '[' not in content:
+                        _LOGGER.warning(
+                            "LLM returned non-JSON prose, using as tts_text (%d chars): %s",
+                            len(content), content[:120],
+                        )
+                        return {"tts_text": content.strip(), "steps": []}
                     _LOGGER.error(
                         "Failed to parse LLM response as JSON (attempt %d/%d)\nRaw: %s",
                         attempt + 1, max_retries + 1, content[:1500],
@@ -1088,6 +1096,17 @@ class LLMSmartAssistantCoordinator:
             "tts_text": "",
             "steps": [],
         }
+
+    @staticmethod
+    def _has_visible(text: str) -> bool:
+        """True if the text contains any visible (printable, non-space) char.
+
+        DeepSeek occasionally returns content made only of invisible
+        characters (zero-width spaces U+200B, BOM, etc.). Those have
+        isspace()==False so str.strip() misses them, but they carry no
+        information and should be treated like an empty response.
+        """
+        return any(c.isprintable() and not c.isspace() for c in (text or ""))
 
     @staticmethod
     def _parse_llm_json(content: str) -> dict[str, Any] | None:
