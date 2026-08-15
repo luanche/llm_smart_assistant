@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.10.5
+
+- fix: robust LLM JSON parsing + wider timeout for intermittent live errors
+
+
 ## v1.10.4
 
 - fix: automation trigger replies in the language the user spoke when creating it
