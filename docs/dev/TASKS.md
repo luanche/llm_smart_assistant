@@ -215,6 +215,15 @@
 - **修复**: 从 integration 内 512px PNG 缩放生成根目录 `brand/icon.png`（128×128）+ `icon@2x.png`（256）+ `logo.png`（256）+ `logo@2x.png`（512）
 - **状态**: ✅ 完成（v1.10.1，PR #26）
 
+### live 偶发错误修复：LLM JSON 解析健壮化 + 超时放宽
+- **现象**: live 环境偶现 `LLM API request failed after 2 retries: JSON parse failed` / `Timeout, attempt 3`（coordinator.py:1066/1094）
+- **修复**:
+  1. 新增 `_parse_llm_json()` 静态方法——markdown 代码块剥离（```json）、括号平衡扫描提取最外层对象（正确处理字符串内花括号/尾部多余闭合括号）、尾逗号修复（`,`→`]`/`}`）后重试；原实现仅 `{`~`}` 扫描，对前导/后置散文、代码块、尾逗号全部失败
+  2. 单次 API 超时 60s → 90s（DeepSeek 高峰偶发慢）
+  3. JSON 失败 raw 日志 500 → 1500 字符便于诊断
+- **验证**: 单元测试 12/12（标准/代码块/散文/尾逗号/嵌套/多余括号/字符串内花括号/非 JSON 拒绝）；HA 重启后端到端对话正常
+- **状态**: ✅ 完成（待发）
+
 | 顺序 | Task | 理由 |
 |------|------|------|
 | — | 全部任务已完成 | — |

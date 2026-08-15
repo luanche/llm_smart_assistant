@@ -9,6 +9,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import re
 import uuid
 from datetime import datetime, timedelta
 from typing import Any
@@ -1003,7 +1004,7 @@ class LLMSmartAssistantCoordinator:
                         url,
                         headers=headers,
                         json=payload,
-                        timeout=aiohttp.ClientTimeout(total=60),
+                        timeout=aiohttp.ClientTimeout(total=90),
                     ) as resp:
                         if resp.status == 429:
                             last_error = f"Rate limited (429), attempt {attempt + 1}"
@@ -1047,25 +1048,12 @@ class LLMSmartAssistantCoordinator:
                 )
 
                 # Try to parse as JSON (handle extra text after JSON)
-                parsed = None
-                content_stripped = content.strip()
-                # First try direct parse
-                try:
-                    parsed = json.loads(content_stripped)
-                except json.JSONDecodeError:
-                    # Try to find JSON object by scanning for first { and last }
-                    start = content_stripped.find('{')
-                    end = content_stripped.rfind('}')
-                    if start != -1 and end != -1 and end > start:
-                        try:
-                            parsed = json.loads(content_stripped[start:end+1])
-                        except json.JSONDecodeError:
-                            pass
+                parsed = self._parse_llm_json(content)
 
                 if parsed is None:
                     _LOGGER.error(
                         "Failed to parse LLM response as JSON (attempt %d/%d)\nRaw: %s",
-                        attempt + 1, max_retries + 1, content[:500],
+                        attempt + 1, max_retries + 1, content[:1500],
                     )
                     last_error = "JSON parse failed"
                     continue
@@ -1097,6 +1085,73 @@ class LLMSmartAssistantCoordinator:
             "tts_text": "",
             "steps": [],
         }
+
+    @staticmethod
+    def _parse_llm_json(content: str) -> dict[str, Any] | None:
+        """Robustly parse an LLM JSON response.
+
+        LLMs occasionally wrap JSON in markdown code fences, prepend/append
+        prose, or emit trailing commas. This recovers from all of those:
+        1. strip ```json ... ``` fences
+        2. extract the outermost {...} object
+        3. direct json.loads
+        4. fix trailing commas and retry
+        Returns the parsed dict, or None if nothing parseable was found.
+        """
+        if not content or not content.strip():
+            return None
+        text = content.strip()
+        # 1. Markdown code fences (```json ... ``` or ``` ... ```)
+        fence = re.search(r"```(?:json)?\s*(.*?)```", text, re.S)
+        if fence:
+            text = fence.group(1).strip()
+        # 2. Extract the outermost {...} object with brace matching (ignores
+        #    braces inside strings, stops at the matching close), so trailing
+        #    stray braces after the object don't break the parse
+        start = text.find('{')
+        if start == -1:
+            return None
+        depth = 0
+        in_str = False
+        esc = False
+        for i in range(start, len(text)):
+            c = text[i]
+            if in_str:
+                if esc:
+                    esc = False
+                elif c == '\\':
+                    esc = True
+                elif c == '"':
+                    in_str = False
+                continue
+            if c == '"':
+                in_str = True
+            elif c == '{':
+                depth += 1
+            elif c == '}':
+                depth -= 1
+                if depth == 0:
+                    text = text[start:i + 1]
+                    break
+        if not text.startswith('{'):
+            return None
+        # 3. Direct parse
+        try:
+            parsed = json.loads(text)
+        except json.JSONDecodeError:
+            parsed = None
+        if parsed is None:
+            # 4. Trailing commas are the most common LLM JSON mistake: fix
+            #    ",]" / ",}" before retrying
+            fixed = re.sub(r",\s*([}\]])", r"\1", text)
+            if fixed != text:
+                try:
+                    parsed = json.loads(fixed)
+                except json.JSONDecodeError:
+                    parsed = None
+        if isinstance(parsed, dict):
+            return parsed
+        return None
 
     # ------------------------------------------------------------------
     # Conversation history management
