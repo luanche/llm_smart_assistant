@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.10.8
+
+- fix: truncate llm_debug_raw attributes to stay under HA's 16KB recorder limit
+
+
 ## v1.10.7
 
 - fix: remove disable_thinking config; thinking param was root cause of blank LLM responses
