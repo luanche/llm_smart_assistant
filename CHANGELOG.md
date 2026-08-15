@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.10.7
+
+- fix: remove disable_thinking config; thinking param was root cause of blank LLM responses
+
+
 ## v1.10.6
 
 - fix: treat whitespace-only LLM responses as empty (retry, not JSON parse error)
