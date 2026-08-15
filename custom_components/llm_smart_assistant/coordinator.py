@@ -1034,8 +1034,11 @@ class LLMSmartAssistantCoordinator:
                 message = choices[0].get("message", {})
                 content = message.get("content", "")
 
-                if not content:
-                    _LOGGER.warning("LLM returned empty content, retrying (%d/%d)", attempt + 1, max_retries + 1)
+                if not content.strip():
+                    _LOGGER.warning(
+                        "LLM returned empty content (%d chars), retrying (%d/%d)",
+                        len(content), attempt + 1, max_retries + 1,
+                    )
                     last_error = "Empty content"
                     continue
 
