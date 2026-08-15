@@ -241,6 +241,13 @@
 - **A/B 确认实验（排除时段巧合）**: 同一深夜连续时段（相隔 5 分钟、同样 25 个问题）——R6 无 thinking 参数 0/25 失败；R7 加回 thinking 参数 16/25 失败（64%）、88 次空白重试、耗时 375s（vs 153s）。thinking 参数确认为唯一变量 ✅
 - **状态**: ✅ 完成（待发）
 
+### sensor.llm_debug_raw 属性超 16KB 警告修复
+- **现象**: HA 日志警告 `State attributes for sensor.llm_debug_raw exceed maximum size of 16384 bytes... Attributes will not be stored`
+- **原因**: `extra_state_attributes.prompt` 含完整 system prompt（内嵌全部实体列表），动辄几十 KB
+- **影响**: 仅历史数据库不存该 sensor 属性；实时读取/面板/复制功能正常（用前端内存变量）
+- **修复**: raw 截断 8000 / prompt 截断 7000 字符，均带 `...[truncated, N chars omitted]` 标记；属性总大小实测 8270 bytes < 16384
+- **状态**: ✅ 完成（待发）
+
 | 顺序 | Task | 理由 |
 |------|------|------|
 | — | 全部任务已完成 | — |
