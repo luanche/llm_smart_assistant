@@ -2632,11 +2632,11 @@ function triggerLabel(trig) {
       return '<code>time</code> <span>' + escapeHtml(trig.datetime || trig.time || '') + '</span>';
     }
     if (sched === 'weekly') {
-      const wd = (trig.weekdays || []).map(w => WEEKDAY_NAMES[w - 1] || w).join('、');
+      const wd = (trig.weekdays || []).map(w => WEEKDAY_NAMES[w - 1] || escapeHtml(String(w))).join('、');
       return '<code>time</code> <span>' + t('everyWeek') + (wd || t('everyDay')) + ' ' + escapeHtml(trig.time || '') + '</span>';
     }
     if (sched === 'monthly') {
-      const d = (trig.days_of_month || []).join('、');
+      const d = (trig.days_of_month || []).map(d => escapeHtml(String(d))).join('、');
       return '<code>time</code> <span>' + t('everyMonth') + escapeHtml(d) + t('daySuffix') + ' ' + escapeHtml(trig.time || '') + '</span>';
     }
     return '<code>time</code> <span>' + t('everyDay') + ' ' + escapeHtml(trig.time || '') + '</span>';
@@ -2672,12 +2672,14 @@ async function refreshAutomations() {
       const expr = a.expression || '';
       let trigHtml;
       if (expr) {
-        // Expression display: replace indexes with trigger labels
-        trigHtml = expr.replace(/\b(\d+)\b/g, (m) => {
+        // Expression display: escape first, then replace logical operators.
+        // This prevents prompt injection from smuggling HTML/script into the
+        // card (the expr is persisted verbatim from LLM output).
+        trigHtml = escapeHtml(expr).replace(/(\d+)/g, (m) => {
           const idx = parseInt(m, 10);
           return triggers[idx] ? triggerLabel(triggers[idx]) : m;
-        }).replace(/\band\b/gi, '<b style="color:var(--accent);">AND</b>')
-          .replace(/\bor\b/gi, '<b style="color:var(--accent);">OR</b>');
+        }).replace(/and/gi, '<b style="color:var(--accent);">AND</b>')
+          .replace(/or/gi, '<b style="color:var(--accent);">OR</b>');
       } else {
         trigHtml = triggers.map(triggerLabel).join(logic === 'AND' ? ' <b style="color:var(--accent);">&amp;</b> ' : ' <b style="color:var(--accent);">|</b> ');
       }

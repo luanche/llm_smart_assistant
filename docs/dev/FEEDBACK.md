@@ -1,11 +1,14 @@
 # HACS Review 反馈 — 待修复问题清单
 
 > 来源：HACS 审核反馈（PR #30），2026-08-14
-> 状态：⏳ 待修复 | 优先级：🔴 严重 / 🟠 中 / 🟡 低
+> 状态：⏳ 部分完成（S1/S2/S3 已修复 v1.10.9，S5/S6/S7 已修复 v1.10.10）
 
 ---
 
 ## 🔴 S1: ChatPanelView 暴露长期访问令牌
+
+### 状态
+✅ 已修复（v1.10.9，PR #35）
 
 ### 问题
 `ChatPanelView` 注册于 `/api/llm_smart_assistant/chat_panel`，设置 `requires_auth = False`，在 `get` 处理器中将用户的长期访问令牌（`access_token` 配置项）直接注入到 HTML 中：
@@ -31,12 +34,19 @@ class ChatPanelView(HomeAssistantView):
 ### 评估
 ✅ **按审核意见修。** 改动小且安全，不影响功能。
 
+**实际方案**：改用 srcdoc 方式——`chat.js` 先通过 `fetch()` 带 token 获取 HTML，再通过 `srcdoc` 传给 iframe。这样 `chat_panel` 可以加认证，而侧边栏面板因为有 token 上下文能正常加载。
+
 ### 涉及文件
 - `custom_components/llm_smart_assistant/__init__.py`（ChatPanelView）
+- `custom_components/llm_smart_assistant/panel/chat.js`（srcdoc 方案）
+- `custom_components/llm_smart_assistant/panel/index.html`（删除 token 发现通道）
 
 ---
 
 ## 🔴 S2: 其他三个 View 也无认证
+
+### 状态
+✅ 已修复（v1.10.9，PR #35）
 
 ### 问题
 | View | URL | 风险 |
@@ -49,7 +59,7 @@ class ChatPanelView(HomeAssistantView):
 三个 View 都删除 `requires_auth = False`，使用默认的 `True`。
 
 ### 评估
-✅ **按审核意见修。** 简单直接。
+✅ **按审核意见修。** `ChatSuggestionsView` 和 `ChatHistoryView` 删除了 `requires_auth = False`。`ChatJSView` 保留无认证——HA 的 `panel_custom` 通过 `import()` 加载模块 URL，不会发送 `Authorization: Bearer` 头，而 HA 的 `/api/` 端点只接受 Bearer token 认证。`chat.js` 本身不含敏感数据。
 
 ### 涉及文件
 - `custom_components/llm_smart_assistant/__init__.py`（ChatSuggestionsView、ChatHistoryView、ChatJSView）
@@ -57,6 +67,9 @@ class ChatPanelView(HomeAssistantView):
 ---
 
 ## 🔴 S3: 令牌通过 URL 参数传递 + PostMessage 通配符 origin
+
+### 状态
+✅ 已修复（v1.10.9，PR #35）
 
 ### 问题
 ```javascript
@@ -72,10 +85,11 @@ event.source.postMessage({ type: '__llm_auth_token__', ... }, '*');  // 通配�
 删除 `?auth_token=` 参数传递方式，将 `postMessage` 的 `'*'` 改为明确的目标 origin。
 
 ### 评估
-✅ **按审核意见修。** 改动小，安全提升明显。
+✅ **按审核意见修。** 删除 `?auth_token=` URL 参数，`postMessage` 的 `'*'` 改为 `window.location.origin`。
 
 ### 涉及文件
 - `custom_components/llm_smart_assistant/panel/chat.js`
+- `custom_components/llm_smart_assistant/panel/index.html`
 
 ---
 
@@ -206,21 +220,21 @@ if allowed_entities:
 
 ## 修复优先级与方案总结
 
-| 序号 | 问题 | 优先级 | 方案 | 文件数 | 预估改动量 |
-|------|------|--------|------|--------|-----------|
-| 1 | S1 ChatPanelView 令牌泄露 | 🔴 | 按审核意见 | 1 | ~5 行 |
-| 2 | S2 其他三个 View 无认证 | 🔴 | 按审核意见 | 1 | ~3 行 |
-| 3 | S3 URL 令牌 + PostMessage 通配符 | 🔴 | 按审核意见 | 1 | ~5 行 |
-| 4 | S5 白名单绕过 | 🟠 | 按审核意见，精确定义拦截条件 | 1 | ~5 行 |
-| 5 | S7 innerHTML 注入 | 🟠 | **双重防护**：后端校验 + 前端转义 | 2 | ~30 行 |
-| 6 | S6 卸载不清理 sensor | 🟠 | 按审核意见 | 1 | ~2 行 |
-| 7 | S4 HA 最低版本 | 🟡 | 按审核意见 | 1 | ~1 行 |
-| 8 | S8 多实例服务覆盖 | 🟡 | 按审核意见，全局注册 + entry_id 路由 | 1 | ~80 行 |
+| 序号 | 问题 | 优先级 | 方案 | 文件数 | 预估改动量 | 状态 |
+|------|------|--------|------|--------|-----------|------|
+| 1 | S1 ChatPanelView 令牌泄露 | 🔴 | 按审核意见 | 1 | ~5 行 | ✅ v1.10.9 |
+| 2 | S2 其他三个 View 无认证 | 🔴 | 按审核意见 | 1 | ~3 行 | ✅ v1.10.9 |
+| 3 | S3 URL 令牌 + PostMessage 通配符 | 🔴 | 按审核意见 | 1 | ~5 行 | ✅ v1.10.9 |
+| 4 | S5 白名单绕过 | 🟠 | 按审核意见，精确定义拦截条件 | 1 | ~5 行 | ✅ v1.10.10 |
+| 5 | S7 innerHTML 注入 | 🟠 | **双重防护**：后端校验 + 前端转义 | 3 | ~30 行 | ✅ v1.10.10 |
+| 6 | S6 卸载不清理 sensor | 🟠 | 按审核意见 | 1 | ~2 行 | ✅ v1.10.10 |
+| 7 | S4 HA 最低版本 | 🟡 | 按审核意见 | 1 | ~1 行 | ⏳ |
+| 8 | S8 多实例服务覆盖 | 🟡 | 按审核意见，全局注册 + entry_id 路由 | 1 | ~80 行 | ⏳ |
 
 ### 修复批次建议
 
-| 批次 | 问题 | 预计耗时 | 说明 |
-|------|------|---------|------|
-| **第一批** | S1 + S2 + S3 | ~10 分钟 | 安全漏洞，改动最小，优先上线 |
-| **第二批** | S5 + S6 + S7 | ~30 分钟 | 安全/功能缺陷，改动中等 |
-| **第三批** | S4 + S8 | ~1 小时 | S4 一行，S8 需要较大重构，可延后 |
+| 批次 | 问题 | 预计耗时 | 说明 | 状态 |
+|------|------|---------|------|------|
+| **第一批** | S1 + S2 + S3 | ~10 分钟 | 安全漏洞，改动最小，优先上线 | ✅ 已完成 |
+| **第二批** | S5 + S6 + S7 | ~30 分钟 | 安全/功能缺陷，改动中等 | ✅ 已完成 |
+| **第三批** | S4 + S8 | ~1 小时 | S4 一行，S8 需要较大重构，可延后 | ⏳ |
