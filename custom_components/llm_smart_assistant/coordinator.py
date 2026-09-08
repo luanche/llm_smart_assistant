@@ -1803,9 +1803,20 @@ class LLMSmartAssistantCoordinator:
             _LOGGER.error("create_automation: no valid triggers provided")
             return None
 
-        # Some LLMs put one_shot inside a trigger dict instead of at the top
-        # level. Hoist it to the automation and drop it from the trigger (it
-        # is automation-level semantics, not per-trigger).
+        # Validate expression: only allow digits, spaces, parentheses, and
+        # logical operators (and/or). This prevents prompt injection from
+        # smuggling HTML/script into the automation card display.
+        if expression:
+            sanitized = re.sub(r'[^0-9\s()andorANDOR]', '', expression)
+            if sanitized != expression:
+                _LOGGER.warning(
+                    "create_automation: expression sanitized (removed %d chars): %r",
+                    len(expression) - len(sanitized), sanitized,
+                )
+                expression = sanitized
+
+        # Validate trigger fields to prevent XSS via prompt injection.
+        # weekdays: must be integers 1-7; days_of_month: integers 1-31.
         for trig in triggers:
             if trig.get("one_shot") is True:
                 one_shot = True
@@ -1813,6 +1824,14 @@ class LLMSmartAssistantCoordinator:
                 _LOGGER.debug(
                     "create_automation: hoisted one_shot from trigger to automation"
                 )
+            # Sanitize weekdays: drop out-of-range values
+            wds = trig.get("weekdays", [])
+            if isinstance(wds, list):
+                trig["weekdays"] = [w for w in wds if isinstance(w, int) and 1 <= w <= 7]
+            # Sanitize days_of_month: drop out-of-range values
+            doms = trig.get("days_of_month", [])
+            if isinstance(doms, list):
+                trig["days_of_month"] = [d for d in doms if isinstance(d, int) and 1 <= d <= 31]
 
         # Duplicate detection: the ReAct loop can make the LLM re-emit the same
         # create_automation step across rounds. Reuse the existing automation

@@ -124,7 +124,14 @@ class ServicesExecutor:
 
         # Check entity whitelist
         allowed_entities = self.coordinator.entities_whitelist
-        if allowed_entities and target:
+        if allowed_entities:
+            if not target:
+                raise StepInterceptionError(
+                    f"Entity whitelist is set but no target entity specified. "
+                    f"A call_service without a target would apply to ALL entities "
+                    f"in domain '{domain}', which is not allowed when an entity "
+                    f"whitelist is configured."
+                )
             target_entities = target.get("entity_id", [])
             if isinstance(target_entities, str):
                 target_entities = [target_entities]

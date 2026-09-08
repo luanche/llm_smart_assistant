@@ -11,6 +11,7 @@ import hashlib
 import json
 import logging
 import pathlib
+import re
 from datetime import timedelta
 from typing import Any
 
@@ -92,6 +93,9 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     coordinator = hass.data[DOMAIN].get(entry.entry_id)
     if coordinator:
         await coordinator.async_unload()
+
+    # Unload sensor platform so reloading doesn't leave zombie sensors
+    await hass.config_entries.async_forward_entry_unload(entry, Platform.SENSOR)
 
     hass.data[DOMAIN].pop(entry.entry_id, None)
 
@@ -389,6 +393,14 @@ async def _async_register_services(
                     auto.triggers = [
                         t for t in triggers if t.get("entity_id") or t.get("time")
                     ]
+                    # Sanitize trigger fields (same as async_create_automation)
+                    for t in auto.triggers:
+                        wds = t.get("weekdays", [])
+                        if isinstance(wds, list):
+                            t["weekdays"] = [w for w in wds if isinstance(w, int) and 1 <= w <= 7]
+                        doms = t.get("days_of_month", [])
+                        if isinstance(doms, list):
+                            t["days_of_month"] = [d for d in doms if isinstance(d, int) and 1 <= d <= 31]
                     needs_relisten = True
                 elif entity_id or condition:
                     # Legacy single-field update: replace the first trigger
@@ -405,7 +417,14 @@ async def _async_register_services(
                 if trigger_logic in ("and", "or"):
                     auto.trigger_logic = trigger_logic
                 if expression is not None:
-                    auto.expression = expression or ""
+                    expr = expression or ""
+                    sanitized = re.sub(r'[^0-9\s()andorANDOR]', '', expr)
+                    if sanitized != expr:
+                        _LOGGER.warning(
+                            "update_automation: expression sanitized: %r -> %r",
+                            expr, sanitized,
+                        )
+                    auto.expression = sanitized
                 if one_shot is not None:
                     auto.one_shot = bool(one_shot)
                 
