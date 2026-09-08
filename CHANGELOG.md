@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.10.10
+
+- fix: batch 2 security fixes — whitelist bypass, sensor unload, innerHTML sanitization
+
+
 ## v1.10.9
 
 - fix: security auth review — require auth on all sensitive endpoints
