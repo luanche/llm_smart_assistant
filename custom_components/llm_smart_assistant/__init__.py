@@ -521,7 +521,7 @@ async def _async_register_chat_panel(
                         er = async_get_entity_registry(hass)
                         instances = []
                         for eid, coord in hass.data.get(DOMAIN, {}).items():
-                            if not hasattr(coord, 'access_token'):
+                            if not hasattr(coord, 'title'):
                                 continue
                             last_resp = er.async_get_entity_id("sensor", DOMAIN, f"{eid}_last_response")
                             debug_raw = er.async_get_entity_id("sensor", DOMAIN, f"{eid}_debug_raw")
@@ -700,7 +700,7 @@ async def _async_register_chat_panel(
                             coordinator = hass.data[DOMAIN][entry_id]
                         else:
                             for eid, coord in hass.data.get(DOMAIN, {}).items():
-                                if hasattr(coord, 'access_token'):
+                                if hasattr(coord, 'title'):
                                     coordinator = coord
                                     entry_id = eid
                                     break

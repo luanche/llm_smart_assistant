@@ -21,7 +21,6 @@ from homeassistant.helpers.storage import Store
 from homeassistant.util import dt as dt_util
 
 from .const import (
-    CONF_ACCESS_TOKEN,
     ACTION_CALL_SERVICE,
     ACTION_CREATE_AUTOMATION,
     ACTION_GET_STATES,
@@ -518,11 +517,6 @@ class LLMSmartAssistantCoordinator:
     @property
     def tts_custom_template(self) -> str:
         return self._options.get(CONF_TTS_CUSTOM_TEMPLATE, "")
-
-    @property
-    def access_token(self) -> str:
-        """Long-lived access token for AI Chat panel API calls."""
-        return self._options.get(CONF_ACCESS_TOKEN) or self._data.get(CONF_ACCESS_TOKEN, "")
 
     @property
     def domains_whitelist(self) -> list[str]:
