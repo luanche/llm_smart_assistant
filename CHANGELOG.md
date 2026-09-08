@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.10.11
+
+- fix: batch 3 — bump HA version, make services multi-instance safe
+
+
 ## v1.10.10
 
 - fix: batch 2 security fixes — whitelist bypass, sensor unload, innerHTML sanitization
