@@ -499,22 +499,12 @@ async def _async_register_chat_panel(
                 """Serve the AI Chat panel HTML."""
                 url = "/api/llm_smart_assistant/chat_panel"
                 name = "api:llm_smart_assistant:chat_panel"
-                requires_auth = False
 
                 async def get(self, request):
                     # Read fresh on each request so edits take effect without restart
                     current_html = await hass.async_add_executor_job(
                         lambda: html_path.read_text(encoding="utf-8")
                     )
-                    # Inject configured access token (if any) into the HTML
-                    access_token = ""
-                    for coord in hass.data.get(DOMAIN, {}).values():
-                        if hasattr(coord, 'access_token') and coord.access_token:
-                            access_token = coord.access_token
-                            break
-                    if access_token:
-                        script = f'<script>window.CONFIGURED_ACCESS_TOKEN={json.dumps(access_token)};</script>'
-                        current_html = current_html.replace("</head>", script + "</head>")
                     # Inject per-instance info: title + sensor entity_ids so the
                     # panel can subscribe to the right sensors for multi-instance setups
                     try:
@@ -555,7 +545,16 @@ async def _async_register_chat_panel(
             try:
                 # Need to also register the JS file endpoint
                 class ChatJSView(HomeAssistantView):
-                    """Serve the AI Chat panel JavaScript."""
+                    """Serve the AI Chat panel JavaScript.
+
+                    NOTE: must remain unauthenticated. HA's panel_custom loads this via
+                    import() (JavaScript module import), which sends cookies but NOT
+                    Authorization: Bearer headers. HA's /api/ endpoints require Bearer
+                    token auth, not just session cookies. The JS itself contains no
+                    tokens, no API keys, and no user data — it's only the iframe
+                    loader. All sensitive endpoints (chat_panel, suggestions, history)
+                    are authenticated.
+                    """
                     url = "/api/llm_smart_assistant/chat_js"
                     name = "api:llm_smart_assistant:chat_js"
                     requires_auth = False
@@ -580,7 +579,6 @@ async def _async_register_chat_panel(
                     """Generate chat suggestions based on exposed entities."""
                     url = "/api/llm_smart_assistant/suggestions"
                     name = "api:llm_smart_assistant:suggestions"
-                    requires_auth = False
 
                     async def get(self, request):
                         entry_id = request.query.get("entry_id", "")
@@ -677,7 +675,6 @@ async def _async_register_chat_panel(
                     """Serve merged chat history for the selected instance."""
                     url = "/api/llm_smart_assistant/history"
                     name = "api:llm_smart_assistant:history"
-                    requires_auth = False
 
                     async def get(self, request):
                         entry_id = request.query.get("entry_id", "")

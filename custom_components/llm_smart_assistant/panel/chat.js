@@ -1,21 +1,42 @@
 /**
  * AI Chat Panel - LLM Smart Assistant
  * Uses fixed positioning to fill the content area next to the sidebar.
- * Passes HA auth token to the iframe via URL parameter and postMessage for resilience.
+ * Fetches the chat panel HTML with the HA auth token and loads it via srcdoc
+ * so the chat_panel endpoint can require authentication (review requirement).
  */
 class LLMChatPanel extends HTMLElement {
-  connectedCallback() {
-    // Get HA auth token
+  async connectedCallback() {
+    // Get HA auth token (window.hassConnection is a Promise in recent HA)
     let token = '';
     try {
-      const hassConn = window.hassConnection;
+      const hassConn = await window.hassConnection;
       if (hassConn && hassConn.auth && hassConn.auth.data) {
         token = hassConn.auth.data.access_token || '';
       }
     } catch(e) {}
 
-    const src = '/api/llm_smart_assistant/chat_panel' + (token ? '?auth_token=' + encodeURIComponent(token) : '');
-    this.innerHTML = '<iframe src="' + src + '" ' +
+    // Fetch the chat panel HTML with auth header
+    let htmlContent = '';
+    if (token) {
+      try {
+        const resp = await fetch('/api/llm_smart_assistant/chat_panel', {
+          headers: { 'Authorization': 'Bearer ' + token }
+        });
+        if (resp.ok) {
+          htmlContent = await resp.text();
+        } else {
+          htmlContent = '<p style="color:var(--error-color);padding:20px;">Failed to load chat panel: ' + resp.status + ' ' + resp.statusText + '</p>';
+        }
+      } catch(e) {
+        htmlContent = '<p style="color:var(--error-color);padding:20px;">Failed to load chat panel: ' + e.message + '</p>';
+      }
+    } else {
+      htmlContent = '<p style="color:var(--error-color);padding:20px;">No auth token available. Please log in to Home Assistant.</p>';
+    }
+
+    // Load via srcdoc so the chat_panel endpoint can require auth (the iframe
+    // itself cannot send Authorization headers on initial page load).
+    this.innerHTML = '<iframe srcdoc="' + htmlContent.replace(/"/g, '&quot;') + '" ' +
       'allow="microphone *" sandbox="allow-same-origin allow-scripts allow-forms allow-popups" ' +
       'style="width:100%;height:100%;border:none;display:block"></iframe>';
 
@@ -26,7 +47,7 @@ class LLMChatPanel extends HTMLElement {
         event.source.postMessage({
           type: '__llm_auth_token__',
           token: token
-        }, '*');
+        }, window.location.origin);
       }
     });
 

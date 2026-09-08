@@ -3361,24 +3361,7 @@ function applyI18n() {
 
 // Init
 (async function init() {
-  // 1. Use the configured access token (injected by ChatPanelView backend)
-  try {
-    if (window.CONFIGURED_ACCESS_TOKEN) {
-      accessToken = window.CONFIGURED_ACCESS_TOKEN;
-    }
-  } catch(e) {}
-
-  // 2. Try auth_token from URL query parameter (passed by chat.js wrapper)
-  try {
-    const params = new URLSearchParams(window.location.search);
-    const urlToken = params.get('auth_token');
-    if (!accessToken && urlToken) {
-      accessToken = urlToken;
-      window.history.replaceState({}, document.title, window.location.pathname);
-    }
-  } catch(e) {}
-  
-  // 3. Try reading token from HA session storage (same-origin, shared with parent)
+  // 1. Try reading token from HA session storage (same-origin, shared with parent)
   if (!accessToken) {
     try {
       // HA stores tokens in localStorage under 'hassTokens'
@@ -3390,10 +3373,10 @@ function applyI18n() {
     } catch(e) {}
   }
   
-  // 4. Request token from parent via postMessage (sent by chat.js)
+  // 2. Request token from parent via postMessage (sent by chat.js)
   if (!accessToken) {
     try {
-      window.parent.postMessage('__llm_auth_request__', '*');
+      window.parent.postMessage('__llm_auth_request__', window.location.origin);
       const token = await new Promise((resolve) => {
         const handler = (event) => {
           if (event.data && event.data.type === '__llm_auth_token__') {
@@ -3408,7 +3391,7 @@ function applyI18n() {
     } catch(e) {}
   }
   
-  // 5. Try token from HA websocket connection (when in main window)
+  // 3. Try token from HA websocket connection (when in main window)
   try {
     if (!accessToken) {
       const wsToken = window.hassConnection?.auth?.data?.access_token;
@@ -3416,7 +3399,7 @@ function applyI18n() {
     }
   } catch(e) {}
   
-  // 6. Try our own localStorage
+  // 4. Try our own localStorage
   try {
     if (!accessToken) {
       const stored = localStorage.getItem('llm_assistant_token');
