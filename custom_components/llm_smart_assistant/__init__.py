@@ -67,8 +67,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     hass.data.setdefault(DOMAIN, {})
     hass.data[DOMAIN][entry.entry_id] = coordinator
 
-    # Register services
-    await _async_register_services(hass, coordinator)
+    # Register services (globally, multi-instance safe)
+    _register_global_services(hass)
 
     # Register update listener for options changes
     entry.async_on_unload(entry.add_update_listener(_async_update_listener))
@@ -273,50 +273,149 @@ def _register_global_services(hass: HomeAssistant) -> None:
         )
         _LOGGER.info("Global toggle_automation service registered")
 
+    # ── Per-entry services (multi-instance safe) ──────────────────────
+    # Registered once globally with entry_id routing so they don't
+    # overwrite each other when multiple config entries are loaded.
 
-async def _async_register_services(
-    hass: HomeAssistant, coordinator: LLMSmartAssistantCoordinator
-) -> None:
-    """Register custom services for this integration."""
-    
-    _register_global_services(hass)
+    if not hass.services.has_service(DOMAIN, "create_automation"):
 
-    async def async_create_automation(call):
-        """Handle the create_automation service call."""
-        entity_id = call.data.get("entity_id", "")
-        condition = call.data.get("condition", "")
-        prompt = call.data.get("prompt", "")
-        description = call.data.get("description", "")
-        triggers = call.data.get("triggers")
-        trigger_logic = call.data.get("trigger_logic", "or")
-        one_shot = call.data.get("one_shot", False)
-        expression = call.data.get("expression", "")
+        async def async_create_automation(call):
+            entry_id = call.data.get("entry_id", "")
+            coord = _get_coordinator(hass, entry_id)
+            if not coord:
+                return
+            entity_id = call.data.get("entity_id", "")
+            condition = call.data.get("condition", "")
+            prompt = call.data.get("prompt", "")
+            description = call.data.get("description", "")
+            triggers = call.data.get("triggers")
+            trigger_logic = call.data.get("trigger_logic", "or")
+            one_shot = call.data.get("one_shot", False)
+            expression = call.data.get("expression", "")
+            if triggers or (entity_id and condition):
+                await coord.async_create_automation(
+                    entity_id=entity_id, condition=condition,
+                    prompt=prompt, description=description,
+                    triggers=triggers, trigger_logic=trigger_logic,
+                    one_shot=bool(one_shot), expression=expression,
+                )
 
-        if triggers or (entity_id and condition):
-            await coordinator.async_create_automation(
-                entity_id=entity_id,
-                condition=condition,
-                prompt=prompt,
-                description=description,
-                triggers=triggers,
-                trigger_logic=trigger_logic,
-                one_shot=bool(one_shot),
-                expression=expression,
-            )
+        hass.services.async_register(
+            DOMAIN, "create_automation", async_create_automation,
+            schema=vol.Schema({
+                vol.Optional("entity_id"): cv.string,
+                vol.Optional("condition"): cv.string,
+                vol.Optional("prompt"): cv.string,
+                vol.Optional("description"): cv.string,
+                vol.Optional("triggers"): list,
+                vol.Optional("trigger_logic"): cv.string,
+                vol.Optional("one_shot"): bool,
+                vol.Optional("expression"): cv.string,
+                vol.Optional("entry_id", default=""): cv.string,
+            }),
+        )
 
-    async def async_remove_automation(call):
-        """Handle the remove_automation service call."""
-        automation_id = call.data.get("automation_id", "")
-        if automation_id:
-            await coordinator.async_remove_automation(automation_id)
+        async def async_remove_automation(call):
+            entry_id = call.data.get("entry_id", "")
+            coord = _get_coordinator(hass, entry_id)
+            if not coord:
+                return
+            automation_id = call.data.get("automation_id", "")
+            if automation_id:
+                await coord.async_remove_automation(automation_id)
 
-    async def async_get_automations(call):
-        """Handle the get_automations service call."""
-        automations = list(coordinator._automations.values())
-        disabled_set = coordinator._disabled_automations_set
-        result = {
-            "automations": [
-                {
+        hass.services.async_register(
+            DOMAIN, "remove_automation", async_remove_automation,
+            schema=vol.Schema({
+                vol.Required("automation_id"): cv.string,
+                vol.Optional("entry_id", default=""): cv.string,
+            }),
+        )
+
+        async def async_update_automation(call):
+            automation_id = call.data.get("automation_id", "")
+            prompt = call.data.get("prompt", "")
+            description = call.data.get("description", "")
+            entity_id = call.data.get("entity_id", "")
+            condition = call.data.get("condition", "")
+            triggers = call.data.get("triggers")
+            trigger_logic = call.data.get("trigger_logic", "")
+            one_shot = call.data.get("one_shot")
+            expression = call.data.get("expression")
+            for coord in hass.data.get(DOMAIN, {}).values():
+                if automation_id in coord._automations:
+                    auto = coord._automations[automation_id]
+                    needs_relisten = False
+                    if prompt:
+                        auto.prompt = prompt
+                    if description is not None:
+                        auto.description = description
+                    if triggers is not None:
+                        auto.triggers = [t for t in triggers if t.get("entity_id") or t.get("time")]
+                        for t in auto.triggers:
+                            wds = t.get("weekdays", [])
+                            if isinstance(wds, list):
+                                t["weekdays"] = [w for w in wds if isinstance(w, int) and 1 <= w <= 7]
+                            doms = t.get("days_of_month", [])
+                            if isinstance(doms, list):
+                                t["days_of_month"] = [d for d in doms if isinstance(d, int) and 1 <= d <= 31]
+                        needs_relisten = True
+                    elif entity_id or condition:
+                        if auto.triggers:
+                            if entity_id:
+                                auto.triggers[0]["entity_id"] = entity_id
+                            if condition is not None:
+                                auto.triggers[0]["condition"] = condition
+                        else:
+                            auto.triggers = [{"entity_id": entity_id, "condition": condition}]
+                        needs_relisten = True
+                    if trigger_logic in ("and", "or"):
+                        auto.trigger_logic = trigger_logic
+                    if expression is not None:
+                        expr = expression or ""
+                        sanitized = re.sub(r'[^0-9\s()andorANDOR]', '', expr)
+                        if sanitized != expr:
+                            _LOGGER.warning("update_automation: expression sanitized: %r -> %r", expr, sanitized)
+                        auto.expression = sanitized
+                    if one_shot is not None:
+                        auto.one_shot = bool(one_shot)
+                    if needs_relisten:
+                        coord._unregister_automation_listener(automation_id)
+                        coord._register_automation_listener(auto)
+                    await coord._async_save_storage()
+                    _LOGGER.info("Updated automation '%s'", automation_id)
+                    break
+
+        hass.services.async_register(
+            DOMAIN, "update_automation", async_update_automation,
+            schema=vol.Schema({
+                vol.Required("automation_id"): cv.string,
+                vol.Optional("prompt"): cv.string,
+                vol.Optional("description"): cv.string,
+                vol.Optional("entity_id"): cv.string,
+                vol.Optional("condition"): cv.string,
+                vol.Optional("triggers"): list,
+                vol.Optional("trigger_logic"): cv.string,
+                vol.Optional("one_shot"): bool,
+                vol.Optional("expression"): cv.string,
+            }),
+        )
+
+        async def async_get_automations(call):
+            entry_id = call.data.get("entry_id", "")
+            if entry_id:
+                coords = [hass.data.get(DOMAIN, {}).get(entry_id)] if entry_id in hass.data.get(DOMAIN, {}) else []
+            else:
+                coords = list(hass.data.get(DOMAIN, {}).values())
+            all_autos = []
+            all_disabled = set()
+            for coord in coords:
+                if not coord:
+                    continue
+                all_autos.extend(coord._automations.values())
+                all_disabled.update(coord._disabled_automations_set)
+            result = {
+                "automations": [{
                     "automation_id": a.automation_id,
                     "entity_id": a.entity_id,
                     "condition": a.condition,
@@ -327,147 +426,64 @@ async def _async_register_services(
                     "prompt": a.prompt,
                     "one_shot": a.one_shot,
                     "language": a.language,
-                    "disabled": a.automation_id in disabled_set,
-                    "records": a.records[-10:],  # recent records for debug UI
+                    "disabled": a.automation_id in all_disabled,
+                    "records": a.records[-10:],
+                } for a in all_autos],
+                "count": len(all_autos),
+                "disabled_ids": list(all_disabled),
+            }
+            _LOGGER.debug("get_automations returning: %s", result)
+            return result
+
+        hass.services.async_register(
+            DOMAIN, "get_automations", async_get_automations,
+            schema=vol.Schema({
+                vol.Optional("entry_id", default=""): cv.string,
+            }),
+            supports_response=SupportsResponse.OPTIONAL,
+        )
+
+        async def async_chat(call):
+            entry_id = call.data.get("entry_id", "")
+            coord = _get_coordinator(hass, entry_id)
+            if not coord:
+                return {"error": "No coordinator found"}
+            text = call.data.get("text", "")
+            if not text:
+                return {"error": "text is required"}
+            await coord._async_process_user_input("chat_ui", text)
+            await asyncio.sleep(0.5)
+            if coord.last_response:
+                return {
+                    "tts_text": coord.last_response.get("tts_text", ""),
+                    "iterations": coord.last_response.get("iterations", 0),
                 }
-                for a in automations
-            ],
-            "count": len(automations),
-            "disabled_ids": list(disabled_set),
-        }
-        _LOGGER.debug("get_automations returning: %s", result)
-        return result
+            return {"tts_text": "", "iterations": 0}
 
-    # Register services
-    hass.services.async_register(
-        DOMAIN,
-        "create_automation",
-        async_create_automation,
-        schema=vol.Schema(
-            {
-                vol.Optional("entity_id"): cv.string,
-                vol.Optional("condition"): cv.string,
-                vol.Optional("prompt"): cv.string,
-                vol.Optional("description"): cv.string,
-                vol.Optional("triggers"): list,
-                vol.Optional("trigger_logic"): cv.string,
-                vol.Optional("one_shot"): bool,
-                vol.Optional("expression"): cv.string,
-            }
-        ),
-    )
+        hass.services.async_register(
+            DOMAIN, "chat", async_chat,
+            schema=vol.Schema({
+                vol.Required("text"): cv.string,
+                vol.Optional("entry_id", default=""): cv.string,
+            }),
+            supports_response=SupportsResponse.OPTIONAL,
+        )
 
-    hass.services.async_register(
-        DOMAIN,
-        "remove_automation",
-        async_remove_automation,
-        schema=vol.Schema(
-            {
-                vol.Required("automation_id"): cv.string,
-            }
-        ),
-    )
+        _LOGGER.debug("Registered global LLM Smart Assistant services")
 
-    async def async_update_automation(call):
-        """Update an automation's fields and re-register listener if needed."""
-        automation_id = call.data.get("automation_id", "")
-        prompt = call.data.get("prompt", "")
-        description = call.data.get("description", "")
-        entity_id = call.data.get("entity_id", "")
-        condition = call.data.get("condition", "")
-        triggers = call.data.get("triggers")
-        trigger_logic = call.data.get("trigger_logic", "")
-        one_shot = call.data.get("one_shot")
-        expression = call.data.get("expression")
-        
-        for c in hass.data.get(DOMAIN, {}).values():
-            coord = c
-            if automation_id in coord._automations:
-                auto = coord._automations[automation_id]
-                needs_relisten = False
-                if prompt:
-                    auto.prompt = prompt
-                if description is not None:
-                    auto.description = description
-                if triggers is not None:
-                    auto.triggers = [
-                        t for t in triggers if t.get("entity_id") or t.get("time")
-                    ]
-                    # Sanitize trigger fields (same as async_create_automation)
-                    for t in auto.triggers:
-                        wds = t.get("weekdays", [])
-                        if isinstance(wds, list):
-                            t["weekdays"] = [w for w in wds if isinstance(w, int) and 1 <= w <= 7]
-                        doms = t.get("days_of_month", [])
-                        if isinstance(doms, list):
-                            t["days_of_month"] = [d for d in doms if isinstance(d, int) and 1 <= d <= 31]
-                    needs_relisten = True
-                elif entity_id or condition:
-                    # Legacy single-field update: replace the first trigger
-                    if auto.triggers:
-                        if entity_id:
-                            auto.triggers[0]["entity_id"] = entity_id
-                        if condition is not None:
-                            auto.triggers[0]["condition"] = condition
-                    else:
-                        auto.triggers = [
-                            {"entity_id": entity_id, "condition": condition}
-                        ]
-                    needs_relisten = True
-                if trigger_logic in ("and", "or"):
-                    auto.trigger_logic = trigger_logic
-                if expression is not None:
-                    expr = expression or ""
-                    sanitized = re.sub(r'[^0-9\s()andorANDOR]', '', expr)
-                    if sanitized != expr:
-                        _LOGGER.warning(
-                            "update_automation: expression sanitized: %r -> %r",
-                            expr, sanitized,
-                        )
-                    auto.expression = sanitized
-                if one_shot is not None:
-                    auto.one_shot = bool(one_shot)
-                
-                if needs_relisten:
-                    coord._unregister_automation_listener(automation_id)
-                    coord._register_automation_listener(auto)
-                    _LOGGER.info(
-                        "Re-registered listener for automation '%s' -> %d triggers (expr=%s)",
-                        automation_id, len(auto.triggers), auto.expression or auto.trigger_logic,
-                    )
-                
-                await coord._async_save_storage()
-                _LOGGER.info("Updated automation '%s'", automation_id)
-                break
-    
-    hass.services.async_register(
-        DOMAIN,
-        "update_automation",
-        async_update_automation,
-        schema=vol.Schema({
-            vol.Required("automation_id"): cv.string,
-            vol.Optional("prompt"): cv.string,
-            vol.Optional("description"): cv.string,
-            vol.Optional("entity_id"): cv.string,
-            vol.Optional("condition"): cv.string,
-            vol.Optional("triggers"): list,
-            vol.Optional("trigger_logic"): cv.string,
-            vol.Optional("one_shot"): bool,
-            vol.Optional("expression"): cv.string,
-        }),
-    )
 
-    # toggle_automation is registered globally (see _register_global_services)
-
-    hass.services.async_register(
-        DOMAIN,
-        "get_automations",
-        async_get_automations,
-        schema=vol.Schema({}),
-        supports_response=SupportsResponse.OPTIONAL,
-    )
-
-    _LOGGER.debug("Registered LLM Smart Assistant services")
+def _get_coordinator(hass: HomeAssistant, entry_id: str = "") -> LLMSmartAssistantCoordinator | None:
+    """Look up a coordinator by entry_id. Returns the first if empty, logs a warning if not found."""
+    if entry_id:
+        coord = hass.data.get(DOMAIN, {}).get(entry_id)
+        if not coord:
+            _LOGGER.warning("No coordinator found for entry %s", entry_id)
+        return coord
+    # Return the first available coordinator
+    for coord in hass.data.get(DOMAIN, {}).values():
+        return coord
+    _LOGGER.warning("No LLM Smart Assistant coordinators found")
+    return None
 
 
 async def _async_register_chat_panel(
@@ -477,34 +493,9 @@ async def _async_register_chat_panel(
     """Register the AI Chat panel and chat service."""
 
     # 1. Register chat service (returns the LLM response)
-    async def async_chat(call):
-        """Handle the chat service call - returns LLM response."""
-        text = call.data.get("text", "")
-        if not text:
-            return {"error": "text is required"}
-
-        # Process input and wait for response
-        await coordinator._async_process_user_input("chat_ui", text)
-
-        # Give a short moment for the response to be stored
-        await asyncio.sleep(0.5)
-
-        if coordinator.last_response:
-            return {
-                "tts_text": coordinator.last_response.get("tts_text", ""),
-                "steps": coordinator.last_response.get("steps", []),
-                "raw": coordinator.last_response_raw,
-            }
-        return {"error": "No response yet", "raw": coordinator.last_response_raw}
-
-    hass.services.async_register(
-        DOMAIN,
-        "chat",
-        async_chat,
-        schema=vol.Schema({
-            vol.Required("text"): cv.string,
-        }),
-    )
+    # Note: the chat service is now registered globally in _register_global_services
+    # with entry_id routing for multi-instance safety. The view registration
+    # below is still per-entry (ChatPanelView, ChatJSView, etc.).
 
     _LOGGER.debug("Registered LLM Smart Assistant chat service")
 
