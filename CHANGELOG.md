@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.10.9
+
+- fix: security auth review — require auth on all sensitive endpoints
+
+
 ## v1.10.8
 
 - fix: truncate llm_debug_raw attributes to stay under HA's 16KB recorder limit
