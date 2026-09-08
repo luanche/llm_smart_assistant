@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.10.12
+
+- chore: remove access_token config field (no longer needed)
+
+
 ## v1.10.11
 
 - fix: batch 3 — bump HA version, make services multi-instance safe
